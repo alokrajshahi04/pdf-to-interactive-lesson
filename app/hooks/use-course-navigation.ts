@@ -191,7 +191,7 @@ export function useCourseNavigation(initialCourse: Course) {
     showLanding,
     showModulesScreen,
     moduleIndex,
-    lessonIndex,
+    lessonIndex, // Export lessonIndex for progress tracking
     step,
     userAnswer,
     showResult,
