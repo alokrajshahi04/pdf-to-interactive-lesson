@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
-import lessonData from "@/data/lesson.json";
+import { useState, useEffect } from "react";
+import lessonData from "@/lib/lesson.json";
 import { LandingScreen } from "./components/landing-screen";
+import { Dashboard } from "./components/dashboard";
 import { ModulesScreen } from "./components/modules-screen";
 import { ModuleCompleteScreen } from "./components/module-complete-screen";
 import { LessonScreen } from "./components/lesson-screen";
@@ -12,9 +13,17 @@ import {
   useCourseNavigation,
   type Course,
 } from "./hooks/use-course-navigation";
+import {
+  getStoredCourses,
+  getCourse,
+  saveCourse,
+  updateCourseProgress,
+} from "@/lib/storage";
 
 export default function Home() {
   const [copiedJSON, setCopiedJSON] = useState(false);
+  const [currentCourseId, setCurrentCourseId] = useState<string | null>(null);
+  const [showDashboard, setShowDashboard] = useState(false);
 
   const {
     // State
@@ -22,6 +31,7 @@ export default function Home() {
     showLanding,
     showModulesScreen,
     moduleIndex,
+    lessonIndex,
     step,
     userAnswer,
     showResult,
@@ -45,6 +55,50 @@ export default function Home() {
     getButtonText,
   } = useCourseNavigation(lessonData as Course);
 
+  // Check for saved courses on mount
+  useEffect(() => {
+    const savedCourses = getStoredCourses();
+    if (savedCourses.length > 0 && !currentCourseId) {
+      setShowDashboard(true);
+    }
+  }, [currentCourseId]);
+
+  // Save progress whenever it changes
+  useEffect(() => {
+    if (currentCourseId && !showLanding && !showDashboard) {
+      const totalModules = course.modules.length;
+      const totalLessons = course.modules.reduce(
+        (sum, mod) => sum + mod.lessons.filter((l) => l.success).length,
+        0
+      );
+      const completedLessons =
+        course.modules
+          .slice(0, moduleIndex)
+          .reduce(
+            (sum, mod) => sum + mod.lessons.filter((l) => l.success).length,
+            0
+          ) + (step === "answer" ? 1 : 0);
+
+      updateCourseProgress(currentCourseId, {
+        currentModuleIndex: moduleIndex,
+        currentLessonIndex: lessonIndex,
+        completedModules,
+        totalModules,
+        totalLessons,
+        completedLessons,
+      });
+    }
+  }, [
+    currentCourseId,
+    moduleIndex,
+    lessonIndex,
+    completedModules,
+    step,
+    course,
+    showLanding,
+    showDashboard,
+  ]);
+
   const handleCopyJSON = async () => {
     try {
       await navigator.clipboard.writeText(JSON.stringify(course, null, 2));
@@ -55,12 +109,44 @@ export default function Home() {
     }
   };
 
+  const handleSelectCourse = (courseId: string) => {
+    const stored = getCourse(courseId);
+    if (!stored) return;
+
+    // Load the course
+    setCurrentCourseId(courseId);
+    handleCourseGenerated(stored.course);
+    setShowDashboard(false);
+  };
+
+  const handleUploadNew = () => {
+    setShowDashboard(false);
+    setCurrentCourseId(null);
+  };
+
+  // Override course generated to save to localStorage
+  const handleCourseGeneratedWithSave = (generatedCourse: Course) => {
+    const courseId = saveCourse(generatedCourse);
+    setCurrentCourseId(courseId);
+    handleCourseGenerated(generatedCourse);
+  };
+
+  // Show dashboard if we have saved courses
+  if (showDashboard) {
+    return (
+      <Dashboard
+        onSelectCourse={handleSelectCourse}
+        onUploadNew={handleUploadNew}
+      />
+    );
+  }
+
   // Show landing screen
   if (showLanding) {
     return (
       <LandingScreen
         onStartCourse={handleStartCourse}
-        onCourseGenerated={handleCourseGenerated}
+        onCourseGenerated={handleCourseGeneratedWithSave}
       />
     );
   }
