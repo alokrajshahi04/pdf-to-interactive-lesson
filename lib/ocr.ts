@@ -1,5 +1,21 @@
 import { zerox } from "zerox";
 import axios from "axios";
+import { existsSync, mkdirSync } from "fs";
+import path from "path";
+
+// Ensure tessdata directory exists and set TESSDATA_PREFIX
+// Tesseract requires absolute path with trailing slash
+// Use /tmp for serverless compatibility (Vercel, Netlify, etc.)
+const TESSDATA_DIR = path.join("/tmp", "tessdata") + path.sep;
+if (!existsSync(TESSDATA_DIR)) {
+  mkdirSync(TESSDATA_DIR, { recursive: true });
+}
+// Set environment variable so Tesseract uses our dedicated directory
+// Must be set before any Tesseract initialization
+if (!process.env.TESSDATA_PREFIX) {
+  process.env.TESSDATA_PREFIX = TESSDATA_DIR;
+  console.log(`📁 TESSDATA_PREFIX set to: ${TESSDATA_DIR}`);
+}
 
 const togetherVisionModel = async ({
   buffers,
@@ -88,6 +104,12 @@ export async function ocr(
     [key: string]: any;
   }
 ) {
+  // Ensure output directory exists
+  const outputDir = options?.outputDir || "/tmp/zerox-output";
+  if (!existsSync(outputDir)) {
+    mkdirSync(outputDir, { recursive: true });
+  }
+
   return await zerox({
     filePath,
     customModelFunction: togetherVisionModel,
@@ -98,7 +120,7 @@ export async function ocr(
     trimEdges: true,
     correctOrientation: true,
     maxRetries: 2,
-    outputDir: "./output",
+    outputDir,
     credentials: { apiKey: "not-used-but-required" },
 
     ...options,
