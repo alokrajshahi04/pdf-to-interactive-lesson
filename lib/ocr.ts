@@ -119,7 +119,7 @@ export async function ocr(
     concurrency: 10,
     cleanup: true,
     trimEdges: true,
-    correctOrientation: true,
+    correctOrientation: false,
     maxRetries: 2,
     outputDir,
     credentials: { apiKey: "not-used-but-required" },
