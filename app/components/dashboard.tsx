@@ -103,10 +103,10 @@ function Dashboard({ onSelectCourse, onUploadNew }: DashboardProps) {
                 const { currentModuleIndex, totalModules } = stored.progress;
 
                 return (
-                  <button
+                  <div
                     key={stored.id}
                     onClick={() => onSelectCourse(stored.id)}
-                    className={`relative p-6 rounded-2xl border-2 text-left transition-all hover:shadow-lg ${
+                    className={`relative p-6 rounded-2xl border-2 text-left transition-all hover:shadow-lg cursor-pointer ${
                       isComplete
                         ? "bg-green-50 border-green-200"
                         : "bg-white border-gray-200 hover:border-gray-300"
@@ -115,7 +115,7 @@ function Dashboard({ onSelectCourse, onUploadNew }: DashboardProps) {
                     {/* Delete Button */}
                     <button
                       onClick={(e) => handleDelete(stored.id, e)}
-                      className="absolute top-4 right-4 p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors"
+                      className="absolute top-4 right-4 p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors z-10"
                       title="Delete course"
                     >
                       <svg
@@ -162,7 +162,7 @@ function Dashboard({ onSelectCourse, onUploadNew }: DashboardProps) {
                       Last accessed:{" "}
                       {new Date(stored.lastAccessedAt).toLocaleDateString()}
                     </p>
-                  </button>
+                  </div>
                 );
               })}
             </div>

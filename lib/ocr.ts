@@ -2,6 +2,7 @@ import { zerox } from "zerox";
 import axios from "axios";
 import { existsSync, mkdirSync } from "fs";
 import path from "path";
+import { DEFAULT_MODEL } from "./utils/together";
 
 // Ensure tessdata directory exists and set TESSDATA_PREFIX
 // Tesseract requires absolute path with trailing slash
@@ -115,7 +116,7 @@ export async function ocr(
     customModelFunction: togetherVisionModel,
 
     maintainFormat: false,
-    concurrency: 5,
+    concurrency: 10,
     cleanup: true,
     trimEdges: true,
     correctOrientation: true,
