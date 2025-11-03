@@ -17,21 +17,24 @@ function buildCanvasWithContext(w: number, h: number) {
 /**
  * Adapter for node-canvas to work with pdfjs rendering requirements
  */
-const nodeCanvasAdapter = {
-  create: (w: number, h: number) => buildCanvasWithContext(w, h),
-  reset: (target: any, w: number, h: number) => {
-    if (target?.canvas) {
-      target.canvas.width = w;
-      target.canvas.height = h;
-    }
-  },
-  destroy: (target: any) => {
-    if (target?.canvas) {
-      target.canvas.width = 0;
-      target.canvas.height = 0;
-    }
-  },
-};
+class NodeCanvasFactory {
+  create(w: number, h: number) {
+    const { canvas, context } = buildCanvasWithContext(w, h);
+    return { canvas, context };
+  }
+
+  reset(canvasAndContext: any, w: number, h: number) {
+    if (!canvasAndContext?.canvas) return;
+    canvasAndContext.canvas.width = w;
+    canvasAndContext.canvas.height = h;
+  }
+
+  destroy(canvasAndContext: any) {
+    if (!canvasAndContext?.canvas) return;
+    canvasAndContext.canvas.width = 0;
+    canvasAndContext.canvas.height = 0;
+  }
+}
 
 /**
  * Convert PDF data into a PNG image of the first page
@@ -53,14 +56,15 @@ export async function getPdfImage(data: ArrayBuffer): Promise<Buffer | null> {
       isEvalSupported: false,
     }).promise;
 
+    const canvasFactory = new NodeCanvasFactory();
     const page = await doc.getPage(1);
     const view = page.getViewport({ scale: 4.0 });
-    const rendered = nodeCanvasAdapter.create(view.width, view.height);
+    const rendered = canvasFactory.create(view.width, view.height);
 
     await page.render({
       canvasContext: rendered.context,
       viewport: view,
-      canvasFactory: nodeCanvasAdapter,
+      canvasFactory: canvasFactory,
     } as any).promise;
 
     return (rendered.canvas as Canvas).toBuffer("image/png");
@@ -92,18 +96,19 @@ export async function getAllPdfImages(
       isEvalSupported: false,
     }).promise;
 
+    const canvasFactory = new NodeCanvasFactory();
     const pageCount = doc.numPages;
     const images: Buffer[] = [];
 
     for (let pageNum = 1; pageNum <= pageCount; pageNum++) {
       const page = await doc.getPage(pageNum);
       const view = page.getViewport({ scale: 4.0 });
-      const rendered = nodeCanvasAdapter.create(view.width, view.height);
+      const rendered = canvasFactory.create(view.width, view.height);
 
       await page.render({
         canvasContext: rendered.context,
         viewport: view,
-        canvasFactory: nodeCanvasAdapter,
+        canvasFactory: canvasFactory,
       } as any).promise;
 
       images.push((rendered.canvas as Canvas).toBuffer("image/png"));
