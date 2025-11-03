@@ -1,73 +1,97 @@
-import { zerox } from "zerox";
 import axios from "axios";
-import { existsSync, mkdirSync } from "fs";
-import path from "path";
-import { DEFAULT_MODEL } from "./utils/together";
+import { readFileSync } from "fs";
+import { getAllPdfImages } from "./utils/pdf-to-image";
 
-// Ensure tessdata directory exists and set TESSDATA_PREFIX
-// Tesseract requires absolute path with trailing slash
-// Use /tmp for serverless compatibility (Vercel, Netlify, etc.)
-const TESSDATA_DIR = path.join("/tmp", "tessdata") + path.sep;
-if (!existsSync(TESSDATA_DIR)) {
-  mkdirSync(TESSDATA_DIR, { recursive: true });
-}
-// Set environment variable so Tesseract uses our dedicated directory
-// Must be set before any Tesseract initialization
-if (!process.env.TESSDATA_PREFIX) {
-  process.env.TESSDATA_PREFIX = TESSDATA_DIR;
-  console.log(`📁 TESSDATA_PREFIX set to: ${TESSDATA_DIR}`);
+const TOGETHER_VISION_MODEL = "meta-llama/Llama-4-Scout-17B-16E-Instruct";
+
+interface OcrOptions {
+  maintainFormat?: boolean;
+  concurrency?: number;
+  model?: string;
+  maxTokens?: number;
+  systemPrompt?: string;
 }
 
-const togetherVisionModel = async ({
-  buffers,
-  maintainFormat,
-  priorPage,
-  prompt,
-}: any) => {
-  const messages = [
+interface OcrResult {
+  pages: Array<{
+    page: number;
+    content: string;
+    contentLength: number;
+  }>;
+  inputTokens: number;
+  outputTokens: number;
+  completionTime: number;
+}
+
+/**
+ * Convert a single image to markdown using Together AI's vision model
+ */
+async function imageToMarkdown(
+  imageBuffer: Buffer,
+  options: {
+    model?: string;
+    maxTokens?: number;
+    systemPrompt?: string;
+    priorPage?: string;
+    maintainFormat?: boolean;
+  } = {}
+): Promise<{ content: string; inputTokens: number; outputTokens: number }> {
+  const {
+    model = TOGETHER_VISION_MODEL,
+    maxTokens = 4000,
+    systemPrompt,
+    priorPage,
+    maintainFormat = false,
+  } = options;
+
+  const messages: any[] = [
     {
       role: "system",
       content:
-        // stolen from zerox: https://github.com/getomni-ai/zerox/blob/91bbb20c50de86067670aa13833afa1b8a73c22e/node-zerox/src/constants.ts#L12
-        prompt ||
-        `Convert the following document to markdown.
+        systemPrompt ||
+        `Convert the following document page to markdown.
 Return only the markdown with no explanation text. Do not include delimiters like \`\`\`markdown or \`\`\`html.
 
 RULES:
-  - You must include all information on the page. Do not exclude headers, footers, or subtext.
-  - Return tables in an HTML format.
-  - Charts & infographics must be interpreted to a markdown format. Prefer table format when applicable.
-  - Logos should be wrapped in brackets. Ex: <logo>Coca-Cola<logo>
-  - Watermarks should be wrapped in brackets. Ex: <watermark>OFFICIAL COPY<watermark>
-  - Page numbers should be wrapped in brackets. Ex: <page_number>14<page_number> or <page_number>9/22<page_number>
-  - Prefer using ☐ and ☑ for check boxes.`,
+  - Include all information on the page. Do not exclude headers, footers, or subtext.
+  - Return tables in HTML format for better structure.
+  - Charts & infographics must be interpreted to markdown. Prefer table format when applicable.
+  - Wrap logos in tags. Ex: <logo>Coca-Cola</logo>
+  - Wrap watermarks in tags. Ex: <watermark>OFFICIAL COPY</watermark>
+  - Wrap page numbers in tags. Ex: <page_number>14</page_number>
+  - Use ☐ and ☑ for check boxes.
+  - Preserve document structure and hierarchy with proper heading levels.`,
     },
   ];
 
-  if (maintainFormat && priorPage?.length) {
+  // Add prior page context if maintaining format
+  if (maintainFormat && priorPage) {
     messages.push({
       role: "system",
       content: `Maintain consistent formatting with previous page:\n\n"""${priorPage}"""`,
     });
   }
 
+  // Add the image
   messages.push({
     role: "user",
-    content: buffers.map((buffer: Buffer) => ({
-      type: "image_url",
-      image_url: {
-        url: `data:image/png;base64,${buffer.toString("base64")}`,
+    content: [
+      {
+        type: "image_url",
+        image_url: {
+          url: `data:image/png;base64,${imageBuffer.toString("base64")}`,
+        },
       },
-    })),
+    ],
   });
 
   try {
     const response = await axios.post(
       "https://api.together.xyz/v1/chat/completions",
       {
-        model: "meta-llama/Llama-4-Scout-17B-16E-Instruct",
+        model,
         messages,
-        max_tokens: 4000,
+        max_tokens: maxTokens,
         temperature: 0,
       },
       {
@@ -85,45 +109,120 @@ RULES:
     };
   } catch (error: any) {
     throw new Error(
-      error.response?.data?.error?.message ||
-        error.message ||
-        "OCR processing failed"
+      `OCR failed: ${error.response?.data?.error?.message || error.message}`
     );
   }
-};
+}
 
+/**
+ * Process images with concurrency control
+ */
+async function processConcurrent<T, R>(
+  items: T[],
+  processor: (item: T, index: number) => Promise<R>,
+  concurrency: number
+): Promise<R[]> {
+  const results: R[] = [];
+  const executing: Promise<void>[] = [];
+
+  for (let i = 0; i < items.length; i++) {
+    const promise = processor(items[i], i).then((result) => {
+      results[i] = result;
+    });
+
+    executing.push(promise);
+
+    if (executing.length >= concurrency) {
+      await Promise.race(executing);
+      executing.splice(
+        executing.findIndex((p) => p === promise),
+        1
+      );
+    }
+  }
+
+  await Promise.all(executing);
+  return results;
+}
+
+/**
+ * Extract text from PDF using vision model OCR
+ *
+ * @param filePath - Path to PDF file
+ * @param options - OCR configuration options
+ * @returns OCR result with pages and token usage
+ */
 export async function ocr(
   filePath: string,
-  options?: {
-    outputDir?: string;
-    maintainFormat?: boolean;
-    concurrency?: number;
-    cleanup?: boolean;
-    trimEdges?: boolean;
-    correctOrientation?: boolean;
-    maxRetries?: number;
-    [key: string]: any;
+  options: OcrOptions = {}
+): Promise<OcrResult> {
+  const {
+    maintainFormat = false,
+    concurrency = 5,
+    model,
+    maxTokens,
+    systemPrompt,
+  } = options;
+
+  const startTime = Date.now();
+
+  // Read PDF and convert to images
+  const fileBuffer = readFileSync(filePath);
+  const arrayBuffer = fileBuffer.buffer.slice(
+    fileBuffer.byteOffset,
+    fileBuffer.byteOffset + fileBuffer.byteLength
+  );
+
+  const imageBuffers = await getAllPdfImages(arrayBuffer);
+
+  if (!imageBuffers || imageBuffers.length === 0) {
+    throw new Error("Failed to convert PDF to images");
   }
-) {
-  // Ensure output directory exists
-  const outputDir = options?.outputDir || "/tmp/zerox-output";
-  if (!existsSync(outputDir)) {
-    mkdirSync(outputDir, { recursive: true });
-  }
 
-  return await zerox({
-    filePath,
-    customModelFunction: togetherVisionModel,
+  console.log(`   Converting ${imageBuffers.length} pages to markdown...`);
 
-    maintainFormat: false,
-    concurrency: 10,
-    cleanup: true,
-    trimEdges: true,
-    correctOrientation: false,
-    maxRetries: 2,
-    outputDir,
-    credentials: { apiKey: "not-used-but-required" },
+  // Process images with concurrency control
+  let totalInputTokens = 0;
+  let totalOutputTokens = 0;
+  let priorPageContent: string | undefined;
 
-    ...options,
-  });
+  const pageResults = await processConcurrent(
+    imageBuffers,
+    async (imageBuffer, index) => {
+      const pageNum = index + 1;
+      console.log(`   📄 Processing page ${pageNum}/${imageBuffers.length}...`);
+
+      const result = await imageToMarkdown(imageBuffer, {
+        model,
+        maxTokens,
+        systemPrompt,
+        priorPage: maintainFormat ? priorPageContent : undefined,
+        maintainFormat,
+      });
+
+      // Update for next page if maintaining format
+      if (maintainFormat) {
+        priorPageContent = result.content;
+      }
+
+      totalInputTokens += result.inputTokens;
+      totalOutputTokens += result.outputTokens;
+
+      return {
+        page: pageNum,
+        content: result.content,
+        contentLength: result.content.length,
+      };
+    },
+    concurrency
+  );
+
+  const completionTime = Date.now() - startTime;
+
+  return {
+    pages: pageResults,
+    inputTokens: totalInputTokens,
+    outputTokens: totalOutputTokens,
+    completionTime,
+  };
 }

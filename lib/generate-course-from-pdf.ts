@@ -100,7 +100,6 @@ export async function generateCourseFromPdf(
     const result = await ocr(tempFilePath, {
       maintainFormat: false,
       concurrency: 5,
-      cleanup: true,
     });
 
     const content = result.pages.map((p) => p.content).join("\n\n");

@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { generateCourseFromPdf } from "@/lib/generate-course-from-pdf";
+import { generateCourseFromPdf } from "../../../lib/generate-course-from-pdf";
 
 // Force Node.js runtime (not Edge) for native modules like sharp
 export const runtime = "nodejs";
