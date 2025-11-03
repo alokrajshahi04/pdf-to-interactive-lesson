@@ -1,6 +1,6 @@
 import path from "node:path";
 import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs";
-import { createCanvas, Canvas } from "canvas";
+import { createCanvas, type Canvas } from "@napi-rs/canvas";
 import "pdfjs-dist/build/pdf.worker.mjs";
 
 /**
@@ -67,7 +67,7 @@ export async function getPdfImage(data: ArrayBuffer): Promise<Buffer | null> {
       canvasFactory: canvasFactory,
     } as any).promise;
 
-    return rendered.canvas.toBuffer("image/png");
+    return (rendered.canvas as Canvas).toBuffer("image/png");
   } catch (err) {
     console.error("PDF rendering failed:", err);
     return null;
@@ -111,7 +111,7 @@ export async function getAllPdfImages(
         canvasFactory: canvasFactory,
       } as any).promise;
 
-      images.push(rendered.canvas.toBuffer("image/png"));
+      images.push((rendered.canvas as Canvas).toBuffer("image/png"));
     }
 
     return images;
