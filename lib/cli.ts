@@ -8,7 +8,7 @@ import { createModules, createCourse } from "./create-course";
  * CLI for generating course modules and lessons from PDFs or markdown
  *
  * Usage:
- *   bun run lib/cli.ts <command> <file> [options]
+ *   pnpm tsx lib/cli.ts <command> <file> [options]
  *
  * Commands:
  *   generate-course    Generate full course with modules and lessons
@@ -25,13 +25,13 @@ import { createModules, createCourse } from "./create-course";
  *   --output <path>            Save output to JSON file (default: lessons.json)
  *
  * Examples:
- *   bun run lib/cli.ts generate-course data/document.pdf
- *   bun run lib/cli.ts generate-course data/document.pdf --no-validate
- *   bun run lib/cli.ts generate-course data/document.pdf --no-retry
- *   bun run lib/cli.ts generate-course data/document.pdf --max-retries 5
- *   bun run lib/cli.ts generate-course data/document.pdf --runs 10
- *   bun run lib/cli.ts generate-modules https://example.com/doc.pdf
- *   bun run lib/cli.ts generate-course output/document.md --output course.json
+ *   pnpm tsx lib/cli.ts generate-course data/document.pdf
+ *   pnpm tsx lib/cli.ts generate-course data/document.pdf --no-validate
+ *   pnpm tsx lib/cli.ts generate-course data/document.pdf --no-retry
+ *   pnpm tsx lib/cli.ts generate-course data/document.pdf --max-retries 5
+ *   pnpm tsx lib/cli.ts generate-course data/document.pdf --runs 10
+ *   pnpm tsx lib/cli.ts generate-modules https://example.com/doc.pdf
+ *   pnpm tsx lib/cli.ts generate-course output/document.md --output course.json
  *
  * Note: Output is automatically saved to lessons.json (or specified path)
  */
@@ -143,7 +143,7 @@ function parseArgs(): CliArgs {
 // Print usage information
 function printUsage() {
   console.error(`
-Usage: bun run lib/cli.ts <command> <file> [options]
+Usage: pnpm tsx lib/cli.ts <command> <file> [options]
 
 Commands:
   generate-course    Generate full course with modules and lessons
@@ -166,13 +166,13 @@ Notes:
   - Use --runs for testing reliability and collecting error statistics
 
 Examples:
-  bun run lib/cli.ts generate-course data/document.pdf
-  bun run lib/cli.ts generate-course data/document.pdf --no-validate
-  bun run lib/cli.ts generate-course data/document.pdf --no-retry
-  bun run lib/cli.ts generate-course data/document.pdf --max-retries 5
-  bun run lib/cli.ts generate-course data/document.pdf --runs 10
-  bun run lib/cli.ts generate-modules https://example.com/doc.pdf
-  bun run lib/cli.ts generate-course output/document.md --output course.json
+  pnpm tsx lib/cli.ts generate-course data/document.pdf
+  pnpm tsx lib/cli.ts generate-course data/document.pdf --no-validate
+  pnpm tsx lib/cli.ts generate-course data/document.pdf --no-retry
+  pnpm tsx lib/cli.ts generate-course data/document.pdf --max-retries 5
+  pnpm tsx lib/cli.ts generate-course data/document.pdf --runs 10
+  pnpm tsx lib/cli.ts generate-modules https://example.com/doc.pdf
+  pnpm tsx lib/cli.ts generate-course output/document.md --output course.json
 `);
 }
 
@@ -183,16 +183,16 @@ async function extractContent(filePath: string): Promise<string> {
     const startTime = Date.now();
 
     const result = await ocr(filePath, {
-      outputDir: "./output",
       maintainFormat: false,
       concurrency: 5,
-      cleanup: true,
     });
 
     const elapsed = ((Date.now() - startTime) / 1000).toFixed(2);
     console.log(`✅ OCR completed in ${elapsed}s`);
     console.log(`   Pages: ${result.pages.length}`);
-    console.log(`   Tokens: ${result.inputTokens.toLocaleString()}\n`);
+    console.log(
+      `   Tokens: ${result.inputTokens.toLocaleString()} in / ${result.outputTokens.toLocaleString()} out\n`
+    );
 
     return result.pages.map((p) => p.content).join("\n\n");
   } else if (filePath.endsWith(".md")) {
