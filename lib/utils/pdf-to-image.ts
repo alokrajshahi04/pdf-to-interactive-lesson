@@ -1,6 +1,6 @@
 import path from "node:path";
 import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs";
-import { createCanvas, type Canvas } from "canvas";
+import { createCanvas, type Canvas } from "@napi-rs/canvas";
 import "pdfjs-dist/build/pdf.worker.mjs";
 
 /**
