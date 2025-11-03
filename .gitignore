@@ -18,6 +18,11 @@ course.json
 !.yarn/releases
 !.yarn/versions
 
+# lock files (keep pnpm-lock.yaml)
+bun.lock
+package-lock.json
+yarn.lock
+
 # testing
 /coverage
 
