@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getPdfImage } from "@/lib/utils/pdf-to-image";
-import { compressImage } from "@/lib/utils/compress-image";
+import { getPdfImage } from "../../../lib/utils/pdf-to-image";
+import { compressImage } from "../../../lib/utils/compress-image";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
