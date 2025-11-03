@@ -53,15 +53,17 @@ export async function POST(request: NextRequest) {
       format === "jpeg"
         ? "image/jpeg"
         : format === "webp"
-          ? "image/webp"
-          : "image/png";
+        ? "image/webp"
+        : "image/png";
 
     // Return the image
-    return new NextResponse(finalBuffer, {
+    return new NextResponse(Buffer.from(finalBuffer), {
       status: 200,
       headers: {
         "Content-Type": contentType,
-        "Content-Disposition": `attachment; filename="page-1.${format || "png"}"`,
+        "Content-Disposition": `attachment; filename="page-1.${
+          format || "png"
+        }"`,
         "Content-Length": finalBuffer.length.toString(),
       },
     });
@@ -76,4 +78,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-
