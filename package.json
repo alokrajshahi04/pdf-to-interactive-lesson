@@ -4,6 +4,7 @@
   "private": true,
   "packageManager": "pnpm@9.15.0",
   "scripts": {
+    "setup": "pnpm install && cd api && uv venv && uv pip install -e . && cd .. && echo '\n✅ Setup complete! Copy .env.example to .env.local and add your API keys.'",
     "dev": "concurrently \"pnpm:dev:next\" \"pnpm:dev:api\" --names \"next,api\" --prefix-colors \"cyan,magenta\"",
     "dev:next": "next dev",
     "dev:api": "cd api && source .venv/bin/activate && python app.py",
