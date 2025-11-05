@@ -25,28 +25,65 @@ class NodeCanvasFactory {
   }
 
   create(w: number, h: number) {
-    // If skipImages is true and dimensions suggest this might be an inline image,
-    // return a minimal canvas to avoid processing overhead
-    if (this.skipImages && (w < 100 || h < 100)) {
-      // Create a minimal 1x1 canvas for small images
-      const { canvas, context } = buildCanvasWithContext(1, 1);
+    try {
+      // If skipImages is true and dimensions suggest this might be an inline image or group,
+      // return a minimal canvas to avoid processing overhead
+      if (this.skipImages && (w < 100 || h < 100)) {
+        // Create a minimal 1x1 canvas for small images
+        const { canvas, context } = buildCanvasWithContext(1, 1);
+        return { canvas, context };
+      }
+      
+      const { canvas, context } = buildCanvasWithContext(w, h);
       return { canvas, context };
+    } catch (err) {
+      // If canvas creation fails, return a minimal dummy canvas
+      // This prevents crashes when there are canvas library conflicts
+      console.warn(`Canvas creation failed for ${w}x${h}, using minimal canvas`);
+      try {
+        const { canvas, context } = buildCanvasWithContext(1, 1);
+        return { canvas, context };
+      } catch (fallbackErr) {
+        // Last resort: return a mock canvas object
+        console.error("Critical: All canvas creation failed", fallbackErr);
+        const mockCanvas = {
+          width: 1,
+          height: 1,
+          getContext: () => ({
+            canvas: mockCanvas,
+            fillStyle: '',
+            strokeStyle: '',
+            lineWidth: 1,
+          }),
+        };
+        return {
+          canvas: mockCanvas as any,
+          context: mockCanvas.getContext() as any,
+        };
+      }
     }
-    
-    const { canvas, context } = buildCanvasWithContext(w, h);
-    return { canvas, context };
   }
 
   reset(canvasAndContext: any, w: number, h: number) {
     if (!canvasAndContext?.canvas) return;
-    canvasAndContext.canvas.width = w;
-    canvasAndContext.canvas.height = h;
+    try {
+      canvasAndContext.canvas.width = w;
+      canvasAndContext.canvas.height = h;
+    } catch (err) {
+      // Silently fail reset operations
+      console.warn("Canvas reset failed, continuing...");
+    }
   }
 
   destroy(canvasAndContext: any) {
     if (!canvasAndContext?.canvas) return;
-    canvasAndContext.canvas.width = 0;
-    canvasAndContext.canvas.height = 0;
+    try {
+      canvasAndContext.canvas.width = 0;
+      canvasAndContext.canvas.height = 0;
+    } catch (err) {
+      // Silently fail destroy operations
+      console.warn("Canvas destroy failed, continuing...");
+    }
   }
 }
 

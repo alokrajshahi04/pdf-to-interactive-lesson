@@ -16,6 +16,9 @@
       "canvas": "npm:@napi-rs/canvas@^0.1.81"
     }
   },
+  "resolutions": {
+    "canvas": "npm:@napi-rs/canvas@^0.1.81"
+  },
   "dependencies": {
     "@ai-sdk/anthropic": "^2.0.38",
     "@ai-sdk/openai": "^2.0.56",
