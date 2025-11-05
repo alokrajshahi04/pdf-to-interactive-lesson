@@ -3,7 +3,41 @@ import { existsSync } from "fs";
 import axios from "axios";
 import { ocr } from "./ocr";
 import { createCourse } from "./create-course";
-import type { Course } from "@/app/hooks/use-course-navigation";
+import type { CourseOutput } from "./create-course";
+
+/**
+ * Calculate statistics about lesson generation results
+ */
+function calculateLessonStats(course: CourseOutput) {
+  let total = 0;
+  let successful = 0;
+  let fixed = 0;
+  let failed = 0;
+  let fixAttempts = 0;
+
+  for (const module of course.modules) {
+    for (const lessonResult of module.lessons) {
+      total++;
+
+      if (lessonResult.success) {
+        successful++;
+        // Check if this lesson was fixed (has fixHistory)
+        if (lessonResult.data.fixHistory && lessonResult.data.fixHistory.length > 0) {
+          fixed++;
+          fixAttempts += lessonResult.data.fixHistory.length;
+        }
+      } else {
+        failed++;
+        // Count fix attempts from failed lessons
+        if (lessonResult.error?.fixHistory) {
+          fixAttempts += lessonResult.error.fixHistory.length;
+        }
+      }
+    }
+  }
+
+  return { total, successful, fixed, failed, fixAttempts };
+}
 
 export interface ProgressCallback {
   (type: string, message: string, data?: any): void;
@@ -16,13 +50,20 @@ export interface GenerateCourseOptions {
 }
 
 export interface GenerateCourseResult {
-  course: Course;
+  course: any; // Compatible with both CourseOutput and Course from navigation hook
   metadata: {
     generationTime: string;
     ocrTime: string;
     courseTime: string;
     modulesCount: number;
     lessonsCount: number;
+    lessonStats: {
+      total: number;
+      successful: number;
+      fixed: number;
+      failed: number;
+      fixAttempts: number;
+    };
     pages: number;
     tokens: number;
   };
@@ -100,7 +141,8 @@ export async function generateCourseFromPdf(
     try {
       result = await ocr(tempFilePath, {
         maintainFormat: false,
-        concurrency: 2, // Reduced from 5 to avoid overwhelming Together AI
+        concurrency: 2, // Process 2 pages in parallel (gentle on API)
+        startDelay: 250, // 250ms stagger between starting each request
       });
     } catch (error) {
       console.error("❌ OCR failed:", error);
@@ -130,10 +172,32 @@ export async function generateCourseFromPdf(
 
     const courseElapsed = ((Date.now() - courseStartTime) / 1000).toFixed(2);
 
+    // Calculate lesson statistics
+    const lessonStats = calculateLessonStats(course);
+
     onProgress?.(
       "generate-lessons",
       `Generated ${course.modules.length} modules with lessons`
     );
+
+    // Log summary with clean formatting
+    console.log("\n" + "=".repeat(60));
+    console.log("📊 COURSE GENERATION SUMMARY");
+    console.log("=".repeat(60));
+    console.log(`⏱️  Total Time: ${((Date.now() - ocrStartTime + Date.now() - courseStartTime) / 1000).toFixed(2)}s`);
+    console.log(`   ├─ OCR: ${ocrElapsed}s (${result.pages.length} pages, ${result.inputTokens.toLocaleString()} tokens)`);
+    console.log(`   └─ Course: ${courseElapsed}s`);
+    console.log("");
+    console.log("📚 Content:");
+    console.log(`   ├─ Modules: ${course.modules.length}`);
+    console.log(`   └─ Lessons: ${lessonStats.total}`);
+    console.log("");
+    console.log("✅ Lesson Results:");
+    console.log(`   ├─ Successful: ${lessonStats.successful} (${Math.round((lessonStats.successful / lessonStats.total) * 100)}%)`);
+    console.log(`   ├─ Fixed: ${lessonStats.fixed} (required retries)`);
+    console.log(`   ├─ Failed: ${lessonStats.failed}`);
+    console.log(`   └─ Fix Attempts: ${lessonStats.fixAttempts} total`);
+    console.log("=".repeat(60) + "\n");
 
     // Cleanup temp file
     if (isTemp && tempFilePath && existsSync(tempFilePath)) {
@@ -148,16 +212,14 @@ export async function generateCourseFromPdf(
     ).toFixed(2);
 
     return {
-      course: course as Course,
+      course,
       metadata: {
         generationTime: `${totalElapsed}s`,
         ocrTime: `${ocrElapsed}s`,
         courseTime: `${courseElapsed}s`,
         modulesCount: course.modules.length,
-        lessonsCount: course.modules.reduce(
-          (sum, mod) => sum + mod.lessons.length,
-          0
-        ),
+        lessonsCount: lessonStats.total,
+        lessonStats,
         pages: result.pages.length,
         tokens: result.inputTokens,
       },

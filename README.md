@@ -4,7 +4,7 @@ An AI-powered tool that converts PDFs and markdown documents into structured, in
 
 ## Features
 
-- 📄 **PDF & Markdown Support**: Extract content from PDFs or markdown files
+- 📄 **PDF & Markdown Support**: Extract content from PDFs or markdown files (max 100 pages)
 - 🤖 **AI-Powered Generation**: Uses DeepSeek-V3.1 to create course structures and lessons
 - ✅ **Two-Tier Validation**:
   - Fast deterministic structure validation (schema, types, required fields)
@@ -391,7 +391,8 @@ cp .env.example .env.local
 - Failed lessons are filtered out from the final output but reported in the `failures` array
 - Use `--no-retry` if you want faster generation without quality improvements
 - Use `--no-validate-content` to save API costs during development
-- PDFs are processed using OCR (Mathpix) for best text extraction quality
+- PDFs are processed using OCR for text extraction (max 100 pages supported)
+- Large PDFs may take several minutes to process
 
 ## Next.js Web Interface
 

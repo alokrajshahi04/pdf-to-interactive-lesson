@@ -452,32 +452,60 @@ async function runGenerateCourse(content: string, args: CliArgs) {
 }
 
 /**
- * Display validation summary
+ * Display validation summary with lesson statistics
  */
 function displayValidationSummary(course: { modules: any[] }, args: CliArgs) {
-  const totalFailureCount = course.modules.reduce(
-    (sum, mod) =>
-      sum + mod.lessons.filter((l: any) => l.success === false).length,
-    0
-  );
+  // Calculate lesson statistics
+  let total = 0;
+  let successful = 0;
+  let fixed = 0;
+  let failed = 0;
+  let fixAttempts = 0;
 
+  for (const module of course.modules) {
+    for (const lessonResult of module.lessons) {
+      total++;
+
+      if (lessonResult.success) {
+        successful++;
+        // Check if this lesson was fixed (has fixHistory)
+        if (lessonResult.data.fixHistory && lessonResult.data.fixHistory.length > 0) {
+          fixed++;
+          fixAttempts += lessonResult.data.fixHistory.length;
+        }
+      } else {
+        failed++;
+        // Count fix attempts from failed lessons
+        if (lessonResult.error?.fixHistory) {
+          fixAttempts += lessonResult.error.fixHistory.length;
+        }
+      }
+    }
+  }
+
+  // Display summary with clean formatting
+  console.log("=".repeat(60));
+  console.log("✅ LESSON GENERATION SUMMARY");
+  console.log("=".repeat(60));
+  console.log("📚 Content:");
+  console.log(`   ├─ Modules: ${course.modules.length}`);
+  console.log(`   └─ Lessons: ${total}`);
+  console.log("");
+  console.log("📊 Results:");
+  console.log(`   ├─ Successful: ${successful} (${Math.round((successful / total) * 100)}%)`);
+  console.log(`   ├─ Fixed: ${fixed} (required retries)`);
+  console.log(`   ├─ Failed: ${failed}`);
+  console.log(`   └─ Fix Attempts: ${fixAttempts} total`);
+  
   if (args.validateStructure || args.validateContent) {
     const validations = [];
     if (args.validateStructure) validations.push("structure");
     if (args.validateContent) validations.push("content");
-
-    if (totalFailureCount === 0) {
-      console.log(
-        `✅ All lessons passed ${validations.join(" & ")} validation\n`
-      );
-    } else {
-      console.log(
-        `⚠️  Validation complete: ${totalFailureCount} lesson(s) failed ${validations.join(
-          " & "
-        )} validation\n`
-      );
-    }
+    console.log("");
+    console.log(`🔍 Validation: ${validations.join(" & ")}`);
   }
+  
+  console.log("=".repeat(60) + "\n");
 }
 
 /**

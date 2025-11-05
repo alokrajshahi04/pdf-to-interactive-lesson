@@ -49,6 +49,15 @@ function LandingScreen({
       return;
     }
 
+    // Check file size as a rough proxy for page count (most PDFs are ~50-200KB per page)
+    const estimatedPages = Math.ceil(file.size / (100 * 1024)); // Rough estimate
+    if (estimatedPages > 100) {
+      setError(
+        `This PDF appears to be very large (~${estimatedPages} pages). We currently only support PDFs up to 100 pages. Please upload a shorter document.`
+      );
+      return;
+    }
+
     setIsProcessing(true);
     setError(null);
     setProgress("Uploading PDF to storage...");

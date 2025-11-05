@@ -11,6 +11,7 @@ interface OcrOptions {
   model?: string;
   maxTokens?: number;
   systemPrompt?: string;
+  startDelay?: number; // Delay in ms between starting each concurrent request
 }
 
 interface OcrResult {
@@ -44,6 +45,7 @@ async function imageToMarkdown(
     priorPage?: string;
     maintainFormat?: boolean;
     retries?: number;
+    pageContext?: string; // e.g. "page 5/100" for better logging
   } = {}
 ): Promise<{ content: string; inputTokens: number; outputTokens: number }> {
   const {
@@ -53,6 +55,7 @@ async function imageToMarkdown(
     priorPage,
     maintainFormat = false,
     retries = 3,
+    pageContext = "page",
   } = options;
 
   const messages: any[] = [
@@ -104,7 +107,7 @@ RULES:
       // Add delay before retry (exponential backoff)
       if (attempt > 0) {
         const delayMs = Math.min(1000 * Math.pow(2, attempt - 1), 10000); // Max 10s
-        console.log(`   ⏳ Retry ${attempt}/${retries} after ${delayMs}ms...`);
+        console.log(`   ⏳ [${pageContext}] Retry ${attempt}/${retries} after ${delayMs}ms...`);
         await sleep(delayMs);
       }
 
@@ -124,6 +127,11 @@ RULES:
           timeout: 60000, // 60s timeout
         }
       );
+
+      // Success - log if we had to retry
+      if (attempt > 0) {
+        console.log(`   ✅ [${pageContext}] Succeeded after ${attempt} ${attempt === 1 ? 'retry' : 'retries'}`);
+      }
 
       return {
         content: response.data.choices[0].message.content,
@@ -146,7 +154,7 @@ RULES:
         break;
       }
       
-      console.warn(`   ⚠️  Attempt ${attempt + 1} failed (${status || 'network error'}), retrying...`);
+      console.warn(`   ⚠️  [${pageContext}] Attempt ${attempt + 1} failed (${status || 'network error'}), retrying...`);
     }
   }
 
@@ -207,33 +215,52 @@ RULES:
 async function processConcurrent<T, R>(
   items: T[],
   processor: (item: T, index: number) => Promise<R>,
-  concurrency: number
+  concurrency: number,
+  startDelay: number = 200
 ): Promise<R[]> {
-  const results: R[] = [];
-  const executing: Promise<void>[] = [];
+  const results: R[] = new Array(items.length);
+  let index = 0;
+  const executing = new Set<Promise<void>>();
 
-  for (let i = 0; i < items.length; i++) {
-    // Add small delay between starting requests to spread load
-    if (i > 0) {
-      await sleep(200); // 200ms between starting each request
+  // Start initial batch without delay
+  while (index < Math.min(concurrency, items.length)) {
+    const currentIndex = index++;
+    const promise = processor(items[currentIndex], currentIndex)
+      .then((result) => {
+        results[currentIndex] = result;
+      })
+      .finally(() => {
+        executing.delete(promise);
+      });
+    executing.add(promise);
+  }
+
+  // Process remaining items with concurrency control
+  while (index < items.length || executing.size > 0) {
+    // Wait for at least one to complete
+    if (executing.size >= concurrency) {
+      await Promise.race(executing);
     }
 
-    const promise = processor(items[i], i).then((result) => {
-      results[i] = result;
-    });
+    // Start next request if we have items and capacity
+    if (index < items.length && executing.size < concurrency) {
+      // Add delay before starting next request (to stagger load)
+      if (startDelay > 0) {
+        await sleep(startDelay);
+      }
 
-    executing.push(promise);
-
-    if (executing.length >= concurrency) {
-      await Promise.race(executing);
-      executing.splice(
-        executing.findIndex((p) => p === promise),
-        1
-      );
+      const currentIndex = index++;
+      const promise = processor(items[currentIndex], currentIndex)
+        .then((result) => {
+          results[currentIndex] = result;
+        })
+        .finally(() => {
+          executing.delete(promise);
+        });
+      executing.add(promise);
     }
   }
 
-  await Promise.all(executing);
   return results;
 }
 
@@ -254,6 +281,7 @@ export async function ocr(
     model,
     maxTokens,
     systemPrompt,
+    startDelay = 200,
   } = options;
 
   const startTime = Date.now();
@@ -299,6 +327,14 @@ export async function ocr(
     throw new Error("Failed to convert PDF to images");
   }
 
+  // Enforce page limit
+  const MAX_PAGES = 100;
+  if (imageBuffers.length > MAX_PAGES) {
+    throw new Error(
+      `PDF has ${imageBuffers.length} pages, but we currently only support PDFs up to ${MAX_PAGES} pages. Please upload a shorter document.`
+    );
+  }
+
   console.log(`   Converting ${imageBuffers.length} pages to markdown...`);
 
   // Process images with concurrency control
@@ -310,7 +346,8 @@ export async function ocr(
     imageBuffers,
     async (imageBuffer, index) => {
       const pageNum = index + 1;
-      console.log(`   📄 Processing page ${pageNum}/${imageBuffers.length}...`);
+      const pageContext = `page ${pageNum}/${imageBuffers.length}`;
+      console.log(`   📄 Processing ${pageContext}...`);
 
       const result = await imageToMarkdown(imageBuffer, {
         model,
@@ -318,6 +355,7 @@ export async function ocr(
         systemPrompt,
         priorPage: maintainFormat ? priorPageContent : undefined,
         maintainFormat,
+        pageContext,
       });
 
       // Update for next page if maintaining format
@@ -328,13 +366,16 @@ export async function ocr(
       totalInputTokens += result.inputTokens;
       totalOutputTokens += result.outputTokens;
 
+      console.log(`   ✅ [${pageContext}] Completed (${result.content.length} chars)`);
+
       return {
         page: pageNum,
         content: result.content,
         contentLength: result.content.length,
       };
     },
-    concurrency
+    concurrency,
+    startDelay
   );
 
   const completionTime = Date.now() - startTime;
