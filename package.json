@@ -11,11 +11,16 @@
     "pdf-to-image": "node scripts/pdf-to-image.ts",
     "generate-course": "tsx lib/cli.ts"
   },
+  "pnpm": {
+    "overrides": {
+      "canvas": "npm:@napi-rs/canvas@^0.1.81"
+    }
+  },
   "dependencies": {
     "@ai-sdk/anthropic": "^2.0.38",
     "@ai-sdk/openai": "^2.0.56",
     "@ai-sdk/togetherai": "^1.0.24",
-    "@napi-rs/canvas": "^0.1.58",
+    "@napi-rs/canvas": "^0.1.81",
     "@vercel/blob": "^2.0.0",
     "ai": "^5.0.81",
     "axios": "^1.13.0",
