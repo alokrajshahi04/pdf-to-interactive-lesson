@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { upload } from "@vercel/blob/client";
 
 interface LandingScreenProps {
   onStartCourse: () => void;
@@ -50,11 +51,21 @@ function LandingScreen({
 
     setIsProcessing(true);
     setError(null);
-    setProgress("Uploading PDF...");
+    setProgress("Uploading PDF to storage...");
 
     try {
+      // Upload file directly to Vercel Blob (client-side)
+      // This bypasses the 4.5MB function payload limit
+      const blob = await upload(file.name, file, {
+        access: "public",
+        handleUploadUrl: "/api/upload-url",
+      });
+
+      setProgress("PDF uploaded! Generating course...");
+
+      // Pass the blob URL to generate-course API
       const formData = new FormData();
-      formData.append("file", file);
+      formData.append("url", blob.url);
 
       const response = await fetch("/api/generate-course", {
         method: "POST",

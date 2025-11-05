@@ -4,6 +4,7 @@
   "private": true,
   "packageManager": "pnpm@9.5.0",
   "scripts": {
+    "setup": "pnpm install && cd api && uv venv && uv pip install -e . && cd .. && echo '\n✅ Setup complete! Copy .env.example to .env.local and add your API keys.'",
     "dev": "concurrently \"pnpm:dev:next\" \"pnpm:dev:api\" --names \"next,api\" --prefix-colors \"cyan,magenta\"",
     "dev:next": "next dev",
     "dev:api": "cd api && source .venv/bin/activate && python app.py",
@@ -27,7 +28,6 @@
     "@ai-sdk/openai": "^2.0.56",
     "@ai-sdk/togetherai": "^1.0.24",
     "@napi-rs/canvas": "^0.1.81",
-    "@vercel/blob": "^2.0.0",
     "ai": "^5.0.81",
     "axios": "^1.13.0",
     "fast-xml-parser": "^5.3.0",
