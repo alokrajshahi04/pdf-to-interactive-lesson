@@ -16,11 +16,11 @@ An AI-powered tool that converts PDFs and markdown documents into structured, in
 ## Quick Start
 
 ```bash
-# Install dependencies
-pnpm install
+# One-time setup (installs all dependencies)
+pnpm setup
 
-# Setup Python API (one time)
-cd api && uv venv && source .venv/bin/activate && uv pip install -e . && cd ..
+# Copy environment variables and add your API keys
+cp .env.example .env.local
 
 # Start both servers
 pnpm dev
@@ -361,15 +361,29 @@ This makes it easy to integrate course generation into:
 
 ## Environment Variables
 
-```bash
-TOGETHER_API_KEY=your_api_key_here
+Copy `.env.example` to `.env.local` and fill in your keys:
 
-# Optional: Railway API for PDF conversion
-# If not set, uses local PDF.js (may have issues with some PDFs)
-RAILWAY_API_URL=https://your-app.railway.app
+```bash
+cp .env.example .env.local
 ```
 
-Get your API key from [Together AI](https://www.together.ai/).
+### Required Variables
+
+**`TOGETHER_API_KEY`** - Together AI API key for course generation
+- Get your API key from [Together AI](https://www.together.ai/)
+- Required for both CLI and web interface
+
+**`BLOB_READ_WRITE_TOKEN`** - Vercel Blob storage token
+- Required for the web interface to upload and store PDFs
+- Get this from Vercel Dashboard → Storage → Blob → Connect
+- Not required for CLI usage
+
+### Optional Variables
+
+**`RAILWAY_API_URL`** - Railway API URL for PDF conversion
+- If not set, uses local PDF.js (may have issues with some PDFs)
+- Deploy the Flask API from `/api` to Railway and set this URL
+- Example: `https://your-app.railway.app`
 
 ## Notes
 
