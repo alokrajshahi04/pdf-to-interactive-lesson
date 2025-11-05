@@ -97,10 +97,16 @@ export async function generateCourseFromPdf(
     console.log("🔍 Extracting content...");
     const ocrStartTime = Date.now();
 
-    const result = await ocr(tempFilePath, {
-      maintainFormat: false,
-      concurrency: 5,
-    });
+    let result;
+    try {
+      result = await ocr(tempFilePath, {
+        maintainFormat: false,
+        concurrency: 2, // Reduced from 5 to avoid overwhelming Together AI
+      });
+    } catch (error) {
+      console.error("❌ OCR failed:", error);
+      throw error; // Re-throw with original detailed message
+    }
 
     const content = result.pages.map((p) => p.content).join("\n\n");
     const ocrElapsed = ((Date.now() - ocrStartTime) / 1000).toFixed(2);

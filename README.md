@@ -16,11 +16,21 @@ An AI-powered tool that converts PDFs and markdown documents into structured, in
 ## Quick Start
 
 ```bash
+# Install dependencies
 pnpm install
-pnpm dev  # Starts Next.js on port 3000
+
+# Setup Python API (one time)
+cd api && uv venv && source .venv/bin/activate && uv pip install -e . && cd ..
+
+# Start both servers
+pnpm dev
+# - Next.js: http://localhost:3000
+# - Flask API: http://localhost:8000
 ```
 
-See `api/README.md` for Flask API setup (runs on Railway).
+Or run individually:
+- `pnpm dev:next` - Just Next.js
+- `pnpm dev:api` - Just Flask API
 
 ## Usage
 
@@ -353,6 +363,10 @@ This makes it easy to integrate course generation into:
 
 ```bash
 TOGETHER_API_KEY=your_api_key_here
+
+# Optional: Railway API for PDF conversion
+# If not set, uses local PDF.js (may have issues with some PDFs)
+RAILWAY_API_URL=https://your-app.railway.app
 ```
 
 Get your API key from [Together AI](https://www.together.ai/).
