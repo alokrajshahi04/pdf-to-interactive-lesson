@@ -1,6 +1,7 @@
 import axios from "axios";
 import { readFileSync } from "fs";
 import { getAllPdfImages } from "./utils/pdf-to-image";
+import { convertPdfToImages } from "./utils/railway-pdf-service";
 
 const TOGETHER_VISION_MODEL = "meta-llama/Llama-4-Scout-17B-16E-Instruct";
 
@@ -168,12 +169,27 @@ export async function ocr(
 
   // Read PDF and convert to images
   const fileBuffer = readFileSync(filePath);
-  const arrayBuffer = fileBuffer.buffer.slice(
-    fileBuffer.byteOffset,
-    fileBuffer.byteOffset + fileBuffer.byteLength
-  );
-
-  const imageBuffers = await getAllPdfImages(arrayBuffer);
+  
+  let imageBuffers: Buffer[];
+  
+  // Use Railway API if available, otherwise fall back to local pdfjs
+  if (process.env.RAILWAY_API_URL) {
+    console.log("   Using Railway API for PDF conversion...");
+    imageBuffers = await convertPdfToImages(fileBuffer);
+  } else {
+    console.log("   Using local PDF.js for PDF conversion...");
+    const arrayBuffer = fileBuffer.buffer.slice(
+      fileBuffer.byteOffset,
+      fileBuffer.byteOffset + fileBuffer.byteLength
+    );
+    const result = await getAllPdfImages(arrayBuffer);
+    
+    if (!result || result.length === 0) {
+      throw new Error("Failed to convert PDF to images");
+    }
+    
+    imageBuffers = result;
+  }
 
   if (!imageBuffers || imageBuffers.length === 0) {
     throw new Error("Failed to convert PDF to images");
