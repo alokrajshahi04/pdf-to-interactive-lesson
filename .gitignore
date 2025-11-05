@@ -3,6 +3,8 @@
 /data
 /output
 eng.traineddata
+__pycache__
+pdf_api.egg-info
 
 # Generated course/lesson files
 lessons.json
@@ -52,5 +54,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# python
 .venv
-test_flask.sh

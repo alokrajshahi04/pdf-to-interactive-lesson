@@ -3,9 +3,6 @@
     "app/api/**/route.ts": {
       "includeFiles": "node_modules/tesseract.js-core/tesseract-core-simd.wasm",
       "maxDuration": 60
-    },
-    "api/**/*.py": {
-      "maxDuration": 60
     }
   }
 }

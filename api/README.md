@@ -1,26 +1,22 @@
-# Python API
+# Flask API for Railway
 
-Python serverless functions for Vercel.
+Python Flask API with PyMuPDF for PDF processing.
 
-## Endpoints
-
-- `/api/test` - Hello world test
-- `/api/pdf` - PDF to images (PyMuPDF)
-
-## Test PDF Endpoint
+## Local Development
 
 ```bash
-# Test with a PDF
-curl -X POST https://your-app.vercel.app/api/pdf \
-  --data-binary @path/to/file.pdf \
-  -H "Content-Type: application/pdf"
+cd api
+uv venv
+source .venv/bin/activate  # or `.venv\Scripts\activate` on Windows
+uv pip install -e .
+python app.py
 ```
 
-## Deploy
+Visit: http://localhost:8000
 
-```bash
-git push
-```
+## Deploy to Railway
 
-Vercel auto-detects Python files in `api/` directory.
-
+1. Push to GitHub
+2. Connect repo to Railway
+3. Set root directory to `api`
+4. Railway auto-deploys!

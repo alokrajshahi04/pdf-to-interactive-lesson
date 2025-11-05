@@ -13,11 +13,14 @@ An AI-powered tool that converts PDFs and markdown documents into structured, in
 - 📊 **Multiple Question Types**: short-answer, true-false, and multiple-choice
 - 📝 **JSON Output**: Generates structured JSON files for easy integration
 
-## Installation
+## Quick Start
 
 ```bash
-bun install
+pnpm install
+pnpm dev  # Starts Next.js on port 3000
 ```
+
+See `api/README.md` for Flask API setup (runs on Railway).
 
 ## Usage
 
