@@ -1,6 +1,0 @@
-[project]
-name = "pdf-to-interactive-lesson-api"
-version = "0.1.0"
-description = "Python API endpoints for PDF processing"
-requires-python = ">=3.11"
-
