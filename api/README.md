@@ -2,26 +2,38 @@
 
 This directory contains Python serverless functions for Vercel.
 
-## Local Development with uv
+## Local Development
 
-### Install uv (if not already installed)
+### Test locally with Vercel CLI
 
-```bash
-curl -LsSf https://astral.sh/uv/install.sh | sh
-```
+Python serverless functions need to run in the Vercel environment to work properly. You can't test them with `python3 -m http.server` as that just serves static files.
 
-### Test locally
+**Option 1: Use Vercel Dev (Recommended)**
 
 ```bash
-# Install dependencies (when we add them later)
-uv sync
+# Install Vercel CLI (if not already installed)
+npm install -g vercel
 
-# Test the endpoint locally with Python
-cd api
-python3 -m http.server 8000
+# Run local dev server
+vercel dev
+
+# Or specify a port
+vercel dev --listen 3001
 ```
 
-Then visit: `http://localhost:8000/hello.py`
+Then test: `http://localhost:3000/api/hello`
+
+**Option 2: Deploy to Vercel Preview**
+
+The easiest way is to just push and test on Vercel:
+
+```bash
+git add .
+git commit -m "Add Python endpoint"
+git push
+```
+
+Then test the preview URL that Vercel generates.
 
 ## Testing on Vercel
 
