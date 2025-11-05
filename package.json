@@ -27,7 +27,6 @@
     "@ai-sdk/openai": "^2.0.56",
     "@ai-sdk/togetherai": "^1.0.24",
     "@napi-rs/canvas": "^0.1.81",
-    "@vercel/blob": "^2.0.0",
     "ai": "^5.0.81",
     "axios": "^1.13.0",
     "fast-xml-parser": "^5.3.0",

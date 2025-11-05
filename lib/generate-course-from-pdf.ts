@@ -1,7 +1,6 @@
 import { writeFile, unlink } from "fs/promises";
 import { existsSync } from "fs";
 import axios from "axios";
-// import { put } from "@vercel/blob"; // Only needed for Option 2 (background jobs)
 import { ocr } from "./ocr";
 import { createCourse } from "./create-course";
 import type { Course } from "@/app/hooks/use-course-navigation";
