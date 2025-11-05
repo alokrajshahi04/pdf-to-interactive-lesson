@@ -33,7 +33,7 @@ export async function getPdfInfo(pdfBuffer: Buffer): Promise<PdfInfo> {
   }
 
   const formData = new FormData();
-  const blob = new Blob([pdfBuffer], { type: "application/pdf" });
+  const blob = new Blob([Buffer.from(pdfBuffer)], { type: "application/pdf" });
   formData.append("file", blob, "document.pdf");
 
   const response = await fetch(`${railwayUrl}/pdf-info`, {
@@ -42,10 +42,19 @@ export async function getPdfInfo(pdfBuffer: Buffer): Promise<PdfInfo> {
   });
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({
-      error: "Unknown error",
-    }));
-    throw new Error(`Railway API error: ${error.error || response.statusText}`);
+    const error = await response.json().catch(() => null);
+    const errorMsg = error?.error || response.statusText || "Unknown error";
+    
+    console.error("Railway /pdf-info error:", {
+      status: response.status,
+      statusText: response.statusText,
+      error,
+      url: response.url,
+    });
+    
+    throw new Error(
+      `Railway API /pdf-info failed (${response.status}): ${errorMsg}. Check RAILWAY_API_URL=${railwayUrl}`
+    );
   }
 
   return await response.json();
@@ -68,7 +77,7 @@ export async function convertPdfPageToImage(
   }
 
   const formData = new FormData();
-  const blob = new Blob([pdfBuffer], { type: "application/pdf" });
+  const blob = new Blob([Buffer.from(pdfBuffer)], { type: "application/pdf" });
   formData.append("file", blob, "document.pdf");
   formData.append("page", page.toString());
 
@@ -78,19 +87,27 @@ export async function convertPdfPageToImage(
   });
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({
-      error: "Unknown error",
-    }));
+    const error = await response.json().catch(() => null);
+    const errorMsg = error?.error || response.statusText || "Unknown error";
+    
+    console.error(`Railway /pdf-page-to-image error (page ${page}):`, {
+      status: response.status,
+      statusText: response.statusText,
+      error,
+      url: response.url,
+    });
+    
     throw new Error(
-      `Railway API error (page ${page}): ${error.error || response.statusText}`
+      `Railway API /pdf-page-to-image failed for page ${page} (${response.status}): ${errorMsg}`
     );
   }
 
   const result: PdfPageImage = await response.json();
 
   if (!result.success || !result.data) {
+    console.error(`Railway page ${page} conversion failed:`, result);
     throw new Error(
-      result.error || `Failed to convert page ${page} to image`
+      result.error || `Failed to convert page ${page} to image - no data returned`
     );
   }
 

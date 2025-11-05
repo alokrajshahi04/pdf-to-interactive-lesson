@@ -25,7 +25,15 @@ interface OcrResult {
 }
 
 /**
+ * Sleep for a specified number of milliseconds
+ */
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
  * Convert a single image to markdown using Together AI's vision model
+ * Includes retry logic with exponential backoff
  */
 async function imageToMarkdown(
   imageBuffer: Buffer,
@@ -35,6 +43,7 @@ async function imageToMarkdown(
     systemPrompt?: string;
     priorPage?: string;
     maintainFormat?: boolean;
+    retries?: number;
   } = {}
 ): Promise<{ content: string; inputTokens: number; outputTokens: number }> {
   const {
@@ -43,6 +52,7 @@ async function imageToMarkdown(
     systemPrompt,
     priorPage,
     maintainFormat = false,
+    retries = 3,
   } = options;
 
   const messages: any[] = [
@@ -86,33 +96,109 @@ RULES:
     ],
   });
 
-  try {
-    const response = await axios.post(
-      "https://api.together.xyz/v1/chat/completions",
-      {
-        model,
-        messages,
-        max_tokens: maxTokens,
-        temperature: 0,
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${process.env.TOGETHER_API_KEY}`,
-          "Content-Type": "application/json",
-        },
+  // Retry logic with exponential backoff
+  let lastError: any;
+  
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      // Add delay before retry (exponential backoff)
+      if (attempt > 0) {
+        const delayMs = Math.min(1000 * Math.pow(2, attempt - 1), 10000); // Max 10s
+        console.log(`   ⏳ Retry ${attempt}/${retries} after ${delayMs}ms...`);
+        await sleep(delayMs);
       }
-    );
 
-    return {
-      content: response.data.choices[0].message.content,
-      inputTokens: response.data.usage?.prompt_tokens || 0,
-      outputTokens: response.data.usage?.completion_tokens || 0,
-    };
-  } catch (error: any) {
-    throw new Error(
-      `OCR failed: ${error.response?.data?.error?.message || error.message}`
-    );
+      const response = await axios.post(
+        "https://api.together.xyz/v1/chat/completions",
+        {
+          model,
+          messages,
+          max_tokens: maxTokens,
+          temperature: 0,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${process.env.TOGETHER_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          timeout: 60000, // 60s timeout
+        }
+      );
+
+      return {
+        content: response.data.choices[0].message.content,
+        inputTokens: response.data.usage?.prompt_tokens || 0,
+        outputTokens: response.data.usage?.completion_tokens || 0,
+      };
+    } catch (error: any) {
+      lastError = error;
+      
+      // Check if we should retry
+      const status = error.response?.status;
+      const shouldRetry = 
+        status === 503 || // Service unavailable
+        status === 429 || // Rate limit
+        status === 500 || // Server error
+        !error.response;  // Network error
+      
+      if (!shouldRetry || attempt === retries) {
+        // Don't retry, or we've exhausted retries
+        break;
+      }
+      
+      console.warn(`   ⚠️  Attempt ${attempt + 1} failed (${status || 'network error'}), retrying...`);
+    }
   }
+
+  // If we got here, all retries failed - build detailed error message
+  const error = lastError;
+  let errorMsg = "OCR API call failed after retries";
+  
+  if (error.response) {
+    // HTTP error response from server
+    const status = error.response.status;
+    const statusText = error.response.statusText;
+    const data = error.response.data;
+    
+    errorMsg = `Together AI API error (${status} ${statusText})`;
+    
+    if (data?.error?.message) {
+      errorMsg += `: ${data.error.message}`;
+    } else if (data?.message) {
+      errorMsg += `: ${data.message}`;
+    } else if (typeof data === 'string') {
+      errorMsg += `: ${data.substring(0, 200)}`;
+    }
+    
+    // Add helpful context
+    if (status === 401) {
+      errorMsg += " - Check TOGETHER_API_KEY in .env.local";
+    } else if (status === 429) {
+      errorMsg += " - Rate limit exceeded";
+    } else if (status === 503) {
+      errorMsg += " - Service temporarily unavailable";
+    }
+    
+    errorMsg += ` (failed after ${retries + 1} attempts)`;
+    
+    console.error("Full API error:", {
+      status,
+      statusText,
+      data: JSON.stringify(data, null, 2),
+      url: error.config?.url,
+      attempts: retries + 1,
+    });
+  } else if (error.request) {
+    // Request made but no response received
+    errorMsg = `No response from Together AI API - network error or timeout (failed after ${retries + 1} attempts)`;
+    console.error("Network error:", error.message);
+  } else {
+    // Something else went wrong
+    errorMsg = `OCR setup error: ${error.message}`;
+    console.error("OCR error:", error);
+  }
+  
+  throw new Error(errorMsg);
 }
 
 /**
@@ -127,6 +213,11 @@ async function processConcurrent<T, R>(
   const executing: Promise<void>[] = [];
 
   for (let i = 0; i < items.length; i++) {
+    // Add small delay between starting requests to spread load
+    if (i > 0) {
+      await sleep(200); // 200ms between starting each request
+    }
+
     const promise = processor(items[i], i).then((result) => {
       results[i] = result;
     });
@@ -167,6 +258,13 @@ export async function ocr(
 
   const startTime = Date.now();
 
+  // Check for required API key
+  if (!process.env.TOGETHER_API_KEY) {
+    throw new Error(
+      "TOGETHER_API_KEY is not set. Add it to .env.local file:\nTOGETHER_API_KEY=your_key_here"
+    );
+  }
+
   // Read PDF and convert to images
   const fileBuffer = readFileSync(filePath);
   
@@ -174,8 +272,14 @@ export async function ocr(
   
   // Use Railway API if available, otherwise fall back to local pdfjs
   if (process.env.RAILWAY_API_URL) {
-    console.log("   Using Railway API for PDF conversion...");
-    imageBuffers = await convertPdfToImages(fileBuffer);
+    console.log(`   Using Railway API for PDF conversion (${process.env.RAILWAY_API_URL})...`);
+    try {
+      imageBuffers = await convertPdfToImages(fileBuffer);
+      console.log(`   ✅ Converted ${imageBuffers.length} pages via Railway`);
+    } catch (error) {
+      console.error("   ❌ Railway API failed:", error);
+      throw error;
+    }
   } else {
     console.log("   Using local PDF.js for PDF conversion...");
     const arrayBuffer = fileBuffer.buffer.slice(
