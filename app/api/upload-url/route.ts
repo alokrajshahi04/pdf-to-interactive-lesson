@@ -13,6 +13,7 @@ export async function POST(request: Request): Promise<NextResponse> {
         // For now, we'll allow all PDF uploads
         return {
           allowedContentTypes: ["application/pdf"],
+          addRandomSuffix: true,
           tokenPayload: JSON.stringify({
             // Optional: Add metadata here
           }),

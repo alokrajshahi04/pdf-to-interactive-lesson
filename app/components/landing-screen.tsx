@@ -59,7 +59,6 @@ function LandingScreen({
       const blob = await upload(file.name, file, {
         access: "public",
         handleUploadUrl: "/api/upload-url",
-        addRandomSuffix: true,
       });
 
       setProgress("PDF uploaded! Generating course...");
