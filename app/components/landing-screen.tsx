@@ -90,22 +90,25 @@ function LandingScreen({
         for (const line of lines) {
           if (!line.trim()) continue;
 
+          let event;
           try {
-            const event = JSON.parse(line);
-
-            if (event.type === "error") {
-              throw new Error(event.error);
-            } else if (event.type === "complete") {
-              setProgress("Course generated successfully!");
-              // Pass the generated course data to parent
-              onCourseGenerated(event.data.course);
-              return;
-            } else {
-              // Update progress with the message
-              setProgress(event.message);
-            }
+            event = JSON.parse(line);
           } catch (parseError) {
-            console.error("Failed to parse event:", line, parseError);
+            console.error("Failed to parse JSON:", line, parseError);
+            continue;
+          }
+
+          // Handle the parsed event
+          if (event.type === "error") {
+            throw new Error(event.error);
+          } else if (event.type === "complete") {
+            setProgress("Course generated successfully!");
+            // Pass the generated course data to parent
+            onCourseGenerated(event.data.course);
+            return;
+          } else {
+            // Update progress with the message
+            setProgress(event.message);
           }
         }
       }
