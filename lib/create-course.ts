@@ -2,14 +2,16 @@ import { generateText } from "ai";
 import type { CourseStructure, ModuleWithLessons } from "./types";
 import { extractXml, createXMLParser } from "./utils/xml";
 import { createLessons } from "./create-lesson";
-import { together, DEFAULT_MODEL } from "./utils/together";
+import { createTogetherClient, DEFAULT_MODEL } from "./utils/together";
 
 export interface CreateModulesInput {
   content: string;
+  apiKey: string;
 }
 
 export interface CreateCourseInput {
   content: string;
+  apiKey: string;
   validateStructure?: boolean;
   validateContent?: boolean;
   retryFailures?: boolean;
@@ -26,7 +28,9 @@ export interface CourseOutput {
  */
 export async function createModules({
   content,
+  apiKey,
 }: CreateModulesInput): Promise<CourseStructure> {
+  const together = createTogetherClient(apiKey);
   const result = await generateText({
     model: together(DEFAULT_MODEL),
     prompt: `Analyse the following content and create a course structure with 3 modules.
@@ -58,19 +62,21 @@ ${content}`,
  */
 export async function createCourse({
   content,
+  apiKey,
   validateStructure = true,
   validateContent = true,
   retryFailures = true,
   maxRetries = 3,
 }: CreateCourseInput): Promise<CourseOutput> {
   // Generate course modules
-  const courseStructure = await createModules({ content });
+  const courseStructure = await createModules({ content, apiKey });
 
   // Generate lessons for all modules in parallel
   const lessonsPromises = courseStructure.course.module.map((module) =>
     createLessons({
       module,
       content,
+      apiKey,
       validateStructure,
       validateContent,
       retryFailures,

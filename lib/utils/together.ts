@@ -1,8 +1,17 @@
 import { createTogetherAI } from "@ai-sdk/togetherai";
 
 /**
- * Shared Together AI client instance
- * Used across all AI generation functions
+ * Create a Together AI client with the provided API key
+ */
+export function createTogetherClient(apiKey: string) {
+  return createTogetherAI({
+    apiKey,
+  });
+}
+
+/**
+ * Legacy: Shared Together AI client instance using env variable
+ * @deprecated Use createTogetherClient(apiKey) instead
  */
 export const together = createTogetherAI({
   apiKey: process.env.TOGETHER_API_KEY ?? "",

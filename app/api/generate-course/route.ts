@@ -51,6 +51,13 @@ export async function POST(request: NextRequest) {
   // Start processing in the background
   (async () => {
     try {
+      // Get API key from headers
+      const apiKey = request.headers.get("X-Together-API-Key");
+      if (!apiKey) {
+        sendError("Together AI API key is required. Please add it in the app settings.");
+        return;
+      }
+
       const formData = await request.formData();
       const file = formData.get("file") as File | null;
       const url = formData.get("url") as string | null;
@@ -59,6 +66,7 @@ export async function POST(request: NextRequest) {
       const result = await generateCourseFromPdf({
         file: file || undefined,
         url: url || undefined,
+        apiKey,
         onProgress: sendProgress,
       });
 

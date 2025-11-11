@@ -11,11 +11,12 @@ import {
 import { createXMLParser, extractJson } from "./utils/xml";
 import { validateLessonsStructure } from "./validate-lesson-structure";
 import { fixLesson } from "./fix-lesson";
-import { together, DEFAULT_MODEL } from "./utils/together";
+import { createTogetherClient, DEFAULT_MODEL, together } from "./utils/together";
 
 export interface CreateLessonsInput {
   module: Module;
   content: string;
+  apiKey: string;
   validateStructure?: boolean; // If true, runs deterministic structure validation (default: true)
   validateContent?: boolean; // If true, runs LLM-based content validation (default: true)
   retryFailures?: boolean; // If true, attempts to fix failed lessons (default: true)
@@ -26,6 +27,7 @@ export interface ValidateLessonInput {
   lesson: Lesson;
   moduleTitle: string;
   content: string;
+  apiKey: string;
 }
 
 export interface ValidationResult {
@@ -42,11 +44,13 @@ export interface ValidationResult {
 export async function createLessons({
   module,
   content,
+  apiKey,
   validateStructure = true,
   validateContent = true,
   retryFailures = true,
   maxRetries = 3,
 }: CreateLessonsInput): Promise<ModuleWithLessons> {
+  const together = createTogetherClient(apiKey);
   const result = await generateText({
     model: together(DEFAULT_MODEL),
     prompt: `Analyse the following content and create 3 lessons for the module "${module.title}".
@@ -217,6 +221,7 @@ ${content}`,
           lesson,
           moduleTitle: module.title,
           content,
+          apiKey,
         });
 
         if (!validation.isValid) {
@@ -277,6 +282,7 @@ ${content}`,
           failure,
           moduleTitle: module.title,
           content,
+          apiKey,
           maxRetries,
         });
 

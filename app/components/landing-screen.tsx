@@ -1,7 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { upload } from "@vercel/blob/client";
+import { getApiKey } from "@/lib/api-key-storage";
+import { ApiKeyDialog } from "./api-key-dialog";
 
 interface LandingScreenProps {
   onStartCourse: () => void;
@@ -16,6 +18,8 @@ function LandingScreen({
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState("");
+  const [isApiKeyDialogOpen, setIsApiKeyDialogOpen] = useState(false);
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -43,12 +47,7 @@ function LandingScreen({
     }
   };
 
-  const handleFileUpload = async (file: File) => {
-    if (!file.name.endsWith(".pdf")) {
-      setError("Please upload a PDF file");
-      return;
-    }
-
+  const processFileUpload = async (file: File, apiKey: string) => {
     // Check file size as a rough proxy for page count (most PDFs are ~50-200KB per page)
     const estimatedPages = Math.ceil(file.size / (100 * 1024)); // Rough estimate
     if (estimatedPages > 100) {
@@ -72,12 +71,15 @@ function LandingScreen({
 
       setProgress("PDF uploaded! Generating course...");
 
-      // Pass the blob URL to generate-course API
+      // Pass the blob URL to generate-course API with API key in headers
       const formData = new FormData();
       formData.append("url", blob.url);
 
       const response = await fetch("/api/generate-course", {
         method: "POST",
+        headers: {
+          "X-Together-API-Key": apiKey,
+        },
         body: formData,
       });
 
@@ -128,7 +130,16 @@ function LandingScreen({
             return;
           } else {
             // Update progress with the message
-            setProgress(event.message);
+            // For OCR progress, show more detailed info if available
+            if (event.type === "ocr-progress" && event.data) {
+              const { completed, total } = event.data;
+              setProgress(`Extracting text from PDF (${completed}/${total} pages)`);
+            } else if (event.type === "ocr-start" && event.data) {
+              const { totalPages } = event.data;
+              setProgress(`Extracting text from ${totalPages} pages...`);
+            } else {
+              setProgress(event.message);
+            }
           }
         }
       }
@@ -141,8 +152,55 @@ function LandingScreen({
     }
   };
 
+  const handleFileUpload = async (file: File) => {
+    if (!file.name.endsWith(".pdf")) {
+      setError("Please upload a PDF file");
+      return;
+    }
+
+    // Check for API key
+    const apiKey = getApiKey();
+    if (!apiKey) {
+      setError("Please add your Together AI API key first.");
+      setPendingFile(file); // Store the file to upload after API key is saved
+      setIsApiKeyDialogOpen(true);
+      return;
+    }
+
+    // Process the file upload
+    await processFileUpload(file, apiKey);
+  };
+
+  const handleApiKeySaved = () => {
+    // If there's a pending file and an API key now exists, automatically start the upload
+    if (pendingFile) {
+      const apiKey = getApiKey();
+      if (apiKey) {
+        const fileToUpload = pendingFile;
+        setPendingFile(null); // Clear pending file before starting upload
+        setError(null); // Clear any error messages
+        // Small delay to ensure dialog closes smoothly
+        setTimeout(() => {
+          processFileUpload(fileToUpload, apiKey);
+        }, 100);
+      }
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+      {/* API Key Dialog */}
+      <ApiKeyDialog 
+        open={isApiKeyDialogOpen} 
+        onOpenChange={(open) => {
+          setIsApiKeyDialogOpen(open);
+          if (!open) {
+            // When dialog closes, check if API key was saved and trigger upload
+            handleApiKeySaved();
+          }
+        }}
+      />
+      
       {/* Header */}
       <header className="border-b border-gray-200 bg-white">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
@@ -164,10 +222,19 @@ function LandingScreen({
             </div>
           </div>
           <div className="flex items-center gap-4">
+            <button 
+              onClick={() => setIsApiKeyDialogOpen(true)}
+              className="text-gray-700 hover:text-gray-900 font-medium flex items-center gap-2"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+              </svg>
+              API Key
+            </button>
             <button className="text-gray-700 hover:text-gray-900 font-medium">
               Login
             </button>
-            <button className="px-5 py-2 bg-gray-900 text-white rounded-full font-medium hover:bg-gray-800 transition-colors">
+            <button className="px-5 py-2 bg-gray-900 text-white rounded-lg font-medium hover:bg-gray-800 transition-colors">
               Sign Up
             </button>
           </div>

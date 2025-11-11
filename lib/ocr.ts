@@ -5,13 +5,19 @@ import { convertPdfToImages } from "./utils/railway-pdf-service";
 
 const TOGETHER_VISION_MODEL = "meta-llama/Llama-4-Scout-17B-16E-Instruct";
 
+export interface OcrProgressCallback {
+  (type: string, message: string, data?: any): void;
+}
+
 interface OcrOptions {
+  apiKey: string;
   maintainFormat?: boolean;
   concurrency?: number;
   model?: string;
   maxTokens?: number;
   systemPrompt?: string;
   startDelay?: number; // Delay in ms between starting each concurrent request
+  onProgress?: OcrProgressCallback;
 }
 
 interface OcrResult {
@@ -39,6 +45,7 @@ function sleep(ms: number): Promise<void> {
 async function imageToMarkdown(
   imageBuffer: Buffer,
   options: {
+    apiKey: string;
     model?: string;
     maxTokens?: number;
     systemPrompt?: string;
@@ -46,9 +53,10 @@ async function imageToMarkdown(
     maintainFormat?: boolean;
     retries?: number;
     pageContext?: string; // e.g. "page 5/100" for better logging
-  } = {}
+  }
 ): Promise<{ content: string; inputTokens: number; outputTokens: number }> {
   const {
+    apiKey,
     model = TOGETHER_VISION_MODEL,
     maxTokens = 4000,
     systemPrompt,
@@ -121,7 +129,7 @@ RULES:
         },
         {
           headers: {
-            Authorization: `Bearer ${process.env.TOGETHER_API_KEY}`,
+            Authorization: `Bearer ${apiKey}`,
             "Content-Type": "application/json",
           },
           timeout: 60000, // 60s timeout
@@ -216,10 +224,12 @@ async function processConcurrent<T, R>(
   items: T[],
   processor: (item: T, index: number) => Promise<R>,
   concurrency: number,
-  startDelay: number = 200
+  startDelay: number = 200,
+  onProgress?: (completed: number, total: number) => void
 ): Promise<R[]> {
   const results: R[] = new Array(items.length);
   let index = 0;
+  let completed = 0;
   const executing = new Set<Promise<void>>();
 
   // Start initial batch without delay
@@ -228,6 +238,8 @@ async function processConcurrent<T, R>(
     const promise = processor(items[currentIndex], currentIndex)
       .then((result) => {
         results[currentIndex] = result;
+        completed++;
+        onProgress?.(completed, items.length);
       })
       .finally(() => {
         executing.delete(promise);
@@ -237,12 +249,7 @@ async function processConcurrent<T, R>(
 
   // Process remaining items with concurrency control
   while (index < items.length || executing.size > 0) {
-    // Wait for at least one to complete
-    if (executing.size >= concurrency) {
-      await Promise.race(executing);
-    }
-
-    // Start next request if we have items and capacity
+    // If we have capacity and more items to process, start a new one
     if (index < items.length && executing.size < concurrency) {
       // Add delay before starting next request (to stagger load)
       if (startDelay > 0) {
@@ -253,11 +260,16 @@ async function processConcurrent<T, R>(
       const promise = processor(items[currentIndex], currentIndex)
         .then((result) => {
           results[currentIndex] = result;
+          completed++;
+          onProgress?.(completed, items.length);
         })
         .finally(() => {
           executing.delete(promise);
         });
       executing.add(promise);
+    } else if (executing.size > 0) {
+      // Wait for at least one promise to complete
+      await Promise.race(executing);
     }
   }
 
@@ -273,23 +285,25 @@ async function processConcurrent<T, R>(
  */
 export async function ocr(
   filePath: string,
-  options: OcrOptions = {}
+  options: OcrOptions
 ): Promise<OcrResult> {
   const {
+    apiKey,
     maintainFormat = false,
     concurrency = 5,
     model,
     maxTokens,
     systemPrompt,
     startDelay = 200,
+    onProgress,
   } = options;
 
   const startTime = Date.now();
 
   // Check for required API key
-  if (!process.env.TOGETHER_API_KEY) {
+  if (!apiKey) {
     throw new Error(
-      "TOGETHER_API_KEY is not set. Add it to .env.local file:\nTOGETHER_API_KEY=your_key_here"
+      "Together AI API key is required. Please add your API key in the app settings."
     );
   }
 
@@ -336,6 +350,9 @@ export async function ocr(
   }
 
   console.log(`   Converting ${imageBuffers.length} pages to markdown...`);
+  onProgress?.("ocr-start", `Extracting text from ${imageBuffers.length} pages...`, {
+    totalPages: imageBuffers.length,
+  });
 
   // Process images with concurrency control
   let totalInputTokens = 0;
@@ -350,6 +367,7 @@ export async function ocr(
       console.log(`   📄 Processing ${pageContext}...`);
 
       const result = await imageToMarkdown(imageBuffer, {
+        apiKey,
         model,
         maxTokens,
         systemPrompt,
@@ -375,10 +393,23 @@ export async function ocr(
       };
     },
     concurrency,
-    startDelay
+    startDelay,
+    (completed, total) => {
+      onProgress?.("ocr-progress", `Extracting text from PDF (${completed}/${total} pages)`, {
+        completed,
+        total,
+        currentPage: completed,
+      });
+    }
   );
 
   const completionTime = Date.now() - startTime;
+
+  // Send final completion progress update
+  onProgress?.("ocr-complete", `Extracted text from all ${imageBuffers.length} pages`, {
+    totalPages: imageBuffers.length,
+    completed: imageBuffers.length,
+  });
 
   return {
     pages: pageResults,
