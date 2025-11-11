@@ -196,6 +196,7 @@ For multiple-choice questions, the answer must be the INDEX (0, 1, 2, or 3) of t
         lesson: fixedLesson as Lesson,
         moduleTitle,
         content,
+        apiKey,
       });
 
       if (!contentValidation.isValid) {

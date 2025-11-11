@@ -84,8 +84,8 @@ export async function generateCourseFromPdf(
 
   try {
     // Check for API key
-    if (!process.env.TOGETHER_API_KEY) {
-      throw new Error("TOGETHER_API_KEY not configured");
+    if (!apiKey) {
+      throw new Error("Together AI API key is required. Please add your API key in the app settings.");
     }
 
     // Validate input
@@ -160,7 +160,6 @@ export async function generateCourseFromPdf(
     });
 
     // Generate course
-    onProgress?.("generate-modules", "Generating course modules...");
     console.log("🤖 Generating course...");
     const courseStartTime = Date.now();
 
@@ -171,6 +170,7 @@ export async function generateCourseFromPdf(
       validateContent: true,
       retryFailures: true,
       maxRetries: 3,
+      onProgress,
     });
 
     const courseElapsed = ((Date.now() - courseStartTime) / 1000).toFixed(2);
@@ -179,8 +179,8 @@ export async function generateCourseFromPdf(
     const lessonStats = calculateLessonStats(course);
 
     onProgress?.(
-      "generate-lessons",
-      `Generated ${course.modules.length} modules with lessons`
+      "course-complete",
+      `Generated ${course.modules.length} modules with ${lessonStats.total} lessons`
     );
 
     // Log summary with clean formatting

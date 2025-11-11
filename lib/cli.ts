@@ -185,6 +185,7 @@ async function extractContent(filePath: string): Promise<string> {
     const result = await ocr(filePath, {
       maintainFormat: false,
       concurrency: 5,
+      apiKey: process.env.TOGETHER_API_KEY || "",
     });
 
     const elapsed = ((Date.now() - startTime) / 1000).toFixed(2);
@@ -409,7 +410,7 @@ async function runGenerateModules(content: string) {
   console.log("🤖 Generating course modules...\n");
   const startTime = Date.now();
 
-  const courseStructure = await createModules({ content });
+  const courseStructure = await createModules({ content, apiKey: process.env.TOGETHER_API_KEY || "" });
 
   const elapsed = ((Date.now() - startTime) / 1000).toFixed(2);
   console.log(`✅ Course generation completed in ${elapsed}s\n`);
@@ -437,6 +438,7 @@ async function runGenerateCourse(content: string, args: CliArgs) {
     validateContent: args.validateContent,
     retryFailures: args.retryFailures,
     maxRetries: args.maxRetries,
+    apiKey: process.env.TOGETHER_API_KEY || "",
   });
 
   const elapsed = ((Date.now() - startTime) / 1000).toFixed(2);

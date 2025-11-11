@@ -137,6 +137,23 @@ function LandingScreen({
             } else if (event.type === "ocr-start" && event.data) {
               const { totalPages } = event.data;
               setProgress(`Extracting text from ${totalPages} pages...`);
+            } else if (event.type === "modules-start") {
+              setProgress("Generating course structure...");
+            } else if (event.type === "modules-complete" && event.data) {
+              const { moduleCount } = event.data;
+              setProgress(`Generated ${moduleCount} modules`);
+            } else if (event.type === "lessons-start" && event.data) {
+              const { totalModules } = event.data;
+              setProgress(`Generating lessons for ${totalModules} modules...`);
+            } else if (event.type === "lessons-progress" && event.data) {
+              const { completed, total, moduleTitle } = event.data;
+              if (moduleTitle) {
+                setProgress(`Generating lessons (${completed}/${total} modules): "${moduleTitle}"`);
+              } else {
+                setProgress(`Generating lessons (${completed}/${total} modules)`);
+              }
+            } else if (event.type === "course-complete") {
+              setProgress(event.message);
             } else {
               setProgress(event.message);
             }
