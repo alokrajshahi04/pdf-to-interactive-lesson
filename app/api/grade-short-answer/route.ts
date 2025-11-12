@@ -2,6 +2,10 @@ import { NextRequest } from "next/server";
 import { generateText } from "ai";
 import { createTogetherClient, DEFAULT_MODEL } from "@/lib/utils/together";
 import { extractJson } from "@/lib/utils/xml";
+import {
+  gradeAnswerCreditsManager,
+  getClientIdentifier,
+} from "@/lib/utils/credits";
 
 // Force Node.js runtime (not Edge) for native modules
 export const runtime = "nodejs";
@@ -9,6 +13,8 @@ export const dynamic = "force-dynamic";
 
 // POST /api/grade-short-answer
 export async function POST(request: NextRequest) {
+  const clientId = getClientIdentifier(request);
+  
   try {
     // Get API key from headers
     const apiKey = request.headers.get("X-Together-API-Key");
@@ -77,10 +83,21 @@ Respond ONLY with valid JSON in this exact format:
         throw new Error("Invalid response format: isCorrect must be boolean");
       }
 
-      return Response.json({
-        isCorrect: evaluation.isCorrect,
-        explanation: evaluation.explanation || undefined,
-      });
+      // Only deduct credits on successful grading
+      const creditsResult = gradeAnswerCreditsManager.deductCredits(clientId, 1);
+
+      return Response.json(
+        {
+          isCorrect: evaluation.isCorrect,
+          explanation: evaluation.explanation || undefined,
+        },
+        {
+          headers: {
+            "X-Credits-Remaining": creditsResult.creditsRemaining.toString(),
+            "X-Credits-Used": creditsResult.creditsUsed.toString(),
+          },
+        }
+      );
     } catch (error) {
       console.error("Failed to parse evaluation response:", result.text);
       return Response.json(

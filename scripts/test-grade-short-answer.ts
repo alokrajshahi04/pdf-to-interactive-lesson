@@ -87,9 +87,14 @@ async function testEndpoint(
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
+      const isCreditsError = response.status === 402;
+      const creditsRemaining = response.headers.get("X-Credits-Remaining");
+      
       return {
         success: false,
-        error: `HTTP ${response.status}: ${errorData.error || response.statusText}`,
+        error: isCreditsError
+          ? `Insufficient credits: ${errorData.message || `You have ${creditsRemaining || 0} credit(s) remaining`}`
+          : `HTTP ${response.status}: ${errorData.error || response.statusText}`,
       };
     }
 
