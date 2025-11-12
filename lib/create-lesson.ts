@@ -11,21 +11,28 @@ import {
 import { createXMLParser, extractJson } from "./utils/xml";
 import { validateLessonsStructure } from "./validate-lesson-structure";
 import { fixLesson } from "./fix-lesson";
-import { together, DEFAULT_MODEL } from "./utils/together";
+import { createTogetherClient, DEFAULT_MODEL } from "./utils/together";
+
+export interface LessonProgressCallback {
+  (type: string, message: string, data?: any): void;
+}
 
 export interface CreateLessonsInput {
   module: Module;
   content: string;
+  apiKey: string;
   validateStructure?: boolean; // If true, runs deterministic structure validation (default: true)
   validateContent?: boolean; // If true, runs LLM-based content validation (default: true)
   retryFailures?: boolean; // If true, attempts to fix failed lessons (default: true)
   maxRetries?: number; // Maximum number of retry attempts for fixing lessons (default: 3)
+  onProgress?: LessonProgressCallback;
 }
 
 export interface ValidateLessonInput {
   lesson: Lesson;
   moduleTitle: string;
   content: string;
+  apiKey: string;
 }
 
 export interface ValidationResult {
@@ -42,11 +49,15 @@ export interface ValidationResult {
 export async function createLessons({
   module,
   content,
+  apiKey,
   validateStructure = true,
   validateContent = true,
   retryFailures = true,
   maxRetries = 3,
+  onProgress,
 }: CreateLessonsInput): Promise<ModuleWithLessons> {
+  onProgress?.("lesson-start", `Generating lessons for "${module.title}"...`);
+  const together = createTogetherClient(apiKey);
   const result = await generateText({
     model: together(DEFAULT_MODEL),
     prompt: `Analyse the following content and create 3 lessons for the module "${module.title}".
@@ -200,24 +211,36 @@ ${content}`,
       }
     }
 
-    // Run LLM-based content validation if requested
+    // Run LLM-based content validation if requested (concurrently)
     if (validateContent && lessonStructure.module?.lessons) {
       console.log(
         `🔍 Validating lesson content for module "${module.title}"...`
       );
 
-      for (let i = 0; i < lessonStructure.module.lessons.length; i++) {
-        // Skip if already failed structure validation
-        if (failuresByIndex.has(i)) {
-          continue;
-        }
+      // Validate all lessons concurrently
+      const validationPromises = lessonStructure.module.lessons.map(
+        async (lesson: any, i: number) => {
+          // Skip if already failed structure validation
+          if (failuresByIndex.has(i)) {
+            return { index: i, lesson, validation: null };
+          }
 
-        const lesson = lessonStructure.module.lessons[i];
-        const validation = await validateLesson({
-          lesson,
-          moduleTitle: module.title,
-          content,
-        });
+          const validation = await validateLesson({
+            lesson,
+            moduleTitle: module.title,
+            content,
+            apiKey,
+          });
+
+          return { index: i, lesson, validation };
+        }
+      );
+
+      const validationResults = await Promise.all(validationPromises);
+
+      // Process validation results
+      for (const { index, lesson, validation } of validationResults) {
+        if (!validation) continue; // Already failed structure validation
 
         if (!validation.isValid) {
           const details: string[] = [validation.explanation];
@@ -227,7 +250,7 @@ ${content}`,
             });
           }
 
-          failuresByIndex.set(i, {
+          failuresByIndex.set(index, {
             success: false,
             data: lesson,
             error: {
@@ -258,28 +281,39 @@ ${content}`,
       );
     }
 
-    // Attempt to fix failed lessons if requested
+    // Attempt to fix failed lessons if requested (concurrently)
     if (retryFailures && failuresByIndex.size > 0) {
       console.log(
         `\n🔧 Attempting to fix ${failuresByIndex.size} failed lesson(s) for module "${module.title}"...`
       );
 
-      for (const [index, failedLesson] of failuresByIndex.entries()) {
-        // Convert FailedLesson to the format expected by fixLesson
-        const failure = {
-          lesson: failedLesson.data,
-          validationType: failedLesson.error.validationType,
-          reason: failedLesson.error.reason,
-          details: failedLesson.error.details,
-        };
+      // Fix all failed lessons concurrently
+      const fixPromises = Array.from(failuresByIndex.entries()).map(
+        async ([index, failedLesson]) => {
+          // Convert FailedLesson to the format expected by fixLesson
+          const failure = {
+            lesson: failedLesson.data,
+            validationType: failedLesson.error.validationType,
+            reason: failedLesson.error.reason,
+            details: failedLesson.error.details,
+          };
 
-        const fixResult = await fixLesson({
-          failure,
-          moduleTitle: module.title,
-          content,
-          maxRetries,
-        });
+          const fixResult = await fixLesson({
+            failure,
+            moduleTitle: module.title,
+            content,
+            apiKey,
+            maxRetries,
+          });
 
+          return { index, fixResult };
+        }
+      );
+
+      const fixResults = await Promise.all(fixPromises);
+
+      // Process fix results
+      for (const { index, fixResult } of fixResults) {
         if (fixResult.success && fixResult.lesson) {
           // Replace the lesson at this index with the fixed version
           lessonStructure.module.lessons[index] = fixResult.lesson;
@@ -331,10 +365,20 @@ ${content}`,
       }
     );
 
-    return {
+    const moduleResult = {
       title: lessonStructure.module.title,
       lessons: lessonResults,
     };
+
+    // Send completion progress
+    const successfulCount = lessonResults.filter((r) => r.success).length;
+    onProgress?.("lesson-complete", `Completed "${module.title}" (${successfulCount}/${lessonResults.length} lessons)`, {
+      moduleTitle: module.title,
+      successful: successfulCount,
+      total: lessonResults.length,
+    });
+
+    return moduleResult;
   } catch (error) {
     console.error("XML parsing error for module:", module.title);
     console.error("Raw response:", result.text.substring(0, 500));
@@ -346,7 +390,10 @@ export async function validateLesson({
   lesson,
   moduleTitle,
   content,
+  apiKey,
 }: ValidateLessonInput): Promise<ValidationResult> {
+  const together = createTogetherClient(apiKey);
+  
   // Format lesson data for validation
   const lessonData = {
     title: lesson.title,

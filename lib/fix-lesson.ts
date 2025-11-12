@@ -4,7 +4,7 @@ import { validateLessonsStructure } from "./validate-lesson-structure";
 import { validateLesson } from "./create-lesson";
 import { extractXml, createXMLParser } from "./utils/xml";
 import { QuestionType } from "./types";
-import { together, DEFAULT_MODEL } from "./utils/together";
+import { createTogetherClient, DEFAULT_MODEL } from "./utils/together";
 
 // Internal type for fix-lesson operations
 interface LessonFailure {
@@ -20,6 +20,7 @@ export interface FixLessonInput {
   failure: LessonFailure;
   moduleTitle: string;
   content: string;
+  apiKey: string;
   maxRetries?: number;
 }
 
@@ -39,8 +40,10 @@ export async function fixLesson({
   failure,
   moduleTitle,
   content,
+  apiKey,
   maxRetries = 3,
 }: FixLessonInput): Promise<FixLessonResult> {
+  const together = createTogetherClient(apiKey);
   const originalLesson = failure.lesson;
   const failureDetails = failure.details?.join("\n") || failure.reason;
   const fixHistory: FixAttempt[] = [];
@@ -193,6 +196,7 @@ For multiple-choice questions, the answer must be the INDEX (0, 1, 2, or 3) of t
         lesson: fixedLesson as Lesson,
         moduleTitle,
         content,
+        apiKey,
       });
 
       if (!contentValidation.isValid) {

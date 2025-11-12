@@ -1,24 +1,9 @@
 "use client";
 
-import { useState } from "react";
-import { Key, ExternalLink, Info } from "lucide-react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "./ui/dialog";
-import {
-  Drawer,
-  DrawerClose,
-  DrawerContent,
-  DrawerDescription,
-  DrawerFooter,
-  DrawerHeader,
-  DrawerTitle,
-} from "./ui/drawer";
-import { useMediaQuery } from "../hooks/use-media-query";
+import { useState, useEffect } from "react";
+import { Key } from "lucide-react";
+import { getApiKey } from "@/lib/api-key-storage";
+import { ApiKeyDialog } from "./api-key-dialog";
 
 interface HeaderProps {
   onBackClick?: () => void;
@@ -28,81 +13,23 @@ interface HeaderProps {
 
 function Header({ onBackClick, showProgressBar, moduleProgress }: HeaderProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [apiKey, setApiKey] = useState("");
-  const isDesktop = useMediaQuery("(min-width: 768px)");
+  const [savedApiKey, setSavedApiKey] = useState<string | null>(null);
 
-  const GridIcon = () => (
-    <div className="grid grid-cols-3 gap-0.5 w-4 h-4">
-      <div className="w-1 h-1 bg-gray-600 rounded-sm"></div>
-      <div className="w-1 h-1 bg-gray-600 rounded-sm"></div>
-      <div className="w-1 h-1 bg-gray-600 rounded-sm"></div>
-      <div className="w-1 h-1 bg-gray-600 rounded-sm"></div>
-      <div className="w-1 h-1 bg-gray-600 rounded-sm"></div>
-      <div className="w-1 h-1 bg-gray-600 rounded-sm"></div>
-      <div className="w-1 h-1 bg-gray-600 rounded-sm"></div>
-      <div className="w-1 h-1 bg-gray-600 rounded-sm"></div>
-      <div className="w-1 h-1 bg-gray-600 rounded-sm"></div>
-    </div>
-  );
+  // Load saved API key on mount
+  useEffect(() => {
+    const storedKey = getApiKey();
+    setSavedApiKey(storedKey);
+  }, []);
 
-  const ApiKeyForm = ({ className }: { className?: string }) => (
-    <div className={className}>
-      <div className="space-y-4">
-        <div className="text-base text-gray-900">
-          Add your <span className="font-semibold underline">Together AI</span> API key
-        </div>
-        <input
-          type="text"
-          placeholder="API Key"
-          value={apiKey}
-          onChange={(e) => setApiKey(e.target.value)}
-          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent"
-        />
-        <ul className="space-y-2 text-sm text-gray-600">
-          <li className="flex items-start">
-            <span className="mr-2">•</span>
-            <span>
-              Visit{" "}
-              <a
-                href="https://together.ai"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="underline hover:text-gray-900"
-              >
-                together.ai
-              </a>{" "}
-              and sign up for free
-            </span>
-          </li>
-          <li className="flex items-start">
-            <span className="mr-2">•</span>
-            <span>Copy your API key and paste it above</span>
-          </li>
-        </ul>
-        <div className="flex flex-col gap-2">
-          <a
-            href="https://together.ai"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="w-full px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors flex items-center justify-center gap-2"
-          >
-            Get your API key
-            <ExternalLink className="w-4 h-4" />
-          </a>
-          <button
-            onClick={() => setIsOpen(false)}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-          >
-            Dismiss
-          </button>
-        </div>
-        <div className="flex items-center gap-2 text-sm text-gray-600 pt-2 border-t border-gray-200">
-          <Info className="w-4 h-4" />
-          <span>Credits left: 0</span>
-        </div>
-      </div>
-    </div>
-  );
+  // Refresh saved API key when dialog closes
+  const handleOpenChange = (open: boolean) => {
+    setIsOpen(open);
+    if (!open) {
+      // Refresh the saved key status when dialog closes
+      const storedKey = getApiKey();
+      setSavedApiKey(storedKey);
+    }
+  };
 
   return (
     <div className="border-b border-gray-200">
@@ -126,7 +53,11 @@ function Header({ onBackClick, showProgressBar, moduleProgress }: HeaderProps) {
           </svg>
         </button>
         <div className="text-sm text-gray-600">
-          Credits left: <span className="font-semibold">12</span>
+          {savedApiKey ? (
+            <span className="text-green-600 font-semibold">API Key Configured ✓</span>
+          ) : (
+            <span className="text-orange-600 font-semibold">No API Key</span>
+          )}
         </div>
         <div className="flex items-center gap-4">
           <button
@@ -174,32 +105,8 @@ function Header({ onBackClick, showProgressBar, moduleProgress }: HeaderProps) {
         </div>
       )}
 
-      {/* API Key Dialog/Drawer - Responsive */}
-      {isDesktop ? (
-        <Dialog open={isOpen} onOpenChange={setIsOpen}>
-          <DialogContent className="sm:max-w-md bg-white rounded-lg">
-            <DialogHeader className="pb-4">
-              <div className="flex items-center gap-2">
-                <GridIcon />
-                <DialogTitle className="text-left text-lg font-semibold">Together AI API key</DialogTitle>
-              </div>
-            </DialogHeader>
-            <ApiKeyForm />
-          </DialogContent>
-        </Dialog>
-      ) : (
-        <Drawer open={isOpen} onOpenChange={setIsOpen}>
-          <DrawerContent className="max-w-md mx-auto">
-            <DrawerHeader className="pb-4">
-              <div className="flex items-center gap-2">
-                <GridIcon />
-                <DrawerTitle className="text-left">Together AI API key</DrawerTitle>
-              </div>
-            </DrawerHeader>
-            <ApiKeyForm />
-          </DrawerContent>
-        </Drawer>
-      )}
+      {/* API Key Dialog */}
+      <ApiKeyDialog open={isOpen} onOpenChange={handleOpenChange} />
     </div>
   );
 }

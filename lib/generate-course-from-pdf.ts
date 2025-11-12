@@ -46,6 +46,7 @@ export interface ProgressCallback {
 export interface GenerateCourseOptions {
   file?: File;
   url?: string;
+  apiKey: string;
   onProgress?: ProgressCallback;
 }
 
@@ -71,20 +72,20 @@ export interface GenerateCourseResult {
 
 /**
  * Generate a course from a PDF file or URL
- * @param options - Configuration options including file/URL and progress callback
+ * @param options - Configuration options including file/URL, API key, and progress callback
  * @returns Course data and metadata
  */
 export async function generateCourseFromPdf(
   options: GenerateCourseOptions
 ): Promise<GenerateCourseResult> {
-  const { file, url, onProgress } = options;
+  const { file, url, apiKey, onProgress } = options;
   let tempFilePath: string | null = null;
   let isTemp = false;
 
   try {
     // Check for API key
-    if (!process.env.TOGETHER_API_KEY) {
-      throw new Error("TOGETHER_API_KEY not configured");
+    if (!apiKey) {
+      throw new Error("Together AI API key is required. Please add your API key in the app settings.");
     }
 
     // Validate input
@@ -133,16 +134,17 @@ export async function generateCourseFromPdf(
     }
 
     // Extract content from PDF
-    onProgress?.("ocr", "Extracting text from PDF using OCR...");
     console.log("🔍 Extracting content...");
     const ocrStartTime = Date.now();
 
     let result;
     try {
       result = await ocr(tempFilePath, {
+        apiKey,
         maintainFormat: false,
-        concurrency: 2, // Process 2 pages in parallel (gentle on API)
-        startDelay: 250, // 250ms stagger between starting each request
+        concurrency: 5, // Process 5 pages in parallel for faster processing
+        startDelay: 100, // 100ms stagger between starting each request
+        onProgress,
       });
     } catch (error) {
       console.error("❌ OCR failed:", error);
@@ -158,16 +160,17 @@ export async function generateCourseFromPdf(
     });
 
     // Generate course
-    onProgress?.("generate-modules", "Generating course modules...");
     console.log("🤖 Generating course...");
     const courseStartTime = Date.now();
 
     const course = await createCourse({
       content,
+      apiKey,
       validateStructure: true,
       validateContent: true,
       retryFailures: true,
       maxRetries: 3,
+      onProgress,
     });
 
     const courseElapsed = ((Date.now() - courseStartTime) / 1000).toFixed(2);
@@ -176,8 +179,8 @@ export async function generateCourseFromPdf(
     const lessonStats = calculateLessonStats(course);
 
     onProgress?.(
-      "generate-lessons",
-      `Generated ${course.modules.length} modules with lessons`
+      "course-complete",
+      `Generated ${course.modules.length} modules with ${lessonStats.total} lessons`
     );
 
     // Log summary with clean formatting
