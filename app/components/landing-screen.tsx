@@ -127,6 +127,7 @@ function LandingScreen({
             setProgress("Course generated successfully!");
             // Pass the generated course data to parent
             onCourseGenerated(event.data.course);
+            setIsProcessing(false);
             return;
           } else {
             // Update progress with the message

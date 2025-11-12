@@ -35,6 +35,8 @@ export function ApiKeyDialog({ open, onOpenChange }: ApiKeyDialogProps) {
       setSavedApiKey(storedKey);
       if (storedKey) {
         setApiKey(storedKey);
+      } else {
+        setApiKey("");
       }
       // Auto-focus the input when dialog opens
       setTimeout(() => {
