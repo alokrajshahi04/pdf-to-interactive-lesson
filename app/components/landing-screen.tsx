@@ -7,12 +7,10 @@ import { ApiKeyDialog } from "./api-key-dialog";
 import { useCredits } from "../hooks/use-credits";
 
 interface LandingScreenProps {
-  onStartCourse: () => void;
   onCourseGenerated: (courseData: any) => void;
 }
 
 function LandingScreen({
-  onStartCourse,
   onCourseGenerated,
 }: LandingScreenProps) {
   const { updateCredits } = useCredits();
@@ -403,16 +401,6 @@ function LandingScreen({
                       <p className="text-red-700 text-sm">{error}</p>
                     </div>
                   )}
-
-                  {/* Demo button */}
-                  <div className="mt-8">
-                    <button
-                      onClick={onStartCourse}
-                      className="text-sm text-blue-600 hover:text-blue-700 underline"
-                    >
-                      Try demo course
-                    </button>
-                  </div>
                 </>
               )}
             </div>

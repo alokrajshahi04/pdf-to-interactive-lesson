@@ -8,10 +8,11 @@ interface LessonData {
   content: string;
   info: string;
   question: string;
-  answer: string | boolean | number;
+  answer: string | boolean | number | number[];
   title: string;
   questionType: string;
   choices?: string[];
+  slots?: string[];
 }
 
 interface Lesson {
@@ -62,7 +63,7 @@ function ModulesScreen({
 
   return (
     <div className="min-h-screen bg-white">
-      <Header />
+      <Header showNavLinks={true} />
 
       {/* Course Title Header */}
       <div className="border-b border-gray-200 bg-gray-50 py-6">

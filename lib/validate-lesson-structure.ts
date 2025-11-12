@@ -4,6 +4,7 @@ import {
   type ShortAnswerLesson,
   type TrueFalseLesson,
   type MultipleChoiceLesson,
+  type DragDropLesson,
 } from "./types";
 
 export interface ValidationError {
@@ -36,6 +37,8 @@ export function validateLessonStructure(
     errors.push(...validateTrueFalse(lesson));
   } else if (lesson.questionType === QuestionType.ShortAnswer) {
     errors.push(...validateShortAnswer(lesson));
+  } else if (lesson.questionType === QuestionType.DragDrop) {
+    errors.push(...validateDragDrop(lesson));
   } else {
     errors.push({
       field: "questionType",
@@ -263,6 +266,161 @@ function validateShortAnswer(lesson: any): ValidationError[] {
       severity: "warning",
       message: "Short answer questions should not have choices array",
     });
+  }
+
+  return errors;
+}
+
+/**
+ * Validates drag-drop specific fields
+ */
+function validateDragDrop(lesson: any): ValidationError[] {
+  const errors: ValidationError[] = [];
+
+  // Must have choices array
+  if (!Array.isArray(lesson.choices)) {
+    errors.push({
+      field: "choices",
+      severity: "error",
+      message: "Drag-drop questions must have a choices array",
+    });
+  } else {
+    // Must have exactly 3 choices
+    if (lesson.choices.length !== 3) {
+      errors.push({
+        field: "choices",
+        severity: "error",
+        message: `Drag-drop must have exactly 3 choices (found ${lesson.choices.length})`,
+      });
+    }
+
+    // All choices must be strings
+    lesson.choices.forEach((choice: any, index: number) => {
+      if (typeof choice !== "string") {
+        errors.push({
+          field: `choices[${index}]`,
+          severity: "error",
+          message: `Choice at index ${index} must be a string, got ${typeof choice}: ${JSON.stringify(
+            choice
+          )}`,
+        });
+      } else if (choice.trim().length === 0) {
+        errors.push({
+          field: `choices[${index}]`,
+          severity: "error",
+          message: `Choice at index ${index} cannot be empty`,
+        });
+      }
+    });
+
+    // Choices must be unique
+    const uniqueChoices = new Set(lesson.choices);
+    if (uniqueChoices.size !== lesson.choices.length) {
+      errors.push({
+        field: "choices",
+        severity: "error",
+        message: "All choices must be unique (found duplicates)",
+      });
+    }
+  }
+
+  // Must have slots array
+  if (!Array.isArray(lesson.slots)) {
+    errors.push({
+      field: "slots",
+      severity: "error",
+      message: "Drag-drop questions must have a slots array",
+    });
+  } else {
+    // Must have exactly 3 slots
+    if (lesson.slots.length !== 3) {
+      errors.push({
+        field: "slots",
+        severity: "error",
+        message: `Drag-drop must have exactly 3 slots (found ${lesson.slots.length})`,
+      });
+    }
+
+    // All slots must be strings
+    lesson.slots.forEach((slot: any, index: number) => {
+      if (typeof slot !== "string") {
+        errors.push({
+          field: `slots[${index}]`,
+          severity: "error",
+          message: `Slot at index ${index} must be a string, got ${typeof slot}: ${JSON.stringify(
+            slot
+          )}`,
+        });
+      } else if (slot.trim().length === 0) {
+        errors.push({
+          field: `slots[${index}]`,
+          severity: "error",
+          message: `Slot at index ${index} cannot be empty`,
+        });
+      }
+    });
+  }
+
+  // Answer must be an array
+  if (!Array.isArray(lesson.answer)) {
+    errors.push({
+      field: "answer",
+      severity: "error",
+      message: `Drag-drop answer must be an array, got ${typeof lesson.answer}: ${JSON.stringify(
+        lesson.answer
+      )}`,
+    });
+  } else {
+    // Must have exactly 3 elements
+    if (lesson.answer.length !== 3) {
+      errors.push({
+        field: "answer",
+        severity: "error",
+        message: `Drag-drop answer must have exactly 3 elements (found ${lesson.answer.length})`,
+      });
+    }
+
+    // All answer elements must be numbers (choice indices)
+    lesson.answer.forEach((choiceIndex: any, slotIndex: number) => {
+      if (typeof choiceIndex !== "number") {
+        errors.push({
+          field: `answer[${slotIndex}]`,
+          severity: "error",
+          message: `Answer at slot index ${slotIndex} must be a number (choice index), got ${typeof choiceIndex}: ${JSON.stringify(
+            choiceIndex
+          )}`,
+        });
+      } else if (!Number.isInteger(choiceIndex)) {
+        errors.push({
+          field: `answer[${slotIndex}]`,
+          severity: "error",
+          message: `Answer at slot index ${slotIndex} must be an integer, got ${choiceIndex}`,
+        });
+      } else if (lesson.choices && Array.isArray(lesson.choices)) {
+        // Validate choice index is in range
+        if (choiceIndex < 0 || choiceIndex >= lesson.choices.length) {
+          errors.push({
+            field: `answer[${slotIndex}]`,
+            severity: "error",
+            message: `Answer at slot index ${slotIndex} references invalid choice index ${choiceIndex} (must be 0-${
+              lesson.choices.length - 1
+            })`,
+          });
+        }
+      }
+    });
+
+    // Validate all choice indices are used exactly once
+    if (lesson.choices && Array.isArray(lesson.choices) && lesson.answer.length === 3) {
+      const usedChoices = new Set(lesson.answer);
+      if (usedChoices.size !== 3) {
+        errors.push({
+          field: "answer",
+          severity: "error",
+          message: "Each choice must be used exactly once (found duplicates or missing choices)",
+        });
+      }
+    }
   }
 
   return errors;

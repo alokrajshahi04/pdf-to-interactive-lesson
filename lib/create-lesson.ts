@@ -60,15 +60,16 @@ export async function createLessons({
   const together = createTogetherClient(apiKey);
   const result = await generateText({
     model: together(DEFAULT_MODEL),
-    prompt: `Analyse the following content and create 3 lessons for the module "${module.title}".
+    prompt: `Analyse the following content and create 4 lessons for the module "${module.title}".
 Respond only with XML format. Do not include any other text.
 
-IMPORTANT: You must use these exact questionType values:
-- "short-answer" - For open-ended text questions (answer is text)
-- "true-false" - For true/false questions (answer must be "true" or "false")
-- "multiple-choice" - For multiple choice questions (answer is index 0-3, must include <choices>)
+IMPORTANT: You must create exactly ONE lesson for EACH of these question types:
+1. "short-answer" - For open-ended text questions (answer is text)
+2. "true-false" - For true/false questions (answer must be "true" or "false")
+3. "multiple-choice" - For multiple choice questions (answer is index 0-3, must include <choices>)
+4. "drag-drop" - For drag-and-drop matching questions (answer is array of 3 numbers, must include <choices> and <slots>)
 
-Try to create questions which cover each of the three question types listed above.
+You MUST create one lesson for each question type. Do not skip any question type.
 Your response should ONLY contain the XML format following this structure:
 
 <module title="${module.title}">
@@ -96,6 +97,27 @@ Your response should ONLY contain the XML format following this structure:
       <choice>Fourth option</choice>
     </choices>
   </lesson>
+  <lesson title="Lesson 4 Title" questionType="drag-drop">
+    <content>Lesson 4 Content. About 3 sentences long.</content>
+    <info>A quick one sentence fact within the lesson content to highlight a key point</info>
+    <question>Match the items to their correct categories by dragging choices to slots</question>
+    <answer>0,2,1</answer>
+    <choices>
+      <choice>Choice A</choice>
+      <choice>Choice B</choice>
+      <choice>Choice C</choice>
+    </choices>
+    <slots>
+      <slot>Slot 1 Label</slot>
+      <slot>Slot 2 Label</slot>
+      <slot>Slot 3 Label</slot>
+    </slots>
+  </lesson>
+
+Note: For drag-drop questions:
+- Must have exactly 3 choices and 3 slots
+- Answer format: "0,2,1" means slot 0 gets choice 0, slot 1 gets choice 2, slot 2 gets choice 1
+- Each choice must be used exactly once
 
 Note: For numeric questions (years, scores, percentages, etc.), choices can be numbers:
   <choices>
@@ -109,7 +131,7 @@ Content:
 ${content}`,
   });
 
-  const parser = createXMLParser(["lesson", "choice"]);
+  const parser = createXMLParser(["lesson", "choice", "slot"]);
 
   try {
     const lessonStructure = parser.parse(result.text);
@@ -139,12 +161,29 @@ ${content}`,
             delete processed.choice;
           }
 
+          // Flatten slots.slot[] to slots[]
+          // Handle both nested structure (slots.slot[]) and flat structure (slot[])
+          if (lesson.slots?.slot) {
+            processed.slots = lesson.slots.slot;
+          } else if (lesson.slot) {
+            // LLM sometimes generates <slot> directly without wrapping <slots>
+            processed.slots = lesson.slot;
+            delete processed.slot;
+          }
+
           // Convert answer based on questionType
           if (lesson.questionType === QuestionType.MultipleChoice) {
             processed.answer = parseInt(lesson.answer, 10);
           } else if (lesson.questionType === QuestionType.TrueFalse) {
             processed.answer =
               lesson.answer === "true" || lesson.answer === true;
+          } else if (lesson.questionType === QuestionType.DragDrop) {
+            // Parse comma-separated string to array of numbers
+            if (typeof lesson.answer === "string") {
+              processed.answer = lesson.answer.split(",").map((val: string) => parseInt(val.trim(), 10));
+            } else if (Array.isArray(lesson.answer)) {
+              processed.answer = lesson.answer.map((val: any) => parseInt(val, 10));
+            }
           }
           // short-answer keeps answer as string (no conversion needed)
 

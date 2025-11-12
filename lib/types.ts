@@ -10,6 +10,7 @@ export enum QuestionType {
   MultipleChoice = "multiple-choice",
   TrueFalse = "true-false",
   ShortAnswer = "short-answer",
+  DragDrop = "drag-drop",
 }
 
 export interface FixAttempt {
@@ -45,7 +46,14 @@ export interface MultipleChoiceLesson extends LessonBase {
   choices: (string | number)[]; // Choices can be strings or numbers
 }
 
-export type Lesson = ShortAnswerLesson | TrueFalseLesson | MultipleChoiceLesson;
+export interface DragDropLesson extends LessonBase {
+  questionType: QuestionType.DragDrop;
+  choices: string[]; // Exactly 3 choices
+  slots: string[]; // Exactly 3 slot labels
+  answer: number[]; // Array of 3 numbers (choice indices), where index = slot index, value = choice index
+}
+
+export type Lesson = ShortAnswerLesson | TrueFalseLesson | MultipleChoiceLesson | DragDropLesson;
 
 export interface LessonError {
   validationType: "structure" | "content";

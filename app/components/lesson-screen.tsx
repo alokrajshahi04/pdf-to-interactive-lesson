@@ -1,6 +1,8 @@
 "use client";
 
-type QuestionType = "short-answer" | "true-false" | "multiple-choice";
+import { DragDropQuestion } from "./drag-drop-question";
+
+type QuestionType = "short-answer" | "true-false" | "multiple-choice" | "drag-drop";
 
 interface GradingResult {
   isCorrect: boolean;
@@ -11,10 +13,11 @@ interface LessonData {
   content: string;
   info: string;
   question: string;
-  answer: string | boolean | number;
+  answer: string | boolean | number | number[];
   title: string;
   questionType: QuestionType;
   choices?: string[];
+  slots?: string[];
   gradingResult?: GradingResult;
 }
 
@@ -36,11 +39,11 @@ interface LessonScreenProps {
   moduleTitle: string;
   lessonData: LessonData;
   successfulLessonsCount: number;
-  userAnswer: string | boolean | number | null;
+  userAnswer: string | boolean | number | number[] | null;
   showResult: boolean;
   isGrading?: boolean;
   gradingError?: string | null;
-  onAnswerChange: (answer: string | boolean | number) => void;
+  onAnswerChange: (answer: string | boolean | number | number[]) => void;
   canContinue: boolean;
   onContinue: () => void;
   onRetryGrading?: () => void;
@@ -268,6 +271,20 @@ function LessonScreen({
                 )}
               </div>
             )}
+
+            {/* Drag Drop */}
+            {lessonData.questionType === "drag-drop" &&
+              lessonData.choices &&
+              lessonData.slots && (
+                <DragDropQuestion
+                  choices={lessonData.choices}
+                  slots={lessonData.slots}
+                  correctAnswer={lessonData.answer as number[]}
+                  userAnswer={(userAnswer as number[]) || null}
+                  showResult={showResult}
+                  onAnswerChange={onAnswerChange}
+                />
+              )}
           </div>
         </div>
       )}
@@ -289,5 +306,6 @@ function LessonScreen({
     </>
   );
 }
+
 
 export { LessonScreen };

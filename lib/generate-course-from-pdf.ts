@@ -1,9 +1,10 @@
 import { writeFile, unlink } from "fs/promises";
-import { existsSync } from "fs";
+import { existsSync, readFileSync } from "fs";
 import axios from "axios";
 import { ocr } from "./ocr";
 import { createCourse } from "./create-course";
 import type { CourseOutput } from "./create-course";
+import { getPdfInfo } from "./utils/railway-pdf-service";
 
 /**
  * Calculate statistics about lesson generation results
@@ -132,6 +133,25 @@ export async function generateCourseFromPdf(
     if (!tempFilePath) {
       throw new Error("Failed to process file");
     }
+
+    // Check PDF page count before processing
+    onProgress?.("checking", "Checking PDF page count...");
+    console.log("📊 Checking PDF page count...");
+    const pdfBuffer = readFileSync(tempFilePath);
+    const pdfInfo = await getPdfInfo(pdfBuffer);
+    
+    if (!pdfInfo.success) {
+      throw new Error(pdfInfo.error || "Failed to get PDF information");
+    }
+
+    const MAX_PAGES = 100;
+    if (pdfInfo.pageCount > MAX_PAGES) {
+      throw new Error(
+        `PDF has ${pdfInfo.pageCount} pages, but we currently only support PDFs up to ${MAX_PAGES} pages. Please upload a shorter document.`
+      );
+    }
+
+    console.log(`✅ PDF has ${pdfInfo.pageCount} pages (within limit)`);
 
     // Extract content from PDF
     console.log("🔍 Extracting content...");
