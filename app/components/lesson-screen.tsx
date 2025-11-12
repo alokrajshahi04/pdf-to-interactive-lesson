@@ -2,6 +2,11 @@
 
 type QuestionType = "short-answer" | "true-false" | "multiple-choice";
 
+interface GradingResult {
+  isCorrect: boolean;
+  gradedAt: string;
+}
+
 interface LessonData {
   content: string;
   info: string;
@@ -10,6 +15,7 @@ interface LessonData {
   title: string;
   questionType: QuestionType;
   choices?: string[];
+  gradingResult?: GradingResult;
 }
 
 interface Lesson {
@@ -32,9 +38,12 @@ interface LessonScreenProps {
   successfulLessonsCount: number;
   userAnswer: string | boolean | number | null;
   showResult: boolean;
+  isGrading?: boolean;
+  gradingError?: string | null;
   onAnswerChange: (answer: string | boolean | number) => void;
   canContinue: boolean;
   onContinue: () => void;
+  onRetryGrading?: () => void;
   getButtonText: () => string;
 }
 
@@ -46,9 +55,12 @@ function LessonScreen({
   successfulLessonsCount,
   userAnswer,
   showResult,
+  isGrading = false,
+  gradingError = null,
   onAnswerChange,
   canContinue,
   onContinue,
+  onRetryGrading,
   getButtonText,
 }: LessonScreenProps) {
   return (
@@ -180,15 +192,74 @@ function LessonScreen({
                 <textarea
                   value={(userAnswer as string) || ""}
                   onChange={(e) => onAnswerChange(e.target.value)}
-                  disabled={showResult}
+                  disabled={showResult || isGrading}
                   placeholder="Type your answer here..."
-                  className="w-full p-5 border-2 border-gray-200 rounded-xl focus:border-blue-400 focus:outline-none resize-none text-gray-800 bg-gray-50"
+                  className={`w-full p-5 border-2 rounded-xl focus:outline-none resize-none text-gray-800 bg-gray-50 transition-all ${
+                    showResult && lessonData.gradingResult
+                      ? lessonData.gradingResult.isCorrect
+                        ? "border-green-400 bg-green-50"
+                        : "border-red-400 bg-red-50"
+                      : showResult
+                      ? "border-gray-200"
+                      : "border-gray-200 focus:border-blue-400"
+                  }`}
                   rows={4}
                 />
-                {showResult && (
+                {isGrading && (
+                  <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-xl flex items-center gap-3">
+                    <svg
+                      className="animate-spin h-5 w-5 text-blue-600"
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      ></circle>
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      ></path>
+                    </svg>
+                    <span className="text-gray-700">Grading your answer...</span>
+                  </div>
+                )}
+                {gradingError && (
+                  <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-xl">
+                    <p className="text-sm font-semibold text-red-700 mb-2">
+                      Error grading answer
+                    </p>
+                    <p className="text-red-600 text-sm mb-3">{gradingError}</p>
+                    {onRetryGrading && (
+                      <button
+                        onClick={onRetryGrading}
+                        className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium"
+                      >
+                        Retry
+                      </button>
+                    )}
+                  </div>
+                )}
+                {showResult && lessonData.gradingResult && (
                   <div className="mt-4 p-5 bg-blue-50 border border-blue-200 rounded-xl">
                     <p className="text-sm font-semibold text-gray-700 mb-2">
-                      Suggested Answer:
+                      Answer:
+                    </p>
+                    <p className="text-gray-800 leading-relaxed">
+                      {lessonData.answer}
+                    </p>
+                  </div>
+                )}
+                {showResult && !lessonData.gradingResult && !isGrading && !gradingError && (
+                  <div className="mt-4 p-5 bg-blue-50 border border-blue-200 rounded-xl">
+                    <p className="text-sm font-semibold text-gray-700 mb-2">
+                      Answer:
                     </p>
                     <p className="text-gray-800 leading-relaxed">
                       {lessonData.answer}
@@ -205,14 +276,14 @@ function LessonScreen({
       <div className="mt-12">
         <button
           onClick={onContinue}
-          disabled={!canContinue}
+          disabled={!canContinue || isGrading}
           className={`px-8 py-3 rounded-full font-medium transition-all ${
-            canContinue
+            canContinue && !isGrading
               ? "bg-gray-700 text-white hover:bg-gray-800 active:scale-95"
               : "bg-gray-300 text-gray-500 cursor-not-allowed"
           }`}
         >
-          {getButtonText()}
+          {isGrading ? "Grading..." : getButtonText()}
         </button>
       </div>
     </>
