@@ -64,6 +64,15 @@ function Dashboard({ onSelectCourse, onCourseGenerated }: DashboardProps) {
   };
 
   const handleFileUpload = async (file: File) => {
+    // Check file size as a rough proxy for page count (most PDFs are ~50-200KB per page)
+    const estimatedPages = Math.ceil(file.size / (100 * 1024)); // Rough estimate
+    if (estimatedPages > 100) {
+      setError(
+        `This PDF appears to be very large (~${estimatedPages} pages). We currently only support PDFs up to 100 pages. Please upload a shorter document.`
+      );
+      return;
+    }
+
     setIsProcessing(true);
     setError(null);
     setProgress("Uploading PDF...");
@@ -176,9 +185,19 @@ function Dashboard({ onSelectCourse, onCourseGenerated }: DashboardProps) {
         }
       }
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Failed to process PDF. Please try again."
-      );
+      const errorMessage = err instanceof Error ? err.message : "Failed to process PDF. Please try again.";
+      
+      // Make error messages more helpful
+      let displayError = errorMessage;
+      if (errorMessage.includes("pages") && errorMessage.includes("100")) {
+        displayError = "This PDF is too large. We currently support PDFs up to 100 pages. Please split your document into smaller sections or upload a shorter version.";
+      } else if (errorMessage.includes("credits")) {
+        displayError = errorMessage; // Keep credit errors as-is
+      } else if (errorMessage.includes("API key")) {
+        displayError = errorMessage; // Keep API key errors as-is
+      }
+      
+      setError(displayError);
     } finally {
       setIsProcessing(false);
       setProgress("");
@@ -240,8 +259,26 @@ function Dashboard({ onSelectCourse, onCourseGenerated }: DashboardProps) {
             {isProcessing ? progress : "Or drag-and-drop here"}
           </p>
           {error && (
-            <div className="mt-4 p-4 bg-red-100 border border-red-300 rounded-lg w-full">
-              <p className="text-red-700 text-sm">{error}</p>
+            <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg w-full">
+              <div className="flex items-start gap-3">
+                <svg
+                  className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
+                <div className="flex-1">
+                  <p className="text-red-800 font-medium text-sm mb-1">Error</p>
+                  <p className="text-red-700 text-sm leading-relaxed">{error}</p>
+                </div>
+              </div>
             </div>
           )}
         </div>

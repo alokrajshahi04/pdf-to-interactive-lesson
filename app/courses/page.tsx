@@ -2,7 +2,7 @@
 
 import { Dashboard } from "../components/dashboard";
 import { useRouter } from "next/navigation";
-import { getStoredCourses, updateCourseSlug, saveCourse } from "@/lib/storage";
+import { getStoredCourses, updateCourseSlug } from "@/lib/storage";
 import { generateSlug, ensureUniqueSlug } from "@/lib/utils/slug";
 import type { Course } from "../hooks/use-course-navigation";
 
@@ -37,8 +37,11 @@ export default function CoursesPage() {
   };
 
   const handleCourseGenerated = (generatedCourse: Course) => {
-    const courseId = saveCourse(generatedCourse);
-    const stored = getStoredCourses().find((c) => c.id === courseId);
+    // Course is already saved by Dashboard component, just navigate to it
+    const courses = getStoredCourses();
+    // Find the most recently created course (should be the one we just generated)
+    const stored = courses
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
     if (stored?.slug) {
       router.push(`/course/${stored.slug}`);
     }

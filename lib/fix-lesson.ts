@@ -114,6 +114,17 @@ Respond ONLY with XML in this exact format:
     <choice>Third option</choice>
     <choice>Fourth option</choice>
   </choices>`
+      : originalLesson.questionType === QuestionType.DragDrop
+      ? `<choices>
+    <choice>Choice A</choice>
+    <choice>Choice B</choice>
+    <choice>Choice C</choice>
+  </choices>
+  <slots>
+    <slot>Slot 1 Label</slot>
+    <slot>Slot 2 Label</slot>
+    <slot>Slot 3 Label</slot>
+  </slots>`
       : ""
   }
   <answer>${
@@ -121,18 +132,21 @@ Respond ONLY with XML in this exact format:
       ? "0"
       : originalLesson.questionType === QuestionType.TrueFalse
       ? "true"
+      : originalLesson.questionType === QuestionType.DragDrop
+      ? "0,1,2"
       : "Your answer here"
   }</answer>
 </lesson>
 
 Valid questionType values: ${Object.values(QuestionType).join(", ")}
 For numeric/quantitative questions, you can use numbers as choices (e.g., <choice>256</choice>).
-For multiple-choice questions, the answer must be the INDEX (0, 1, 2, or 3) of the correct choice.`,
+For multiple-choice questions, the answer must be the INDEX (0, 1, 2, or 3) of the correct choice.
+For drag-drop questions, must have exactly 3 choices and 3 slots, answer format is "0,1,2" (comma-separated choice indices for each slot).`,
       });
 
       // Extract and parse the XML
       const xmlText = extractXml(result.text, "lesson");
-      const parser = createXMLParser(["choice"]);
+      const parser = createXMLParser(["choice", "slot"]);
       const parsed = parser.parse(xmlText);
 
       let fixedLesson = parsed.lesson;
@@ -147,11 +161,28 @@ For multiple-choice questions, the answer must be the INDEX (0, 1, 2, or 3) of t
         delete fixedLesson.choice;
       }
 
+      // Flatten slots.slot[] to slots[]
+      // Handle both nested structure (slots.slot[]) and flat structure (slot[])
+      if (fixedLesson.slots?.slot) {
+        fixedLesson.slots = fixedLesson.slots.slot;
+      } else if (fixedLesson.slot) {
+        // LLM sometimes generates <slot> directly without wrapping <slots>
+        fixedLesson.slots = fixedLesson.slot;
+        delete fixedLesson.slot;
+      }
+
       if (fixedLesson.questionType === QuestionType.MultipleChoice) {
         fixedLesson.answer = parseInt(fixedLesson.answer, 10);
       } else if (fixedLesson.questionType === QuestionType.TrueFalse) {
         fixedLesson.answer =
           fixedLesson.answer === "true" || fixedLesson.answer === true;
+      } else if (fixedLesson.questionType === QuestionType.DragDrop) {
+        // Parse comma-separated string to array of numbers
+        if (typeof fixedLesson.answer === "string") {
+          fixedLesson.answer = fixedLesson.answer.split(",").map((val: string) => parseInt(val.trim(), 10));
+        } else if (Array.isArray(fixedLesson.answer)) {
+          fixedLesson.answer = fixedLesson.answer.map((val: any) => parseInt(val, 10));
+        }
       }
 
       // Run structure validation

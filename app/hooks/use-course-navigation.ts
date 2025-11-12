@@ -3,7 +3,7 @@ import { getApiKey } from "@/lib/api-key-storage";
 import { useCredits } from "./use-credits";
 import { debugLog } from "@/lib/utils/debug";
 
-type QuestionType = "short-answer" | "true-false" | "multiple-choice";
+type QuestionType = "short-answer" | "true-false" | "multiple-choice" | "drag-drop";
 
 interface GradingResult {
   isCorrect: boolean;
@@ -14,10 +14,11 @@ interface LessonData {
   content: string;
   info: string;
   question: string;
-  answer: string | boolean | number;
+  answer: string | boolean | number | number[];
   title: string;
   questionType: QuestionType;
   choices?: string[];
+  slots?: string[];
   gradingResult?: GradingResult;
 }
 
@@ -100,7 +101,7 @@ export function useCourseNavigation(
     options?.initialStep ?? "module-intro"
   );
   const [userAnswer, setUserAnswer] = useState<
-    string | boolean | number | null
+    string | boolean | number | number[] | null
   >(null);
   const [showResult, setShowResult] = useState(false);
   const [isGrading, setIsGrading] = useState(false);
@@ -425,6 +426,36 @@ export function useCourseNavigation(
           setIsGrading(false);
           debugLog.log("[GRADING] Grading process completed");
         }
+      } else if (data.questionType === "drag-drop") {
+        // For drag-drop, check arrays match exactly
+        debugLog.log("[NAVIGATION] Processing drag-drop question", {
+          questionType: data.questionType,
+          userAnswer,
+          correctAnswer: data.answer,
+        });
+        const userAnswerArray = userAnswer as number[];
+        const correctAnswerArray = data.answer as number[];
+        const isCorrect =
+          Array.isArray(userAnswerArray) &&
+          Array.isArray(correctAnswerArray) &&
+          userAnswerArray.length === correctAnswerArray.length &&
+          JSON.stringify(userAnswerArray) === JSON.stringify(correctAnswerArray);
+        debugLog.log("[NAVIGATION] Answer check result", { isCorrect });
+
+        setModuleStats((prev) => ({
+          ...prev,
+          correct: prev.correct + (isCorrect ? 1 : 0),
+          total: prev.total + 1,
+        }));
+
+        setShowResult(true);
+        const newStep = "answer";
+        setStep(newStep);
+        options?.onNavigate?.({
+          moduleIndex,
+          lessonIndex,
+          step: newStep,
+        });
       } else {
         // For multiple-choice and true-false, check directly
         debugLog.log("[NAVIGATION] Processing non-short-answer question", {
@@ -520,7 +551,17 @@ export function useCourseNavigation(
 
   const canContinue = () => {
     if (step === "question" && !showResult) {
-      return userAnswer !== null && !isGrading;
+      if (isGrading) return false;
+      
+      // For drag-drop, check that all 3 slots are filled
+      if (currentLesson?.data?.questionType === "drag-drop") {
+        if (Array.isArray(userAnswer)) {
+          return userAnswer.length === 3 && userAnswer.every((val) => val !== -1 && val !== null && val !== undefined);
+        }
+        return false;
+      }
+      
+      return userAnswer !== null;
     }
     return true;
   };
