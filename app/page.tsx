@@ -18,6 +18,7 @@ import {
   getCourse,
   saveCourse,
   updateCourseProgress,
+  updateCourseData,
 } from "@/lib/storage";
 
 export default function Home() {
@@ -35,6 +36,8 @@ export default function Home() {
     step,
     userAnswer,
     showResult,
+    isGrading,
+    gradingError,
     moduleStats,
     completedModules,
 
@@ -50,6 +53,7 @@ export default function Home() {
     handleStartModule,
     handleBackToModules,
     handleContinue,
+    handleRetryGrading,
     setUserAnswer,
     canContinue,
     getButtonText,
@@ -87,6 +91,9 @@ export default function Home() {
         totalLessons,
         completedLessons,
       });
+
+      // Also update course data to persist grading results
+      updateCourseData(currentCourseId, course);
     }
   }, [
     currentCourseId,
@@ -196,9 +203,12 @@ export default function Home() {
             successfulLessonsCount={successfulLessons.length}
             userAnswer={userAnswer}
             showResult={showResult}
+            isGrading={isGrading}
+            gradingError={gradingError}
             onAnswerChange={setUserAnswer}
             canContinue={canContinue()}
             onContinue={handleContinue}
+            onRetryGrading={handleRetryGrading}
             getButtonText={getButtonText}
           />
         )}

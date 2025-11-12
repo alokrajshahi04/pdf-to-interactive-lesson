@@ -13,7 +13,8 @@
     "start": "next start",
     "lint": "eslint",
     "pdf-to-image": "node scripts/pdf-to-image.ts",
-    "generate-course": "tsx lib/cli.ts"
+    "generate-course": "tsx lib/cli.ts",
+    "test:grade": "tsx scripts/test-grade-short-answer.ts"
   },
   "pnpm": {
     "overrides": {

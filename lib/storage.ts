@@ -89,6 +89,21 @@ export function updateCourseProgress(
 }
 
 /**
+ * Update course data (e.g., when grading results are added)
+ */
+export function updateCourseData(courseId: string, course: Course): void {
+  const courses = getStoredCourses();
+  const courseIndex = courses.findIndex((c) => c.id === courseId);
+
+  if (courseIndex === -1) return;
+
+  courses[courseIndex].course = course;
+  courses[courseIndex].lastAccessedAt = new Date().toISOString();
+
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(courses));
+}
+
+/**
  * Get a specific course by ID
  */
 export function getCourse(courseId: string): StoredCourse | null {

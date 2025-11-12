@@ -1,6 +1,12 @@
 import { useState } from "react";
+import { getApiKey } from "@/lib/api-key-storage";
 
 type QuestionType = "short-answer" | "true-false" | "multiple-choice";
+
+interface GradingResult {
+  isCorrect: boolean;
+  gradedAt: string;
+}
 
 interface LessonData {
   content: string;
@@ -10,6 +16,7 @@ interface LessonData {
   title: string;
   questionType: QuestionType;
   choices?: string[];
+  gradingResult?: GradingResult;
 }
 
 interface Lesson {
@@ -57,6 +64,8 @@ export function useCourseNavigation(initialCourse: Course) {
     string | boolean | number | null
   >(null);
   const [showResult, setShowResult] = useState(false);
+  const [isGrading, setIsGrading] = useState(false);
+  const [gradingError, setGradingError] = useState<string | null>(null);
   const [moduleStats, setModuleStats] = useState<ModuleStats>({
     correct: 0,
     total: 0,
@@ -118,7 +127,7 @@ export function useCourseNavigation(initialCourse: Course) {
     setShowModulesScreen(true);
   };
 
-  const handleContinue = () => {
+  const handleContinue = async () => {
     if (step === "module-intro") {
       setModuleStats({ correct: 0, total: 0, startTime: Date.now() });
       setStep("content");
@@ -129,20 +138,114 @@ export function useCourseNavigation(initialCourse: Course) {
       const data = currentLesson?.data;
       if (!data) return;
 
-      const isCorrect =
-        data.questionType === "multiple-choice" ||
-        data.questionType === "true-false"
-          ? userAnswer === data.answer
-          : true; // For short answer, count as correct
+      // For short-answer questions, call the grading API
+      if (data.questionType === "short-answer") {
+        // If we already have a grading result, use it
+        if (data.gradingResult) {
+          const isCorrect = data.gradingResult.isCorrect;
+          setModuleStats((prev) => ({
+            ...prev,
+            correct: prev.correct + (isCorrect ? 1 : 0),
+            total: prev.total + 1,
+          }));
+          setShowResult(true);
+          setStep("answer");
+        } else {
+          // Call API to grade the answer
+          setIsGrading(true);
+          setGradingError(null);
 
-      setModuleStats((prev) => ({
-        ...prev,
-        correct: prev.correct + (isCorrect ? 1 : 0),
-        total: prev.total + 1,
-      }));
+          try {
+            const apiKey = getApiKey();
+            if (!apiKey) {
+              throw new Error("API key not found. Please add it in settings.");
+            }
 
-      setShowResult(true);
-      setStep("answer");
+            const response = await fetch("/api/grade-short-answer", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "X-Together-API-Key": apiKey,
+              },
+              body: JSON.stringify({
+                userAnswer: userAnswer as string,
+                correctAnswer: data.answer as string,
+                content: data.content,
+                info: data.info,
+                question: data.question,
+              }),
+            });
+
+            if (!response.ok) {
+              const errorData = await response.json();
+              throw new Error(errorData.error || "Failed to grade answer");
+            }
+
+            const result = await response.json();
+            const isCorrect = result.isCorrect;
+
+            // Update lesson data with grading result
+            const updatedCourse = { ...course };
+            // Find the actual lesson index in the lessons array
+            const allLessons = updatedCourse.modules[moduleIndex].lessons;
+            const successfulLessonIndex = successfulLessons.findIndex(
+              (l) => l === currentLesson
+            );
+            if (successfulLessonIndex !== -1) {
+              // Find the corresponding lesson in the full lessons array
+              let actualIndex = 0;
+              let successfulCount = 0;
+              for (let i = 0; i < allLessons.length; i++) {
+                if (allLessons[i].success) {
+                  if (successfulCount === successfulLessonIndex) {
+                    actualIndex = i;
+                    break;
+                  }
+                  successfulCount++;
+                }
+              }
+              const lessonToUpdate = allLessons[actualIndex];
+              if (lessonToUpdate && lessonToUpdate.success) {
+                lessonToUpdate.data.gradingResult = {
+                  isCorrect,
+                  gradedAt: new Date().toISOString(),
+                };
+                setCourse(updatedCourse);
+              }
+            }
+
+            // Update stats
+            setModuleStats((prev) => ({
+              ...prev,
+              correct: prev.correct + (isCorrect ? 1 : 0),
+              total: prev.total + 1,
+            }));
+
+            setShowResult(true);
+            setStep("answer");
+          } catch (error) {
+            console.error("Error grading answer:", error);
+            setGradingError(
+              error instanceof Error ? error.message : "Failed to grade answer"
+            );
+            // Don't proceed to answer step on error
+          } finally {
+            setIsGrading(false);
+          }
+        }
+      } else {
+        // For multiple-choice and true-false, check directly
+        const isCorrect = userAnswer === data.answer;
+
+        setModuleStats((prev) => ({
+          ...prev,
+          correct: prev.correct + (isCorrect ? 1 : 0),
+          total: prev.total + 1,
+        }));
+
+        setShowResult(true);
+        setStep("answer");
+      }
     } else if (step === "answer") {
       // Move to next lesson or module
       if (lessonIndex < successfulLessons.length - 1) {
@@ -150,6 +253,7 @@ export function useCourseNavigation(initialCourse: Course) {
         setStep("content");
         setUserAnswer(null);
         setShowResult(false);
+        setGradingError(null);
       } else {
         // Module complete - mark as completed
         if (!completedModules.includes(moduleIndex)) {
@@ -158,6 +262,7 @@ export function useCourseNavigation(initialCourse: Course) {
         setStep("module-complete");
         setUserAnswer(null);
         setShowResult(false);
+        setGradingError(null);
       }
     } else if (step === "module-complete") {
       // Move to next module or back to modules screen
@@ -172,9 +277,15 @@ export function useCourseNavigation(initialCourse: Course) {
     }
   };
 
+  const handleRetryGrading = () => {
+    setGradingError(null);
+    // Retry by calling handleContinue again
+    handleContinue();
+  };
+
   const canContinue = () => {
     if (step === "question" && !showResult) {
-      return userAnswer !== null;
+      return userAnswer !== null && !isGrading;
     }
     return true;
   };
@@ -195,6 +306,8 @@ export function useCourseNavigation(initialCourse: Course) {
     step,
     userAnswer,
     showResult,
+    isGrading,
+    gradingError,
     moduleStats,
     completedModules,
 
@@ -212,6 +325,7 @@ export function useCourseNavigation(initialCourse: Course) {
     handleStartModule,
     handleBackToModules,
     handleContinue,
+    handleRetryGrading,
     setUserAnswer,
     canContinue,
     getButtonText,
