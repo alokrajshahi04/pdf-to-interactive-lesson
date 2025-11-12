@@ -4,10 +4,11 @@ interface LessonData {
   content: string;
   info: string;
   question: string;
-  answer: string | boolean | number;
+  answer: string | boolean | number | number[];
   title: string;
   questionType: string;
   choices?: string[];
+  slots?: string[];
 }
 
 interface Lesson {
