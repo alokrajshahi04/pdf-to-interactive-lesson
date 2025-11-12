@@ -42,6 +42,24 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Check credits before making expensive LLM call
+    const currentCredits = gradeAnswerCreditsManager.getCredits(clientId);
+    if (currentCredits < 1) {
+      return Response.json(
+        {
+          error: "Insufficient credits",
+          message: `You have ${currentCredits} credit(s) remaining. Each grading request costs 1 credit.`,
+        },
+        {
+          status: 402,
+          headers: {
+            "X-Credits-Remaining": currentCredits.toString(),
+            "X-Credits-Required": "1",
+          },
+        }
+      );
+    }
+
     const together = createTogetherClient(apiKey);
 
     // Use LLM to evaluate if the user's answer demonstrates understanding
@@ -83,8 +101,25 @@ Respond ONLY with valid JSON in this exact format:
         throw new Error("Invalid response format: isCorrect must be boolean");
       }
 
-      // Only deduct credits on successful grading
+      // Deduct credits on successful grading
       const creditsResult = gradeAnswerCreditsManager.deductCredits(clientId, 1);
+      
+      // Check if credit deduction succeeded
+      if (!creditsResult.success) {
+        return Response.json(
+          {
+            error: "Insufficient credits",
+            message: `You have ${creditsResult.creditsRemaining} credit(s) remaining. Each grading request costs 1 credit.`,
+          },
+          {
+            status: 402,
+            headers: {
+              "X-Credits-Remaining": creditsResult.creditsRemaining.toString(),
+              "X-Credits-Required": "1",
+            },
+          }
+        );
+      }
 
       return Response.json(
         {
