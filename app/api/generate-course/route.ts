@@ -1,5 +1,9 @@
 import { NextRequest } from "next/server";
 import { generateCourseFromPdf } from "../../../lib/generate-course-from-pdf";
+import {
+  gradeAnswerCreditsManager,
+  getClientIdentifier,
+} from "@/lib/utils/credits";
 
 // Force Node.js runtime (not Edge) for native modules like sharp
 export const runtime = "nodejs";
@@ -48,6 +52,24 @@ export async function POST(request: NextRequest) {
   const { stream, sendProgress, sendComplete, sendError } =
     createStreamResponse();
 
+  // Check credits before starting
+  const clientId = getClientIdentifier(request);
+  const currentCredits = gradeAnswerCreditsManager.getCredits(clientId);
+  
+  // Generate course costs 1 credit
+  if (currentCredits < 1) {
+    sendError(`Insufficient credits. You have ${currentCredits} credit(s) remaining. Each course generation costs 1 credit.`);
+    return new Response(stream, {
+      headers: {
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+        Connection: "keep-alive",
+        "X-Credits-Remaining": currentCredits.toString(),
+        "X-Credits-Required": "1",
+      },
+    });
+  }
+
   // Start processing in the background
   (async () => {
     try {
@@ -70,8 +92,21 @@ export async function POST(request: NextRequest) {
         onProgress: sendProgress,
       });
 
-      // Send final result
-      sendComplete(result);
+      // Deduct credits on successful course generation
+      const creditsResult = gradeAnswerCreditsManager.deductCredits(clientId, 1);
+      
+      // Check if credit deduction succeeded (safety check - shouldn't fail since we checked before)
+      if (!creditsResult.success) {
+        sendError(`Insufficient credits. You have ${creditsResult.creditsRemaining} credit(s) remaining. Each course generation costs 1 credit.`);
+        return;
+      }
+
+      // Send final result with credits info
+      sendComplete({
+        ...result,
+        creditsRemaining: creditsResult.creditsRemaining,
+        creditsUsed: creditsResult.creditsUsed,
+      });
     } catch (error) {
       console.error("❌ Error generating course:", error);
       sendError(error instanceof Error ? error.message : "Unknown error");
@@ -84,6 +119,7 @@ export async function POST(request: NextRequest) {
       "Content-Type": "text/event-stream",
       "Cache-Control": "no-cache",
       Connection: "keep-alive",
+      "X-Credits-Remaining": currentCredits.toString(),
     },
   });
 }

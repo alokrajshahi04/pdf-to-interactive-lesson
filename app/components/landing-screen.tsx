@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { upload } from "@vercel/blob/client";
 import { getApiKey } from "@/lib/api-key-storage";
 import { ApiKeyDialog } from "./api-key-dialog";
+import { useCredits } from "../hooks/use-credits";
 
 interface LandingScreenProps {
   onStartCourse: () => void;
@@ -14,6 +15,7 @@ function LandingScreen({
   onStartCourse,
   onCourseGenerated,
 }: LandingScreenProps) {
+  const { updateCredits } = useCredits();
   const [isDragging, setIsDragging] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -83,6 +85,12 @@ function LandingScreen({
         body: formData,
       });
 
+      // Check credits from response header
+      const creditsRemaining = response.headers.get("X-Credits-Remaining");
+      if (creditsRemaining) {
+        updateCredits(parseInt(creditsRemaining, 10));
+      }
+
       if (!response.ok) {
         throw new Error("Failed to generate course");
       }
@@ -124,6 +132,11 @@ function LandingScreen({
           if (event.type === "error") {
             throw new Error(event.error);
           } else if (event.type === "complete") {
+            // Update credits from completion data if available
+            if (event.data?.creditsRemaining !== undefined) {
+              updateCredits(event.data.creditsRemaining);
+            }
+            
             setProgress("Course generated successfully!");
             // Pass the generated course data to parent
             onCourseGenerated(event.data.course);

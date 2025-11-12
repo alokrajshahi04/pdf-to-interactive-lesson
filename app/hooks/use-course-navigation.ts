@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { getApiKey } from "@/lib/api-key-storage";
+import { useCredits } from "./use-credits";
 
 type QuestionType = "short-answer" | "true-false" | "multiple-choice";
 
@@ -48,6 +49,8 @@ export interface ModuleStats {
 }
 
 export function useCourseNavigation(initialCourse: Course) {
+  const { updateCredits } = useCredits();
+  
   // Core state
   const [course, setCourse] = useState<Course>(initialCourse);
   const [showLanding, setShowLanding] = useState(true);
@@ -178,10 +181,32 @@ export function useCourseNavigation(initialCourse: Course) {
 
             if (!response.ok) {
               const errorData = await response.json();
+              const creditsRemaining = response.headers.get("X-Credits-Remaining");
+              
+              // Update credits from header if available
+              if (creditsRemaining) {
+                updateCredits(parseInt(creditsRemaining, 10));
+              }
+              
+              // Handle credits error specifically
+              if (response.status === 402) {
+                throw new Error(
+                  errorData.message || 
+                  `Insufficient credits. You have ${creditsRemaining || 0} credit(s) remaining.`
+                );
+              }
+              
               throw new Error(errorData.error || "Failed to grade answer");
             }
 
             const result = await response.json();
+            const creditsRemaining = response.headers.get("X-Credits-Remaining");
+            
+            // Update credits from response header
+            if (creditsRemaining) {
+              updateCredits(parseInt(creditsRemaining, 10));
+            }
+            
             const isCorrect = result.isCorrect;
 
             // Update lesson data with grading result
