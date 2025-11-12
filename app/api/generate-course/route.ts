@@ -92,8 +92,14 @@ export async function POST(request: NextRequest) {
         onProgress: sendProgress,
       });
 
-      // Only deduct credits on successful course generation
+      // Deduct credits on successful course generation
       const creditsResult = gradeAnswerCreditsManager.deductCredits(clientId, 1);
+      
+      // Check if credit deduction succeeded (safety check - shouldn't fail since we checked before)
+      if (!creditsResult.success) {
+        sendError(`Insufficient credits. You have ${creditsResult.creditsRemaining} credit(s) remaining. Each course generation costs 1 credit.`);
+        return;
+      }
 
       // Send final result with credits info
       sendComplete({

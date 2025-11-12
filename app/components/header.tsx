@@ -36,24 +36,28 @@ function Header({ onBackClick, showProgressBar, moduleProgress }: HeaderProps) {
   return (
     <div className="border-b border-gray-200">
       <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
-        <button
-          onClick={onBackClick}
-          className="text-gray-600 hover:text-gray-900"
-        >
-          <svg
-            className="w-6 h-6"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
+        {onBackClick ? (
+          <button
+            onClick={onBackClick}
+            className="text-gray-600 hover:text-gray-900"
           >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M10 19l-7-7m0 0l7-7m-7 7h18"
-            />
-          </svg>
-        </button>
+            <svg
+              className="w-6 h-6"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M10 19l-7-7m0 0l7-7m-7 7h18"
+              />
+            </svg>
+          </button>
+        ) : (
+          <div></div>
+        )}
         <div className="flex items-center gap-6">
           <div className="text-sm text-gray-600">
             {savedApiKey ? (
