@@ -201,6 +201,10 @@ function LandingScreen({
         setTimeout(() => {
           processFileUpload(fileToUpload, apiKey);
         }, 100);
+      } else {
+        // Dialog was dismissed without saving - clear pending state
+        setPendingFile(null);
+        setError(null);
       }
     }
   };
