@@ -1,21 +1,30 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { upload } from "@vercel/blob/client";
+import { getApiKey } from "@/lib/api-key-storage";
 import {
   getStoredCourses,
   deleteCourse,
   getCompletionPercentage,
+  saveCourse,
   type StoredCourse,
 } from "@/lib/storage";
+import type { Course } from "@/app/hooks/use-course-navigation";
+import { useCredits } from "../hooks/use-credits";
 
 interface DashboardProps {
   onSelectCourse: (courseId: string) => void;
-  onUploadNew: () => void;
+  onCourseGenerated?: (course: Course) => void;
 }
 
-function Dashboard({ onSelectCourse, onUploadNew }: DashboardProps) {
+function Dashboard({ onSelectCourse, onCourseGenerated }: DashboardProps) {
+  const { updateCredits } = useCredits();
   const [courses, setCourses] = useState<StoredCourse[]>([]);
   const [isDragging, setIsDragging] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [progress, setProgress] = useState("");
 
   useEffect(() => {
     setCourses(getStoredCourses());
@@ -38,11 +47,142 @@ function Dashboard({ onSelectCourse, onUploadNew }: DashboardProps) {
     setIsDragging(false);
   };
 
-  const handleDrop = (e: React.DragEvent) => {
+  const handleDrop = async (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
-    // Trigger upload
-    onUploadNew();
+    const file = e.dataTransfer.files[0];
+    if (file && file.type === "application/pdf") {
+      await handleFileUpload(file);
+    }
+  };
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file && file.type === "application/pdf") {
+      await handleFileUpload(file);
+    }
+  };
+
+  const handleFileUpload = async (file: File) => {
+    setIsProcessing(true);
+    setError(null);
+    setProgress("Uploading PDF...");
+
+    try {
+      const apiKey = getApiKey();
+      if (!apiKey) {
+        setError("API key not configured. Please add your Together AI API key in settings.");
+        setIsProcessing(false);
+        return;
+      }
+
+      // Upload to Vercel Blob
+      setProgress("Uploading PDF to storage...");
+      const blob = await upload(file.name, file, {
+        access: "public",
+        handleUploadUrl: "/api/upload-url",
+      });
+
+      // Generate course from PDF
+      setProgress("Generating course from PDF...");
+      const formData = new FormData();
+      formData.append("url", blob.url);
+      
+      const response = await fetch("/api/generate-course", {
+        method: "POST",
+        headers: {
+          "X-Together-API-Key": apiKey,
+        },
+        body: formData,
+      });
+
+      // Check credits from response header
+      const creditsRemaining = response.headers.get("X-Credits-Remaining");
+      if (creditsRemaining) {
+        updateCredits(parseInt(creditsRemaining, 10));
+      }
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        if (response.status === 402) {
+          throw new Error(
+            errorData.message ||
+              `Insufficient credits. You have ${creditsRemaining || 0} credit(s) remaining.`
+          );
+        }
+        throw new Error(errorData.error || "Failed to generate course");
+      }
+
+      // Read the streaming response
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+
+      if (!reader) {
+        throw new Error("No response body");
+      }
+
+      let buffer = "";
+      let courseData: Course | null = null;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
+
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          try {
+            const event = JSON.parse(line);
+            if (event.type === "error") {
+              throw new Error(event.error);
+            } else if (event.type === "complete") {
+              if (event.data?.creditsRemaining !== undefined) {
+                updateCredits(event.data.creditsRemaining);
+              }
+              courseData = event.data.course;
+              break;
+            } else if (event.message) {
+              setProgress(event.message);
+            }
+          } catch (parseError) {
+            // Skip invalid JSON lines
+            continue;
+          }
+        }
+        if (courseData) break;
+      }
+
+      if (!courseData) {
+        throw new Error("Failed to generate course");
+      }
+
+      setProgress("Course generated successfully!");
+      
+      // Save course and refresh list
+      const courseId = saveCourse(courseData);
+      setCourses(getStoredCourses());
+
+      // Call callback if provided
+      if (onCourseGenerated) {
+        onCourseGenerated(courseData);
+      } else {
+        // Navigate to the new course
+        const stored = getStoredCourses().find((c) => c.id === courseId);
+        if (stored?.slug) {
+          window.location.href = `/course/${stored.slug}`;
+        }
+      }
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Failed to process PDF. Please try again."
+      );
+    } finally {
+      setIsProcessing(false);
+      setProgress("");
+    }
   };
 
   return (
@@ -68,15 +208,42 @@ function Dashboard({ onSelectCourse, onUploadNew }: DashboardProps) {
             isDragging
               ? "border-blue-500 bg-blue-50"
               : "border-gray-300 bg-gray-50"
-          }`}
+          } ${isProcessing ? "opacity-50 pointer-events-none" : ""}`}
         >
-          <button
-            onClick={onUploadNew}
-            className="px-6 py-3 bg-gray-900 text-white rounded-full font-medium hover:bg-gray-800 transition-colors mb-3"
+          <input
+            type="file"
+            accept="application/pdf"
+            onChange={handleFileSelect}
+            className="hidden"
+            id="pdf-upload"
+            disabled={isProcessing}
+          />
+          <label
+            htmlFor="pdf-upload"
+            className="cursor-pointer"
           >
-            Upload a PDF
-          </button>
-          <p className="text-sm text-gray-500">Or drag-and-drop here</p>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                if (!isProcessing) {
+                  document.getElementById("pdf-upload")?.click();
+                }
+              }}
+              disabled={isProcessing}
+              className="px-6 py-3 bg-gray-900 text-white rounded-full font-medium hover:bg-gray-800 transition-colors mb-3 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isProcessing ? "Processing..." : "Upload a PDF"}
+            </button>
+          </label>
+          <p className="text-sm text-gray-500">
+            {isProcessing ? progress : "Or drag-and-drop here"}
+          </p>
+          {error && (
+            <div className="mt-4 p-4 bg-red-100 border border-red-300 rounded-lg w-full">
+              <p className="text-red-700 text-sm">{error}</p>
+            </div>
+          )}
         </div>
 
         {/* Footer */}
