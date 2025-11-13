@@ -1,10 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { upload } from "@vercel/blob/client";
 import { getApiKey } from "@/lib/api-key-storage";
+import { getStoredCourses } from "@/lib/storage";
 import { ApiKeyDialog } from "./api-key-dialog";
 import { useCredits } from "../hooks/use-credits";
+import { Github, Twitter } from "lucide-react";
+import Link from "next/link";
 
 interface LandingScreenProps {
   onCourseGenerated: (courseData: any) => void;
@@ -20,6 +23,31 @@ function LandingScreen({
   const [progress, setProgress] = useState("");
   const [isApiKeyDialogOpen, setIsApiKeyDialogOpen] = useState(false);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [hasCourses, setHasCourses] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const checkCourses = () => {
+      const courses = getStoredCourses();
+      setHasCourses(courses.length > 0);
+    };
+    
+    // Check on mount
+    checkCourses();
+    
+    // Listen for storage changes (from other tabs)
+    window.addEventListener("storage", checkCourses);
+    
+    return () => {
+      window.removeEventListener("storage", checkCourses);
+    };
+  }, []);
+
+  // Update hasCourses when a course is generated
+  const handleCourseGeneratedWrapper = (courseData: any) => {
+    setHasCourses(true);
+    onCourseGenerated(courseData);
+  };
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -137,7 +165,7 @@ function LandingScreen({
             
             setProgress("Course generated successfully!");
             // Pass the generated course data to parent
-            onCourseGenerated(event.data.course);
+            handleCourseGeneratedWrapper(event.data.course);
             setIsProcessing(false);
             return;
           } else {
@@ -221,7 +249,14 @@ function LandingScreen({
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+    <div className="min-h-screen bg-white relative">
+      {/* Background SVG */}
+      <img 
+        src="/landing-bg.svg" 
+        alt="" 
+        className="fixed -bottom-40 left-0 w-full h-auto z-0 opacity-[0.08] blur-2xl"
+      />
+      
       {/* API Key Dialog */}
       <ApiKeyDialog 
         open={isApiKeyDialogOpen} 
@@ -235,40 +270,33 @@ function LandingScreen({
       />
       
       {/* Header */}
-      <header className="border-b border-gray-200 bg-white">
+      <header className="sticky top-0 z-50 border-b-[0.5px] border-neutral-200 bg-white">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-gray-900 rounded-lg flex items-center justify-center">
-              <svg
-                className="w-5 h-5 text-white"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
-                />
-              </svg>
-            </div>
+            <img 
+              src="/logo.svg" 
+              alt="Logo"
+              className="h-6 w-auto"
+            />
           </div>
           <div className="flex items-center gap-4">
+            {hasCourses && (
+              <Link
+                href="/courses"
+                className="flex items-center justify-center h-10 px-4 bg-neutral-50 border border-neutral-200 rounded-full text-neutral-700 hover:text-neutral-900 transition-colors text-xs font-medium"
+                aria-label="Courses"
+              >
+                Courses
+              </Link>
+            )}
             <button 
               onClick={() => setIsApiKeyDialogOpen(true)}
-              className="text-gray-700 hover:text-gray-900 font-medium flex items-center gap-2"
+              className="flex items-center justify-center w-10 h-10 bg-neutral-50 border border-neutral-200 rounded-full text-neutral-700 hover:text-neutral-900 transition-colors"
+              aria-label="API Key"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
               </svg>
-              API Key
-            </button>
-            <button className="text-gray-700 hover:text-gray-900 font-medium">
-              Login
-            </button>
-            <button className="px-5 py-2 bg-gray-900 text-white rounded-lg font-medium hover:bg-gray-800 transition-colors">
-              Sign Up
             </button>
           </div>
         </div>
@@ -278,57 +306,41 @@ function LandingScreen({
       <main className="max-w-7xl mx-auto px-6 py-20">
         {/* Badge */}
         <div className="flex justify-center mb-12">
-          <div className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-full shadow-sm">
-            <span className="text-sm text-gray-600">Made & powered by</span>
-            <span className="text-sm font-semibold text-gray-900">
-              together.ai
-            </span>
-          </div>
+          <a 
+            href="https://together.ai" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="inline-block"
+          >
+            <img 
+              src="/landing-hero-powered-by.svg" 
+              alt="Made & powered by together.ai"
+              className="h-auto"
+            />
+          </a>
         </div>
 
         {/* Hero Section */}
         <div className="text-center mb-16 relative">
           {/* Decorative elements */}
-          <div className="absolute left-0 top-0 w-64 h-64 opacity-50">
-            <div className="absolute left-12 top-8">
-              <div className="w-12 h-12 bg-orange-400 rounded-lg flex items-center justify-center text-white font-bold text-xs transform -rotate-12">
-                PDF
-              </div>
-            </div>
-            <div className="absolute left-28 top-24">
-              <div className="w-16 h-16 bg-red-400 rounded-full flex items-center justify-center transform rotate-12">
-                <div className="text-3xl">💡</div>
-              </div>
-            </div>
-            <div className="absolute left-4 top-40">
-              <div className="w-8 h-8 bg-green-400 rounded-full"></div>
-            </div>
-          </div>
+          <img 
+            src="/landing-left.svg" 
+            alt="" 
+            className="hidden md:block absolute left-0 top-0 w-80 h-80 opacity-100 z-0"
+          />
 
-          <div className="absolute right-0 top-0 w-64 h-64 opacity-50">
-            <div className="absolute right-12 top-12">
-              <div className="w-24 h-24 bg-yellow-300 rounded-3xl flex items-center justify-center transform rotate-6">
-                <div className="text-4xl">📋</div>
-              </div>
-            </div>
-            <div className="absolute right-32 top-32">
-              <div className="w-12 h-12 bg-green-400 rounded-2xl flex items-center justify-center text-white text-xl">
-                💬
-              </div>
-            </div>
-            <div className="absolute right-8 top-56">
-              <div className="w-10 h-10 bg-emerald-400 rounded-lg flex items-center justify-center text-white text-lg">
-                ↑
-              </div>
-            </div>
-          </div>
+          <img 
+            src="/landing-right.svg" 
+            alt="" 
+            className="hidden md:block absolute right-0 top-0 w-80 h-80 opacity-100 z-0"
+          />
 
-          <h1 className="text-6xl font-bold text-gray-900 mb-6 leading-tight">
+          <h1 className="relative text-6xl font-bold text-neutral-900 mb-6 leading-none font-[family-name:var(--font-fustat)] z-10">
             Make a tailored
             <br />
             course for you
           </h1>
-          <p className="text-xl text-gray-600 mb-12">
+          <p className="relative text-xl text-neutral-700 mb-12 font-medium leading-tight font-[family-name:var(--font-fustat)] z-10">
             Upload any materials to generate
             <br />a personalized course!
           </p>
@@ -339,27 +351,29 @@ function LandingScreen({
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
-              className={`relative border-2 border-dashed rounded-3xl p-16 transition-all ${
+              onClick={() => !isProcessing && fileInputRef.current?.click()}
+              className={`relative border-2 border-dashed rounded-3xl p-16 transition-all backdrop-blur-sm ${
                 isDragging
-                  ? "border-blue-500 bg-blue-50"
+                  ? "border-blue-500 bg-blue-50/80"
                   : isProcessing
-                  ? "border-blue-500 bg-blue-50"
+                  ? "border-blue-500 bg-blue-50/80"
                   : error
-                  ? "border-red-500 bg-red-50"
-                  : "border-gray-300 bg-white/50"
-              }`}
+                  ? "border-red-500 bg-red-50/80"
+                  : "border-neutral-300 bg-white/80"
+              } ${!isProcessing ? "cursor-pointer" : ""}`}
             >
               {isProcessing ? (
                 <div className="flex flex-col items-center">
                   <div className="mb-4 w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-                  <p className="text-gray-700 font-medium">{progress}</p>
-                  <p className="text-sm text-gray-500 mt-2">
+                  <p className="text-neutral-700 font-medium">{progress}</p>
+                  <p className="text-sm text-neutral-500 mt-2">
                     This may take a few minutes...
                   </p>
                 </div>
               ) : (
                 <>
                   <input
+                    ref={fileInputRef}
                     type="file"
                     id="file-upload"
                     className="hidden"
@@ -373,7 +387,11 @@ function LandingScreen({
                   >
                     <button
                       type="button"
-                      className="mb-4 px-6 py-3 bg-gray-900 text-white rounded-full font-medium hover:bg-gray-800 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        fileInputRef.current?.click();
+                      }}
+                      className="mb-4 px-6 py-3 bg-neutral-900 text-white rounded-full font-medium hover:bg-neutral-800 transition-colors flex items-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                       disabled={isProcessing}
                     >
                       <svg
@@ -391,7 +409,7 @@ function LandingScreen({
                       </svg>
                       Upload a PDF
                     </button>
-                    <p className="text-sm text-gray-500">
+                    <p className="text-sm text-neutral-500">
                       Or drag-and-drop here
                     </p>
                   </label>
@@ -409,9 +427,42 @@ function LandingScreen({
       </main>
 
       {/* Footer */}
-      <footer className="fixed bottom-4 left-4 text-xs text-gray-500">
-        Powered by <span className="font-semibold">together.ai</span>
+      <footer className="fixed bottom-4 left-4 z-10">
+        <a 
+          href="https://together.ai" 
+          target="_blank" 
+          rel="noopener noreferrer"
+          className="inline-block"
+        >
+          <img 
+            src="/landing-footer-powered-by.svg" 
+            alt="Powered by together.ai"
+            className="h-auto"
+          />
+        </a>
       </footer>
+
+      {/* Social Icons */}
+      <div className="fixed bottom-4 right-4 flex items-center gap-3 z-10">
+        <a 
+          href="https://github.com" 
+          target="_blank" 
+          rel="noopener noreferrer"
+          className="flex items-center justify-center w-10 h-10 bg-neutral-50 border border-neutral-200 rounded-full text-neutral-700 hover:text-neutral-900 transition-colors"
+          aria-label="GitHub"
+        >
+          <Github className="w-5 h-5" />
+        </a>
+        <a 
+          href="https://x.com" 
+          target="_blank" 
+          rel="noopener noreferrer"
+          className="flex items-center justify-center w-10 h-10 bg-neutral-50 border border-neutral-200 rounded-full text-neutral-700 hover:text-neutral-900 transition-colors"
+          aria-label="X (Twitter)"
+        >
+          <Twitter className="w-5 h-5" />
+        </a>
+      </div>
     </div>
   );
 }

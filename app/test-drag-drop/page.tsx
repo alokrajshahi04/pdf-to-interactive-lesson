@@ -41,11 +41,11 @@ export default function TestDragDropPage() {
       <div className="max-w-3xl mx-auto">
         <h1 className="text-2xl font-bold mb-6">Drag-Drop Question Test</h1>
         
-        <div className="mb-6 p-4 bg-gray-50 rounded-lg">
-          <p className="text-sm text-gray-600 mb-2">
+        <div className="mb-6 p-4 bg-neutral-50 rounded-lg">
+          <p className="text-sm text-neutral-600 mb-2">
             <strong>Instructions:</strong> Drag the choices to their correct slots.
           </p>
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-neutral-600">
             <strong>Correct answer:</strong> Slot 0 → Choice 0 (Option A), Slot 1 → Choice 2 (Option C), Slot 2 → Choice 1 (Option B)
           </p>
         </div>
@@ -68,8 +68,8 @@ export default function TestDragDropPage() {
             disabled={!canContinue()}
             className={`px-8 py-3 rounded-full font-medium transition-all ${
               canContinue()
-                ? "bg-gray-700 text-white hover:bg-gray-800 active:scale-95"
-                : "bg-gray-300 text-gray-500 cursor-not-allowed"
+                ? "bg-neutral-700 text-white hover:bg-neutral-800 active:scale-95"
+                : "bg-neutral-300 text-neutral-500 cursor-not-allowed"
             }`}
           >
             {showResult ? "Reset" : "Check Answer"}
@@ -78,8 +78,8 @@ export default function TestDragDropPage() {
 
         {userAnswer && (
           <div className="mt-4 p-4 bg-blue-50 rounded-lg">
-            <p className="text-sm font-medium text-gray-700">Current Answer:</p>
-            <p className="text-sm text-gray-600">
+            <p className="text-sm font-medium text-neutral-700">Current Answer:</p>
+            <p className="text-sm text-neutral-600">
               {JSON.stringify(userAnswer)}
             </p>
           </div>

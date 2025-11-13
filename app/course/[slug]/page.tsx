@@ -38,7 +38,7 @@ export default function CoursePage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
-        <div className="text-gray-600">Loading course...</div>
+        <div className="text-neutral-600">Loading course...</div>
       </div>
     );
   }
@@ -47,11 +47,11 @@ export default function CoursePage() {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-900 mb-4">Course not found</h1>
-          <p className="text-gray-600 mb-6">{error || "The course you're looking for doesn't exist."}</p>
+          <h1 className="text-2xl font-bold text-neutral-900 mb-4">Course not found</h1>
+          <p className="text-neutral-600 mb-6">{error || "The course you're looking for doesn't exist."}</p>
           <button
             onClick={() => router.push("/courses")}
-            className="px-6 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800"
+            className="px-6 py-2 bg-neutral-900 text-white rounded-lg hover:bg-neutral-800"
           >
             Back to Courses
           </button>

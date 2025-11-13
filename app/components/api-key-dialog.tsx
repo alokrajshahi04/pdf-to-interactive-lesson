@@ -61,22 +61,22 @@ export function ApiKeyDialog({ open, onOpenChange }: ApiKeyDialogProps) {
 
   const GridIcon = () => (
     <div className="grid grid-cols-3 gap-0.5 w-4 h-4">
-      <div className="w-1 h-1 bg-gray-600 rounded-sm"></div>
-      <div className="w-1 h-1 bg-gray-600 rounded-sm"></div>
-      <div className="w-1 h-1 bg-gray-600 rounded-sm"></div>
-      <div className="w-1 h-1 bg-gray-600 rounded-sm"></div>
-      <div className="w-1 h-1 bg-gray-600 rounded-sm"></div>
-      <div className="w-1 h-1 bg-gray-600 rounded-sm"></div>
-      <div className="w-1 h-1 bg-gray-600 rounded-sm"></div>
-      <div className="w-1 h-1 bg-gray-600 rounded-sm"></div>
-      <div className="w-1 h-1 bg-gray-600 rounded-sm"></div>
+      <div className="w-1 h-1 bg-neutral-600 rounded-sm"></div>
+      <div className="w-1 h-1 bg-neutral-600 rounded-sm"></div>
+      <div className="w-1 h-1 bg-neutral-600 rounded-sm"></div>
+      <div className="w-1 h-1 bg-neutral-600 rounded-sm"></div>
+      <div className="w-1 h-1 bg-neutral-600 rounded-sm"></div>
+      <div className="w-1 h-1 bg-neutral-600 rounded-sm"></div>
+      <div className="w-1 h-1 bg-neutral-600 rounded-sm"></div>
+      <div className="w-1 h-1 bg-neutral-600 rounded-sm"></div>
+      <div className="w-1 h-1 bg-neutral-600 rounded-sm"></div>
     </div>
   );
 
   const ApiKeyForm = ({ className }: { className?: string }) => (
     <div className={className}>
       <div className="space-y-4">
-        <div className="text-base text-gray-900">
+        <div className="text-base text-neutral-900">
           {savedApiKey ? "Update" : "Add"} your{" "}
           <span className="font-semibold underline">Together AI</span> API key
         </div>
@@ -92,9 +92,9 @@ export function ApiKeyDialog({ open, onOpenChange }: ApiKeyDialogProps) {
               handleSaveApiKey();
             }
           }}
-          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent text-gray-900 placeholder:text-gray-400"
+          className="w-full px-4 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:border-transparent text-neutral-900 placeholder:text-neutral-400"
         />
-        <ul className="space-y-2 text-sm text-gray-600">
+        <ul className="space-y-2 text-sm text-neutral-600">
           <li className="flex items-start">
             <span className="mr-2">•</span>
             <span>
@@ -103,7 +103,7 @@ export function ApiKeyDialog({ open, onOpenChange }: ApiKeyDialogProps) {
                 href="https://together.ai"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="underline hover:text-gray-900"
+                className="underline hover:text-neutral-900"
               >
                 together.ai
               </a>{" "}
@@ -119,7 +119,7 @@ export function ApiKeyDialog({ open, onOpenChange }: ApiKeyDialogProps) {
           <button
             onClick={handleSaveApiKey}
             disabled={!apiKey.trim()}
-            className="w-full px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full px-4 py-2 bg-neutral-900 text-white rounded-lg hover:bg-neutral-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {savedApiKey ? "Update API Key" : "Save API Key"}
           </button>
@@ -127,7 +127,7 @@ export function ApiKeyDialog({ open, onOpenChange }: ApiKeyDialogProps) {
             href="https://together.ai"
             target="_blank"
             rel="noopener noreferrer"
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors flex items-center justify-center gap-2 text-gray-900"
+            className="w-full px-4 py-2 border border-neutral-300 rounded-lg hover:bg-neutral-50 transition-colors flex items-center justify-center gap-2 text-neutral-900"
           >
             Get your API key
             <ExternalLink className="w-4 h-4" />
@@ -142,12 +142,12 @@ export function ApiKeyDialog({ open, onOpenChange }: ApiKeyDialogProps) {
           )}
           <button
             onClick={() => onOpenChange(false)}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-gray-900"
+            className="w-full px-4 py-2 border border-neutral-300 rounded-lg hover:bg-neutral-50 transition-colors text-neutral-900"
           >
             Dismiss
           </button>
         </div>
-        <div className="flex items-center gap-2 text-sm text-gray-600 pt-2 border-t border-gray-200">
+        <div className="flex items-center gap-2 text-sm text-neutral-600 pt-2 border-t border-neutral-200">
           <Info className="w-4 h-4" />
           <span>
             {savedApiKey ? "API Key saved ✓" : "No API key configured"}
@@ -164,7 +164,7 @@ export function ApiKeyDialog({ open, onOpenChange }: ApiKeyDialogProps) {
           <DialogHeader className="pb-4">
             <div className="flex items-center gap-2">
               <GridIcon />
-              <DialogTitle className="text-left text-lg font-semibold text-gray-900">
+              <DialogTitle className="text-left text-lg font-semibold text-neutral-900">
                 Together AI API key
               </DialogTitle>
             </div>
@@ -181,7 +181,7 @@ export function ApiKeyDialog({ open, onOpenChange }: ApiKeyDialogProps) {
         <DrawerHeader className="pb-4">
           <div className="flex items-center gap-2">
             <GridIcon />
-            <DrawerTitle className="text-left text-gray-900">Together AI API key</DrawerTitle>
+            <DrawerTitle className="text-left text-neutral-900">Together AI API key</DrawerTitle>
           </div>
         </DrawerHeader>
         <ApiKeyForm />

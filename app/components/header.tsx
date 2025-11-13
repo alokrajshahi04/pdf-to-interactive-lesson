@@ -36,13 +36,13 @@ function Header({ onBackClick, showProgressBar, moduleProgress, showNavLinks }: 
   };
 
   return (
-    <div className="border-b border-gray-200">
+    <div className="border-b border-neutral-200">
       <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-4">
           {onBackClick ? (
             <button
               onClick={onBackClick}
-              className="text-gray-600 hover:text-gray-900"
+              className="text-neutral-600 hover:text-neutral-900"
             >
               <svg
                 className="w-6 h-6"
@@ -63,13 +63,13 @@ function Header({ onBackClick, showProgressBar, moduleProgress, showNavLinks }: 
             <>
               <Link
                 href="/"
-                className="text-gray-600 hover:text-gray-900 font-medium"
+                className="text-neutral-600 hover:text-neutral-900 font-medium"
               >
                 Home
               </Link>
               <Link
                 href="/courses"
-                className="text-gray-600 hover:text-gray-900 font-medium"
+                className="text-neutral-600 hover:text-neutral-900 font-medium"
               >
                 Courses
               </Link>
@@ -77,7 +77,7 @@ function Header({ onBackClick, showProgressBar, moduleProgress, showNavLinks }: 
           )}
         </div>
         <div className="flex items-center gap-6">
-          <div className="text-sm text-gray-600">
+          <div className="text-sm text-neutral-600">
             {savedApiKey ? (
               <span className="text-green-600 font-semibold">API Key Configured ✓</span>
             ) : (
@@ -106,11 +106,11 @@ function Header({ onBackClick, showProgressBar, moduleProgress, showNavLinks }: 
         <div className="flex items-center gap-4">
           <button
             onClick={() => setIsOpen(true)}
-            className="text-gray-600 hover:text-gray-900"
+            className="text-neutral-600 hover:text-neutral-900"
           >
             <Key className="w-6 h-6" />
           </button>
-          <button className="text-gray-600 hover:text-gray-900">
+          <button className="text-neutral-600 hover:text-neutral-900">
             <svg
               className="w-6 h-6"
               fill="none"
@@ -125,19 +125,19 @@ function Header({ onBackClick, showProgressBar, moduleProgress, showNavLinks }: 
               />
             </svg>
           </button>
-          <button className="w-8 h-8 rounded-full bg-gray-900 text-white flex items-center justify-center">
+          <button className="w-8 h-8 rounded-full bg-neutral-900 text-white flex items-center justify-center">
             i
           </button>
         </div>
       </div>
       {/* Progress bar */}
       {showProgressBar && moduleProgress && (
-        <div className="h-2 bg-gray-100">
+        <div className="h-2 bg-neutral-100">
           <div className="flex h-full">
             {moduleProgress.map((mod, idx) => (
               <div
                 key={idx}
-                className="flex-1 bg-gray-100 relative overflow-hidden"
+                className="flex-1 bg-neutral-100 relative overflow-hidden"
               >
                 <div
                   className="h-full bg-green-500 transition-all duration-300"
