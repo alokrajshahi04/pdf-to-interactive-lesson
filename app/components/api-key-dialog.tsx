@@ -91,20 +91,20 @@ export function ApiKeyDialog({ open, onOpenChange }: ApiKeyDialogProps) {
           <span className="font-semibold underline">Together AI</span> API key
         </div>
         <div className="relative">
-          <input
-            ref={inputRef}
+        <input
+          ref={inputRef}
             type={showApiKey ? "text" : "password"}
-            placeholder="API Key"
-            value={apiKey}
-            onChange={(e) => setApiKey(e.target.value)}
-            onPaste={() => {
-              // Focus the submit button after paste
-              setTimeout(() => {
-                submitButtonRef.current?.focus();
-              }, 0);
-            }}
+          placeholder="API Key"
+          value={apiKey}
+          onChange={(e) => setApiKey(e.target.value)}
+          onPaste={() => {
+            // Focus the submit button after paste
+            setTimeout(() => {
+              submitButtonRef.current?.focus();
+            }, 0);
+          }}
             className="w-full px-4 py-2 pr-20 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:border-transparent text-neutral-900 placeholder:text-neutral-400"
-          />
+        />
           <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-2">
             {apiKey && (
               <button
