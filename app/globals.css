@@ -8,7 +8,7 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
+  --font-sans: var(--font-fustat);
   --font-mono: var(--font-geist-mono);
   --font-fustat: var(--font-fustat);
   --font-family-fustat: var(--font-fustat);
@@ -24,5 +24,24 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-fustat), sans-serif;
+}
+
+.gradient-border {
+  position: relative;
+  border: 0.5px solid transparent;
+  background: linear-gradient(white, white) padding-box,
+    linear-gradient(to right, #FB7372 0%, #FFC33E 30%, rgba(0, 0, 0, 0.45) 49%, #51B9F3 66%, #2CBF76 100%) border-box;
+  border-radius: 1rem;
+}
+
+.border-thin {
+  border-width: 0.5px;
+}
+
+.gradient-border-button {
+  border: 0.5px solid transparent;
+  background: linear-gradient(#171717, #171717) padding-box,
+    linear-gradient(to right, #FB7372 0%, #FFC33E 30%, rgba(0, 0, 0, 0.45) 49%, #51B9F3 66%, #2CBF76 100%) border-box;
+  border-radius: 9999px;
 }

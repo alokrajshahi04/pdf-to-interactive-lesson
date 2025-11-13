@@ -12,9 +12,10 @@ interface HeaderProps {
   showProgressBar?: boolean;
   moduleProgress?: Array<{ progress: number }>;
   showNavLinks?: boolean; // Show home/courses links
+  courseTitle?: string; // Course title to display in header
 }
 
-function Header({ onBackClick, showProgressBar, moduleProgress, showNavLinks }: HeaderProps) {
+function Header({ onBackClick, showProgressBar, moduleProgress, showNavLinks, courseTitle }: HeaderProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [savedApiKey, setSavedApiKey] = useState<string | null>(null);
   const { credits } = useCredits();
@@ -36,9 +37,16 @@ function Header({ onBackClick, showProgressBar, moduleProgress, showNavLinks }: 
   };
 
   return (
-    <div className="border-b border-neutral-200">
-      <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-4">
+    <div className="sticky top-0 z-50 bg-white border-b border-neutral-200">
+      <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Link href="/">
+            <img 
+              src="/logo.svg" 
+              alt="Logo"
+              className="h-6 w-auto"
+            />
+          </Link>
           {onBackClick ? (
             <button
               onClick={onBackClick}
@@ -59,74 +67,47 @@ function Header({ onBackClick, showProgressBar, moduleProgress, showNavLinks }: 
               </svg>
             </button>
           ) : null}
-          {showNavLinks && (
-            <>
-              <Link
-                href="/"
-                className="text-neutral-600 hover:text-neutral-900 font-medium"
-              >
-                Home
-              </Link>
-              <Link
-                href="/courses"
-                className="text-neutral-600 hover:text-neutral-900 font-medium"
-              >
-                Courses
-              </Link>
-            </>
-          )}
         </div>
-        <div className="flex items-center gap-6">
-          <div className="text-sm text-neutral-600">
-            {savedApiKey ? (
-              <span className="text-green-600 font-semibold">API Key Configured ✓</span>
-            ) : (
-              <span className="text-orange-600 font-semibold">No API Key</span>
-            )}
+        {courseTitle ? (
+          <h1 className="text-sm font-medium text-neutral-600 truncate max-w-md px-8">
+            {courseTitle}
+          </h1>
+        ) : (
+          <div className="flex items-center gap-6">
+            <div className="text-sm text-neutral-600">
+              {savedApiKey ? (
+                <span className="text-green-600 font-semibold">API Key Configured ✓</span>
+              ) : (
+                <span className="text-orange-600 font-semibold">No API Key</span>
+              )}
+            </div>
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 border border-blue-200 rounded-lg">
+              <svg
+                className="w-4 h-4 text-blue-600"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+              <span className="text-sm font-semibold text-blue-700">
+                {credits} {credits === 1 ? "Credit" : "Credits"}
+              </span>
+            </div>
           </div>
-          <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 border border-blue-200 rounded-lg">
-            <svg
-              className="w-4 h-4 text-blue-600"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-              />
-            </svg>
-            <span className="text-sm font-semibold text-blue-700">
-              {credits} {credits === 1 ? "Credit" : "Credits"}
-            </span>
-          </div>
-        </div>
+        )}
         <div className="flex items-center gap-4">
           <button
             onClick={() => setIsOpen(true)}
-            className="text-neutral-600 hover:text-neutral-900"
+            className="flex items-center justify-center w-10 h-10 bg-neutral-50 border border-neutral-200 rounded-full text-neutral-700 hover:text-neutral-900 transition-colors"
+            aria-label="API Key"
           >
-            <Key className="w-6 h-6" />
-          </button>
-          <button className="text-neutral-600 hover:text-neutral-900">
-            <svg
-              className="w-6 h-6"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-              />
-            </svg>
-          </button>
-          <button className="w-8 h-8 rounded-full bg-neutral-900 text-white flex items-center justify-center">
-            i
+            <Key className="w-4 h-4" />
           </button>
         </div>
       </div>
