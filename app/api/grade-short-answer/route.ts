@@ -2,10 +2,6 @@ import { NextRequest } from "next/server";
 import { generateText } from "ai";
 import { createTogetherClient, DEFAULT_MODEL } from "@/lib/utils/together";
 import { extractJson } from "@/lib/utils/xml";
-import {
-  gradeAnswerCreditsManager,
-  getClientIdentifier,
-} from "@/lib/utils/credits";
 import { debugLog } from "@/lib/utils/debug";
 
 // Force Node.js runtime (not Edge) for native modules
@@ -14,9 +10,7 @@ export const dynamic = "force-dynamic";
 
 // POST /api/grade-short-answer
 export async function POST(request: NextRequest) {
-  const clientId = getClientIdentifier(request);
   debugLog.log("[API] /api/grade-short-answer - Request received", {
-    clientId,
     timestamp: new Date().toISOString(),
   });
   
@@ -64,30 +58,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    debugLog.log("[API] Validation passed, checking credits");
-    // Check credits before making expensive LLM call
-    // Grading credits = number of courses created - credits already used
-    const currentCredits = gradeAnswerCreditsManager.getCredits(clientId);
-    debugLog.log("[API] Current grading credits:", currentCredits);
-    
-    if (currentCredits < 1) {
-      debugLog.warn("[API] Insufficient credits", { currentCredits });
-      return Response.json(
-        {
-          error: "Insufficient credits",
-          message: `You have ${currentCredits} grading credit(s) remaining. Each grading request costs 1 credit. Create more courses to earn more grading credits.`,
-        },
-        {
-          status: 402,
-          headers: {
-            "X-Credits-Remaining": currentCredits.toString(),
-            "X-Credits-Required": "1",
-          },
-        }
-      );
-    }
-
-    debugLog.log("[API] Creating Together client and calling LLM");
+    debugLog.log("[API] Validation passed, creating Together client and calling LLM");
     const together = createTogetherClient(apiKey);
 
     // Use LLM to evaluate if the user's answer demonstrates understanding
@@ -144,50 +115,15 @@ Respond ONLY with valid JSON in this exact format:
         throw new Error("Invalid response format: isCorrect must be boolean");
       }
 
-      debugLog.log("[API] Deducting credits");
-      // Deduct credits on successful grading
-      const creditsResult = gradeAnswerCreditsManager.deductCredits(clientId, 1);
-      debugLog.log("[API] Credits deducted", {
-        success: creditsResult.success,
-        creditsRemaining: creditsResult.creditsRemaining,
-        creditsUsed: creditsResult.creditsUsed,
-      });
-      
-      // Check if credit deduction succeeded
-      if (!creditsResult.success) {
-        debugLog.warn("[API] Credit deduction failed", creditsResult);
-        return Response.json(
-          {
-            error: "Insufficient credits",
-            message: `You have ${creditsResult.creditsRemaining} grading credit(s) remaining. Each grading request costs 1 credit. Create more courses to earn more grading credits.`,
-          },
-          {
-            status: 402,
-            headers: {
-              "X-Credits-Remaining": creditsResult.creditsRemaining.toString(),
-              "X-Credits-Required": "1",
-            },
-          }
-        );
-      }
-
       debugLog.log("[API] Returning successful response", {
         isCorrect: evaluation.isCorrect,
         totalDuration: `${Date.now() - llmStartTime}ms`,
       });
 
-      return Response.json(
-        {
-          isCorrect: evaluation.isCorrect,
-          explanation: evaluation.explanation || undefined,
-        },
-        {
-          headers: {
-            "X-Credits-Remaining": creditsResult.creditsRemaining.toString(),
-            "X-Credits-Used": creditsResult.creditsUsed.toString(),
-          },
-        }
-      );
+      return Response.json({
+        isCorrect: evaluation.isCorrect,
+        explanation: evaluation.explanation || undefined,
+      });
     } catch (error) {
       debugLog.error("[API] Failed to parse evaluation response", {
         error: error instanceof Error ? error.message : "Unknown error",

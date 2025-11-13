@@ -1,7 +1,6 @@
 import { NextRequest } from "next/server";
 import { generateCourseFromPdf } from "../../../lib/generate-course-from-pdf";
 import {
-  gradeAnswerCreditsManager,
   courseCountManager,
   getClientIdentifier,
 } from "@/lib/utils/credits";
@@ -80,15 +79,12 @@ export async function POST(request: NextRequest) {
       });
 
       // Increment course count on successful course generation
-      // This gives the user more grading credits (1 credit per course created)
       const newCourseCount = courseCountManager.incrementCourseCount(clientId);
-      const gradingCredits = gradeAnswerCreditsManager.getCredits(clientId);
 
-      // Send final result with course count and grading credits info
+      // Send final result with course count info
       sendComplete({
         ...result,
         coursesCreated: newCourseCount,
-        gradingCreditsRemaining: gradingCredits,
       });
     } catch (error) {
       console.error("❌ Error generating course:", error);

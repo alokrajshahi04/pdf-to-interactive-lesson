@@ -180,10 +180,6 @@ export function GeneratingPageContent() {
             if (event.type === "error") {
               throw new Error(event.error);
             } else if (event.type === "complete") {
-              // Update grading credits from completion data if available
-              if (event.data?.gradingCreditsRemaining !== undefined) {
-                updateCredits(event.data.gradingCreditsRemaining);
-              }
               courseData = event.data.course;
               break;
             } else if (event.message) {

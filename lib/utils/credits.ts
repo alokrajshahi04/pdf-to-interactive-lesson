@@ -209,85 +209,8 @@ class CourseCountManager {
   }
 }
 
-/**
- * Manager for grading credits based on courses created
- * Grading credits = number of courses created
- */
-class GradingCreditsManager {
-  private courseCountManager: CourseCountManager;
-  private usedCredits: Map<string, number> = new Map();
-
-  constructor(courseCountManager: CourseCountManager) {
-    this.courseCountManager = courseCountManager;
-    // Clean up old records every 10 minutes
-    setInterval(() => this.cleanup(), 10 * 60 * 1000);
-  }
-
-  /**
-   * Get available grading credits for a client
-   * Credits = courses created - credits already used
-   * @param identifier - Unique identifier
-   * @returns Available grading credits
-   */
-  getCredits(identifier: string): number {
-    const coursesCreated = this.courseCountManager.getCourseCount(identifier);
-    const used = this.usedCredits.get(identifier) || 0;
-    return Math.max(0, coursesCreated - used);
-  }
-
-  /**
-   * Deduct grading credits
-   * @param identifier - Unique identifier
-   * @param amount - Amount to deduct (default: 1)
-   * @returns Object with success status and remaining credits
-   */
-  deductCredits(
-    identifier: string,
-    amount: number = 1
-  ): {
-    success: boolean;
-    creditsRemaining: number;
-    creditsUsed: number;
-  } {
-    const coursesCreated = this.courseCountManager.getCourseCount(identifier);
-    const currentlyUsed = this.usedCredits.get(identifier) || 0;
-    const available = coursesCreated - currentlyUsed;
-
-    if (available < amount) {
-      // Return current state (no change since deduction failed)
-      return {
-        success: false,
-        creditsRemaining: available,
-        creditsUsed: currentlyUsed, // Total credits used at time of response (no change)
-      };
-    }
-
-    // Deduct credits
-    const newUsed = currentlyUsed + amount;
-    this.usedCredits.set(identifier, newUsed);
-
-    // Return updated state (after successful deduction)
-    return {
-      success: true,
-      creditsRemaining: coursesCreated - newUsed,
-      creditsUsed: newUsed, // Total credits used at time of response (after deduction)
-    };
-  }
-
-  /**
-   * Clean up old records
-   */
-  private cleanup(): void {
-    // Note: We keep used credits indefinitely since they're tied to course count
-    // In production, you might want to reset used credits periodically
-  }
-}
-
 // Create course count manager instance
 export const courseCountManager = new CourseCountManager();
-
-// Create grading credits manager that uses course count
-export const gradeAnswerCreditsManager = new GradingCreditsManager(courseCountManager);
 
 /**
  * Get client identifier from request

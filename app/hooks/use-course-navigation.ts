@@ -309,43 +309,21 @@ export function useCourseNavigation(
 
           if (!response.ok) {
             const errorData = await response.json();
-            const creditsRemaining = response.headers.get("X-Credits-Remaining");
             
             debugLog.error("[GRADING] API error response", {
               status: response.status,
               errorData,
-              creditsRemaining,
             });
-            
-            // Update credits from header if available
-            if (creditsRemaining) {
-              updateCredits(parseInt(creditsRemaining, 10));
-            }
-            
-            // Handle credits error specifically
-            if (response.status === 402) {
-              const errorMsg = errorData.message || 
-                `Insufficient credits. You have ${creditsRemaining || 0} credit(s) remaining.`;
-              debugLog.error("[GRADING] Insufficient credits", { creditsRemaining });
-              throw new Error(errorMsg);
-            }
             
             throw new Error(errorData.error || "Failed to grade answer");
           }
 
           const result = await response.json();
-          const creditsRemaining = response.headers.get("X-Credits-Remaining");
           
           debugLog.log("[GRADING] Successfully graded answer", {
             isCorrect: result.isCorrect,
             explanation: result.explanation?.substring(0, 100),
-            creditsRemaining,
           });
-          
-          // Update credits from response header
-          if (creditsRemaining) {
-            updateCredits(parseInt(creditsRemaining, 10));
-          }
           
           const isCorrect = result.isCorrect;
 
