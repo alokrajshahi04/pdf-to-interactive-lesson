@@ -192,9 +192,13 @@ export default function LessonPage() {
     return (
       <div className="min-h-screen bg-white flex flex-col">
         <Header
-          onBackClick={handleBackToModules}
           showNavLinks={true}
           courseTitle={course.title}
+          course={course}
+          currentModuleIndex={moduleIndexParam}
+          onModuleSelect={(moduleIndex) => {
+            router.push(`/course/${slug}/module/${moduleIndex}`);
+          }}
         />
         <div className="max-w-xl mx-auto px-6 py-16 flex-grow flex items-center justify-center">
           <div className="text-center">
@@ -217,12 +221,15 @@ export default function LessonPage() {
   return (
     <div className="min-h-screen bg-white flex flex-col">
       <Header
-        onBackClick={handleBackToModules}
         showProgressBar={true}
         moduleProgress={moduleProgressData}
         showNavLinks={true}
         courseTitle={course.title}
         course={course}
+        currentModuleIndex={moduleIndexParam}
+        onModuleSelect={(moduleIndex) => {
+          router.push(`/course/${slug}/module/${moduleIndex}`);
+        }}
       />
 
       {/* Main Content */}

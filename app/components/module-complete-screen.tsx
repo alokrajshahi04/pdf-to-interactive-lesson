@@ -108,19 +108,19 @@ function ModuleCompleteScreen({
       </div>
 
       {/* Statistics */}
-      <div className="max-w-md mx-auto bg-white border border-[#E5E5E5] rounded-2xl p-4 text-left" style={{ borderWidth: '0.5px' }}>
+      <div className="max-w-md mx-auto bg-neutral-50 rounded-2xl p-6 text-left">
         {/* Accuracy */}
-        <div className="mb-5">
-          <div className="flex justify-between items-center mb-1.5">
-            <span className="text-xs text-neutral-600">Accuracy:</span>
-            <span className="text-xs text-green-600 font-semibold">
+        <div className="mb-4">
+          <div className="flex justify-between items-center mb-2">
+            <span className="text-sm text-neutral-600">Accuracy:</span>
+            <span className="text-sm text-green-600 font-semibold">
               {moduleStats.total > 0
                 ? Math.round((moduleStats.correct / moduleStats.total) * 100)
                 : 100}
               %
             </span>
           </div>
-          <div className="h-1.5 bg-neutral-200 rounded-full overflow-hidden">
+          <div className="h-2 bg-neutral-200 rounded-full overflow-hidden">
             <div
               className="h-full bg-green-500 transition-all"
               style={{
@@ -135,39 +135,39 @@ function ModuleCompleteScreen({
         </div>
 
         {/* Questions answered */}
-        <div className="mb-5">
-          <div className="flex justify-between items-center mb-1.5">
-            <span className="text-xs text-neutral-600">Questions answered:</span>
-            <span className="text-xs text-green-600 font-semibold">
+        <div className="mb-4">
+          <div className="flex justify-between items-center mb-2">
+            <span className="text-sm text-neutral-600">Questions answered:</span>
+            <span className="text-sm text-green-600 font-semibold">
               {moduleStats.total}
             </span>
           </div>
-          <div className="h-1.5 bg-neutral-200 rounded-full overflow-hidden">
+          <div className="h-2 bg-neutral-200 rounded-full overflow-hidden">
             <div className="h-full bg-green-500 w-full" />
           </div>
         </div>
 
         {/* Time spent */}
-        <div className="mb-5">
+        <div className="mb-4">
           <div className="flex justify-between items-center">
-            <span className="text-xs text-neutral-600">Time spent:</span>
-            <span className="text-xs text-neutral-900 font-semibold">
+            <span className="text-sm text-neutral-600">Time spent:</span>
+            <span className="text-sm text-neutral-900 font-semibold">
               {Math.round((Date.now() - moduleStats.startTime) / 60000)} min
             </span>
           </div>
         </div>
 
         {/* Separator */}
-        <div className="bg-[#E5E5E5] -mx-4 my-5" style={{ width: 'calc(100% + 2rem)', height: '0.5px' }}></div>
+        <div className="bg-[#E5E5E5] -mx-6 my-4" style={{ width: 'calc(100% + 3rem)', height: '0.5px' }}></div>
 
         {/* What you covered */}
         <div>
-          <h3 className="text-xs text-neutral-600 mb-2">What you covered:</h3>
-          <ul className="space-y-1.5">
+          <h3 className="text-sm text-neutral-600 mb-3">What you covered:</h3>
+          <ul className="space-y-2">
             {successfulLessons.map((lesson, idx) => (
               <li key={idx} className="flex items-start gap-2">
-                <span className="text-neutral-900 text-xs">•</span>
-                <span className="text-xs text-neutral-900">{lesson.data.title}</span>
+                <span className="text-neutral-900 text-sm">•</span>
+                <span className="text-sm text-neutral-900">{lesson.data.title}</span>
               </li>
             ))}
           </ul>

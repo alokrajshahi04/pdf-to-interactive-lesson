@@ -1,24 +1,26 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Key, Check, Minus } from "lucide-react";
+import { Key, Check, Minus, ChevronDown } from "lucide-react";
 import Link from "next/link";
 import { getApiKey } from "@/lib/api-key-storage";
 import { ApiKeyDialog } from "./api-key-dialog";
 import { useCredits } from "../hooks/use-credits";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
+import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import type { Course } from "../hooks/use-course-navigation";
 
 interface HeaderProps {
-  onBackClick?: () => void;
   showProgressBar?: boolean;
   moduleProgress?: Array<{ progress: number }>;
   showNavLinks?: boolean; // Show home/courses links
   courseTitle?: string; // Course title to display in header
   course?: Course; // Course data for tooltips
+  onModuleSelect?: (moduleIndex: number) => void; // Callback when a module is selected
+  currentModuleIndex?: number; // Current module index to highlight
 }
 
-function Header({ onBackClick, showProgressBar, moduleProgress, showNavLinks, courseTitle, course }: HeaderProps) {
+function Header({ showProgressBar, moduleProgress, showNavLinks, courseTitle, course, onModuleSelect, currentModuleIndex }: HeaderProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [savedApiKey, setSavedApiKey] = useState<string | null>(null);
   const { credits } = useCredits();
@@ -50,31 +52,51 @@ function Header({ onBackClick, showProgressBar, moduleProgress, showNavLinks, co
               className="h-6 w-auto"
             />
           </Link>
-          {onBackClick ? (
-            <button
-              onClick={onBackClick}
-              className="text-neutral-600 hover:text-neutral-900"
-            >
-              <svg
-                className="w-6 h-6"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M10 19l-7-7m0 0l7-7m-7 7h18"
-                />
-              </svg>
-            </button>
-          ) : null}
         </div>
         {courseTitle ? (
-          <h1 className="text-sm font-medium text-neutral-600 truncate max-w-md px-8">
-            {courseTitle}
-          </h1>
+          <div className="flex items-center gap-1">
+            <h1 className="text-sm font-medium text-neutral-600 truncate max-w-md pl-8 pr-2">
+              {courseTitle}
+            </h1>
+            <Popover>
+              <PopoverTrigger asChild>
+                <button className="text-neutral-600 hover:text-neutral-900 transition-colors">
+                  <ChevronDown className="w-4 h-4" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-80 p-0" align="start">
+                <div className="p-2">
+                  <div className="text-xs text-neutral-500 mb-2 px-2">Select Module</div>
+                  {course?.modules.map((module, idx) => {
+                    const isCurrent = currentModuleIndex === idx;
+                    const modProgress = moduleProgress?.[idx];
+                    const isCompleted = modProgress?.progress === 100;
+                    
+                    return (
+                      <button
+                        key={idx}
+                        onClick={() => {
+                          onModuleSelect?.(idx);
+                        }}
+                        className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
+                          isCurrent
+                            ? "bg-neutral-100 text-neutral-900 font-medium"
+                            : "text-neutral-600 hover:bg-neutral-50"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span>Module {idx + 1}: {module.title}</span>
+                          {isCompleted && (
+                            <Check className="w-4 h-4 text-green-600" />
+                          )}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </PopoverContent>
+            </Popover>
+          </div>
         ) : (
           <div className="hidden md:flex items-center gap-6">
             <div className="text-sm text-neutral-600">

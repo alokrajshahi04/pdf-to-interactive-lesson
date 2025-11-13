@@ -220,7 +220,7 @@ function Dashboard({ onSelectCourse, onCourseGenerated }: DashboardProps) {
       
       {/* Header */}
       <header className="sticky top-0 z-50 border-b-[0.5px] border-neutral-200 bg-white w-full">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+        <div className="w-full px-8 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Link href="/">
               <img 
@@ -281,12 +281,6 @@ function Dashboard({ onSelectCourse, onCourseGenerated }: DashboardProps) {
               : "border-neutral-400 bg-white/80"
           } ${!isProcessing ? "cursor-pointer" : ""}`}
         >
-          {/* Background SVG */}
-          <img 
-            src="/landing-bg.svg" 
-            alt="" 
-            className="absolute inset-0 w-full h-full object-cover opacity-20 blur-2xl -z-10"
-          />
           {isProcessing ? (
             <div className="flex flex-col items-center">
               <Loader size={32} className="mb-4 text-blue-500 [animation-duration:0.6s]" />
