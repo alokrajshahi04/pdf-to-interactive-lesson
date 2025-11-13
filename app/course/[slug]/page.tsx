@@ -39,11 +39,7 @@ export default function CoursePage() {
   };
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
-        <div className="text-neutral-600">Loading course...</div>
-      </div>
-    );
+    return null;
   }
 
   if (error || !course) {

@@ -1,7 +1,5 @@
 "use client";
 
-import { useImageFadeIn } from "../hooks/use-image-fade-in";
-
 interface LessonData {
   content: string;
   info: string;
@@ -46,26 +44,21 @@ function ModuleCompleteScreen({
   onContinue,
   onBackToModules,
 }: ModuleCompleteScreenProps) {
-  const greatWorkFadeIn = useImageFadeIn("/great-work.svg");
-  
   return (
-    <div className="animate-fadeIn text-center">
+    <div className="text-center">
       {/* Celebration Image */}
       <div className="mb-4 flex justify-center">
         <img 
-          ref={greatWorkFadeIn.imgRef}
           src="/great-work.svg" 
           alt="Great Work"
-          onLoad={greatWorkFadeIn.handleLoad}
-          onError={greatWorkFadeIn.handleError}
-          className={`h-auto w-auto transition-opacity duration-700 ease-out ${greatWorkFadeIn.isLoaded ? 'opacity-100' : 'opacity-0'}`}
+          className="h-auto w-auto"
         />
       </div>
 
       <h1 className="text-3xl font-bold text-neutral-900 mb-2">
         Module {moduleIndex + 1} - Complete
       </h1>
-      <p className="text-base text-neutral-600 mb-6">
+      <p className="text-lg text-neutral-600 mb-6 leading-relaxed">
         Good work—your {moduleTitle.toLowerCase()} basics are locked in.
       </p>
 
@@ -74,7 +67,7 @@ function ModuleCompleteScreen({
         {hasNextModule ? (
           <button
             onClick={onContinue}
-            className="px-8 py-4 bg-neutral-900 text-white rounded-full font-medium hover:bg-neutral-800 transition-all flex items-center gap-2"
+            className="px-8 py-4 bg-neutral-900 text-white rounded-full font-medium hover:bg-neutral-800 flex items-center gap-2"
           >
             Begin Module {moduleIndex + 2}
             <svg
@@ -94,7 +87,7 @@ function ModuleCompleteScreen({
         ) : (
           <button
             onClick={onBackToModules}
-            className="px-8 py-4 bg-neutral-900 text-white rounded-full font-medium hover:bg-neutral-800 transition-all flex items-center gap-2"
+            className="px-8 py-4 bg-neutral-900 text-white rounded-full font-medium hover:bg-neutral-800 flex items-center gap-2"
           >
             View All Modules
             <svg
@@ -129,7 +122,7 @@ function ModuleCompleteScreen({
           </div>
           <div className="h-2 bg-neutral-200 rounded-full overflow-hidden">
             <div
-              className="h-full bg-green-500 transition-all"
+              className="h-full bg-green-500"
               style={{
                 width: `${
                   moduleStats.total > 0
@@ -169,12 +162,12 @@ function ModuleCompleteScreen({
 
         {/* What you covered */}
         <div>
-          <h3 className="text-sm text-neutral-600 mb-3">What you covered:</h3>
+          <h3 className="text-base font-semibold text-neutral-900 mb-3">What you covered:</h3>
           <ul className="space-y-2">
             {successfulLessons.map((lesson, idx) => (
               <li key={idx} className="flex items-start gap-2">
                 <span className="text-neutral-900 text-sm">•</span>
-                <span className="text-sm text-neutral-900">{lesson.data.title}</span>
+                <span className="text-sm text-neutral-800">{lesson.data.title}</span>
               </li>
             ))}
           </ul>

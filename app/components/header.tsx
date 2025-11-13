@@ -1,11 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Key, Check, Minus, ChevronDown } from "lucide-react";
+import { Check, Minus, ChevronDown } from "lucide-react";
 import Link from "next/link";
-import { getApiKey } from "@/lib/api-key-storage";
-import { ApiKeyDialog } from "./api-key-dialog";
-import { useCredits } from "../hooks/use-credits";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import type { Course } from "../hooks/use-course-navigation";
@@ -22,26 +18,7 @@ interface HeaderProps {
 }
 
 function Header({ showProgressBar, moduleProgress, showNavLinks, courseTitle, course, onModuleSelect, currentModuleIndex }: HeaderProps) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [savedApiKey, setSavedApiKey] = useState<string | null>(null);
-  const { credits } = useCredits();
   const logoFadeIn = useImageFadeIn("/logo.svg");
-
-  // Load saved API key on mount
-  useEffect(() => {
-    const storedKey = getApiKey();
-    setSavedApiKey(storedKey);
-  }, []);
-
-  // Refresh saved API key when dialog closes
-  const handleOpenChange = (open: boolean) => {
-    setIsOpen(open);
-    if (!open) {
-      // Refresh the saved key status when dialog closes
-      const storedKey = getApiKey();
-      setSavedApiKey(storedKey);
-    }
-  };
 
   return (
     <div className="sticky top-0 z-50 bg-white border-b border-neutral-200">
@@ -102,44 +79,7 @@ function Header({ showProgressBar, moduleProgress, showNavLinks, courseTitle, co
               </PopoverContent>
             </Popover>
           </div>
-        ) : (
-          <div className="hidden md:flex items-center gap-6">
-            <div className="text-sm text-neutral-600">
-              {savedApiKey ? (
-                <span className="text-green-600 font-semibold">API Key Configured ✓</span>
-              ) : (
-                <span className="text-orange-600 font-semibold">No API Key</span>
-              )}
-            </div>
-            <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 border border-blue-200 rounded-lg">
-              <svg
-                className="w-4 h-4 text-blue-600"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
-              </svg>
-              <span className="text-sm font-semibold text-blue-700">
-                {credits} {credits === 1 ? "Credit" : "Credits"}
-              </span>
-            </div>
-          </div>
-        )}
-        <div className="flex items-center gap-4 flex-shrink-0">
-          <button
-            onClick={() => setIsOpen(true)}
-            className="flex items-center justify-center w-10 h-10 bg-neutral-50 border border-neutral-200 rounded-full text-neutral-700 hover:text-neutral-900 transition-colors"
-            aria-label="API Key"
-          >
-            <Key className="w-4 h-4" />
-          </button>
-        </div>
+        ) : null}
       </div>
       {/* Progress bar */}
       {showProgressBar && moduleProgress && (
@@ -217,9 +157,6 @@ function Header({ showProgressBar, moduleProgress, showNavLinks, courseTitle, co
           </div>
         </TooltipProvider>
       )}
-
-      {/* API Key Dialog */}
-      <ApiKeyDialog open={isOpen} onOpenChange={handleOpenChange} />
     </div>
   );
 }

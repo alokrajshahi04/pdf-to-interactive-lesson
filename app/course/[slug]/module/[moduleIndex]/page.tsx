@@ -145,15 +145,7 @@ export default function LessonPage() {
   };
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-white flex flex-col">
-        <Header showNavLinks={true} courseTitle={course?.title} />
-        <div className="max-w-xl mx-auto px-6 py-16 flex-grow flex items-center justify-center">
-          <div className="text-neutral-600">Loading course...</div>
-        </div>
-        <Footer />
-      </div>
-    );
+    return null;
   }
 
   if (error || !course) {
