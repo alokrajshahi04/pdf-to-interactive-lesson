@@ -205,14 +205,14 @@ function Dashboard({ onSelectCourse, onCourseGenerated }: DashboardProps) {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <div className="min-h-screen bg-neutral-50 flex">
       {/* Left Sidebar */}
-      <aside className="w-96 bg-white border-r border-gray-200 p-8 flex flex-col">
+      <aside className="w-96 bg-white border-r border-neutral-200 p-8 flex flex-col">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+          <h1 className="text-3xl font-bold text-neutral-900 mb-2">
             Welcome back!
           </h1>
-          <p className="text-gray-600">
+          <p className="text-neutral-600">
             Pick up right where you left off or start a fresh course from any
             PDF.
           </p>
@@ -226,7 +226,7 @@ function Dashboard({ onSelectCourse, onCourseGenerated }: DashboardProps) {
           className={`flex-1 border-2 border-dashed rounded-2xl p-8 flex flex-col items-center justify-center transition-colors ${
             isDragging
               ? "border-blue-500 bg-blue-50"
-              : "border-gray-300 bg-gray-50"
+              : "border-neutral-300 bg-neutral-50"
           } ${isProcessing ? "opacity-50 pointer-events-none" : ""}`}
         >
           <input
@@ -250,12 +250,12 @@ function Dashboard({ onSelectCourse, onCourseGenerated }: DashboardProps) {
                 }
               }}
               disabled={isProcessing}
-              className="px-6 py-3 bg-gray-900 text-white rounded-full font-medium hover:bg-gray-800 transition-colors mb-3 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-6 py-3 bg-neutral-900 text-white rounded-full font-medium hover:bg-neutral-800 transition-colors mb-3 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isProcessing ? "Processing..." : "Upload a PDF"}
             </button>
           </label>
-          <p className="text-sm text-gray-500">
+          <p className="text-sm text-neutral-500">
             {isProcessing ? progress : "Or drag-and-drop here"}
           </p>
           {error && (
@@ -284,7 +284,7 @@ function Dashboard({ onSelectCourse, onCourseGenerated }: DashboardProps) {
         </div>
 
         {/* Footer */}
-        <div className="mt-8 text-xs text-gray-500 flex items-center gap-2">
+        <div className="mt-8 text-xs text-neutral-500 flex items-center gap-2">
           <span>Powered by</span>
           <span className="font-semibold">together.ai</span>
         </div>
@@ -295,7 +295,7 @@ function Dashboard({ onSelectCourse, onCourseGenerated }: DashboardProps) {
         <div className="max-w-7xl mx-auto">
           {courses.length === 0 ? (
             <div className="text-center py-20">
-              <p className="text-gray-500 text-lg">
+              <p className="text-neutral-500 text-lg">
                 No courses yet. Upload a PDF to get started!
               </p>
             </div>
@@ -313,13 +313,13 @@ function Dashboard({ onSelectCourse, onCourseGenerated }: DashboardProps) {
                     className={`relative p-6 rounded-2xl border-2 text-left transition-all hover:shadow-lg cursor-pointer ${
                       isComplete
                         ? "bg-green-50 border-green-200"
-                        : "bg-white border-gray-200 hover:border-gray-300"
+                        : "bg-white border-neutral-200 hover:border-neutral-300"
                     }`}
                   >
                     {/* Delete Button */}
                     <button
                       onClick={(e) => handleDelete(stored.id, e)}
-                      className="absolute top-4 right-4 p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors z-10"
+                      className="absolute top-4 right-4 p-2 text-neutral-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors z-10"
                       title="Delete course"
                     >
                       <svg
@@ -338,12 +338,12 @@ function Dashboard({ onSelectCourse, onCourseGenerated }: DashboardProps) {
                     </button>
 
                     {/* Course Title */}
-                    <h3 className="text-xl font-bold text-gray-900 mb-2 pr-8">
+                    <h3 className="text-xl font-bold text-neutral-900 mb-2 pr-8">
                       {stored.course.title}
                     </h3>
 
                     {/* Progress */}
-                    <p className="text-sm text-gray-600 mb-1">
+                    <p className="text-sm text-neutral-600 mb-1">
                       {isComplete ? (
                         <span className="text-green-600 font-medium">
                           100% Complete
@@ -354,7 +354,7 @@ function Dashboard({ onSelectCourse, onCourseGenerated }: DashboardProps) {
                             {completion}% Complete
                           </span>
                           {" - "}
-                          <span className="text-gray-500">
+                          <span className="text-neutral-500">
                             [Module {currentModuleIndex + 1}/{totalModules}]
                           </span>
                         </>
@@ -362,7 +362,7 @@ function Dashboard({ onSelectCourse, onCourseGenerated }: DashboardProps) {
                     </p>
 
                     {/* Timestamp */}
-                    <p className="text-xs text-gray-400 mt-3">
+                    <p className="text-xs text-neutral-400 mt-3">
                       Last accessed:{" "}
                       {new Date(stored.lastAccessedAt).toLocaleDateString()}
                     </p>

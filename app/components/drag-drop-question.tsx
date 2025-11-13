@@ -252,7 +252,7 @@ export function DragDropQuestion({
       <div className="rounded-xl overflow-hidden bg-white" style={{ border: "1px solid #d4d4d8" }}>
         <div className="bg-white px-4 py-5" style={{ borderBottom: "1px solid #d4d4d8" }}>
           <div className="flex items-center justify-between">
-            <h3 className="text-base font-medium text-gray-900">
+            <h3 className="text-base font-medium text-neutral-900">
               Drag and drop the colored pills to their correct spot
             </h3>
             {!showResult && (
@@ -262,8 +262,8 @@ export function DragDropQuestion({
                   disabled={historyIndex === 0}
                   className={`p-2 rounded-lg transition-colors ${
                     historyIndex === 0
-                      ? "text-gray-300 cursor-not-allowed"
-                      : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+                      ? "text-neutral-300 cursor-not-allowed"
+                      : "text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900"
                   }`}
                   title="Undo (Ctrl+Z / ⌘+Z)"
                   aria-label="Undo last action"
@@ -287,8 +287,8 @@ export function DragDropQuestion({
                   disabled={historyIndex >= history.length - 1}
                   className={`p-2 rounded-lg transition-colors ${
                     historyIndex >= history.length - 1
-                      ? "text-gray-300 cursor-not-allowed"
-                      : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+                      ? "text-neutral-300 cursor-not-allowed"
+                      : "text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900"
                   }`}
                   title="Redo (Ctrl+Shift+Z / ⌘+Shift+Z or Ctrl+Y / ⌘+Y)"
                   aria-label="Redo last undone action"
@@ -387,7 +387,7 @@ export function DragDropQuestion({
                   borderWidth: "0.7px",
                 }}
               >
-                <span className="text-gray-800 font-medium text-center">
+                <span className="text-neutral-800 font-medium text-center">
                   {choices[choiceIndex]}
                 </span>
               </div>
@@ -403,7 +403,7 @@ export function DragDropQuestion({
                 backgroundColor: "#ffffff", // white
               }}
             >
-              <span className="text-gray-800 font-medium text-center">
+              <span className="text-neutral-800 font-medium text-center">
                 {slotAssignments[parseInt(activeId.replace("slot-", ""), 10)] !==
                 -1
                   ? choices[
@@ -467,7 +467,7 @@ function DraggableChoice({ id, text, disabled, index }: DraggableChoiceProps) {
           : "cursor-grab active:cursor-grabbing transition-opacity"
       }`}
     >
-      <span className="text-gray-800 font-medium text-center">{text}</span>
+      <span className="text-neutral-800 font-medium text-center">{text}</span>
     </div>
   );
 }
@@ -554,7 +554,7 @@ function DroppableSlot({
         showResult && isIncorrect && correctChoice ? "min-h-[140px]" : "h-[100px]"
       }`}
     >
-      <p className="text-sm font-semibold text-gray-700 mb-2">{label}</p>
+      <p className="text-sm font-semibold text-neutral-700 mb-2">{label}</p>
       <div className="flex-1 flex items-center justify-center w-full min-h-0">
         {assignedChoice ? (
           <DraggableSlotContent
@@ -564,7 +564,7 @@ function DroppableSlot({
             choiceIndex={assignedChoiceIndex}
           />
         ) : (
-          <p className="text-gray-400 text-sm text-center">Drop a choice here</p>
+          <p className="text-neutral-400 text-sm text-center">Drop a choice here</p>
         )}
       </div>
       {showResult && isIncorrect && correctChoice && (
@@ -578,7 +578,7 @@ function DroppableSlot({
               borderWidth: "0.7px",
             }}
           >
-            <p className="text-gray-800">{correctChoice}</p>
+            <p className="text-neutral-800">{correctChoice}</p>
           </div>
         </div>
       )}
@@ -622,7 +622,7 @@ function DraggableSlotContent({
       style={style}
       {...attributes}
       {...listeners}
-      className={`text-gray-800 font-medium text-center ${
+      className={`text-neutral-800 font-medium text-center ${
         disabled ? "" : "cursor-grab active:cursor-grabbing"
       }`}
     >

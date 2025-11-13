@@ -66,9 +66,9 @@ function ModulesScreen({
       <Header showNavLinks={true} />
 
       {/* Course Title Header */}
-      <div className="border-b border-gray-200 bg-gray-50 py-6">
+      <div className="border-b border-neutral-200 bg-neutral-50 py-6">
         <div className="max-w-7xl mx-auto px-6">
-          <h1 className="text-2xl font-semibold text-gray-900 text-center">
+          <h1 className="text-2xl font-semibold text-neutral-900 text-center">
             {course.title}
           </h1>
         </div>
@@ -79,10 +79,10 @@ function ModulesScreen({
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-16">
           {/* Left Column - Course Overview */}
           <div className="flex flex-col justify-center">
-            <h2 className="text-5xl font-bold text-gray-900 mb-6 leading-tight">
+            <h2 className="text-5xl font-bold text-neutral-900 mb-6 leading-tight">
               We built your course!
             </h2>
-            <p className="text-lg text-gray-600 mb-12 leading-relaxed">
+            <p className="text-lg text-neutral-600 mb-12 leading-relaxed">
               Explore the {totalModules} bite-sized modules — each one turns a
               dense textbook section into a five-minute mini-lesson with
               hands-on questions!
@@ -92,7 +92,7 @@ function ModulesScreen({
             <div className="space-y-4">
               <button
                 onClick={() => onStartModule(currentModuleIndex)}
-                className="w-full max-w-sm py-4 bg-gray-900 text-white rounded-full font-semibold hover:bg-gray-800 transition-all flex items-center justify-center gap-2"
+                className="w-full max-w-sm py-4 bg-neutral-900 text-white rounded-full font-semibold hover:bg-neutral-800 transition-all flex items-center justify-center gap-2"
               >
                 Begin Module {currentModuleIndex + 1}
                 <svg
@@ -109,7 +109,7 @@ function ModulesScreen({
                   />
                 </svg>
               </button>
-              <button className="w-full max-w-sm py-4 border-2 border-gray-300 text-gray-700 rounded-full font-semibold hover:border-gray-400 transition-all flex items-center justify-center gap-2">
+              <button className="w-full max-w-sm py-4 border-2 border-neutral-300 text-neutral-700 rounded-full font-semibold hover:border-neutral-400 transition-all flex items-center justify-center gap-2">
                 Share Course
                 <svg
                   className="w-5 h-5"
@@ -145,21 +145,21 @@ function ModulesScreen({
                     isCurrent
                       ? "border-teal-400 bg-teal-50/50"
                       : isCompleted
-                      ? "border-gray-200 bg-gray-50"
+                      ? "border-neutral-200 bg-neutral-50"
                       : isLocked
-                      ? "border-gray-200 bg-gray-50 opacity-50 cursor-not-allowed"
-                      : "border-gray-200 bg-gray-50 hover:border-gray-300"
+                      ? "border-neutral-200 bg-neutral-50 opacity-50 cursor-not-allowed"
+                      : "border-neutral-200 bg-neutral-50 hover:border-neutral-300"
                   }`}
                 >
                   <div className="flex items-start gap-4">
-                    <span className="text-lg font-semibold text-gray-400 flex-shrink-0">
+                    <span className="text-lg font-semibold text-neutral-400 flex-shrink-0">
                       {index + 1}.
                     </span>
                     <div className="flex-1">
-                      <h3 className="text-xl font-bold text-gray-900 mb-1">
+                      <h3 className="text-xl font-bold text-neutral-900 mb-1">
                         {module.title}
                       </h3>
-                      <p className="text-gray-600 text-sm">
+                      <p className="text-neutral-600 text-sm">
                         {successfulLessons[0]?.data.title ||
                           `${successfulLessons.length} lessons`}
                       </p>
@@ -175,7 +175,7 @@ function ModulesScreen({
       {/* Debug: Copy JSON Button */}
       <button
         onClick={handleCopyJSON}
-        className="fixed bottom-6 right-6 p-4 bg-gray-900 text-white rounded-full shadow-lg hover:bg-gray-800 transition-all z-50 group"
+        className="fixed bottom-6 right-6 p-4 bg-neutral-900 text-white rounded-full shadow-lg hover:bg-neutral-800 transition-all z-50 group"
         title="Copy course JSON to clipboard"
       >
         {copied ? (
@@ -207,7 +207,7 @@ function ModulesScreen({
             />
           </svg>
         )}
-        <span className="absolute right-full mr-3 top-1/2 -translate-y-1/2 bg-gray-900 text-white text-sm px-3 py-1 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+        <span className="absolute right-full mr-3 top-1/2 -translate-y-1/2 bg-neutral-900 text-white text-sm px-3 py-1 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
           {copied ? "Copied!" : "Copy JSON"}
         </span>
       </button>

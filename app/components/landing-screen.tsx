@@ -223,7 +223,14 @@ function LandingScreen({
   };
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-white relative">
+      {/* Background SVG */}
+      <img 
+        src="/landing-bg.svg" 
+        alt="" 
+        className="fixed -bottom-40 left-0 w-full h-auto z-0 opacity-[0.08] blur-2xl"
+      />
+      
       {/* API Key Dialog */}
       <ApiKeyDialog 
         open={isApiKeyDialogOpen} 
@@ -237,7 +244,7 @@ function LandingScreen({
       />
       
       {/* Header */}
-      <header className="border-b border-gray-200 bg-white">
+      <header className="sticky top-0 z-50 border-b-[0.5px] border-neutral-200 bg-white">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <img 
@@ -249,7 +256,7 @@ function LandingScreen({
           <div className="flex items-center gap-4">
             <button 
               onClick={() => setIsApiKeyDialogOpen(true)}
-              className="flex items-center justify-center w-10 h-10 bg-gray-50 border border-gray-200 rounded-full text-gray-700 hover:text-gray-900 transition-colors"
+              className="flex items-center justify-center w-10 h-10 bg-neutral-50 border border-neutral-200 rounded-full text-neutral-700 hover:text-neutral-900 transition-colors"
               aria-label="API Key"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -284,21 +291,21 @@ function LandingScreen({
           <img 
             src="/landing-left.svg" 
             alt="" 
-            className="absolute left-0 top-0 w-80 h-80 opacity-50 z-0"
+            className="hidden md:block absolute left-0 top-0 w-80 h-80 opacity-100 z-0"
           />
 
           <img 
             src="/landing-right.svg" 
             alt="" 
-            className="absolute right-0 top-0 w-80 h-80 opacity-50 z-0"
+            className="hidden md:block absolute right-0 top-0 w-80 h-80 opacity-100 z-0"
           />
 
-          <h1 className="relative text-6xl font-bold text-gray-900 mb-6 leading-none font-[family-name:var(--font-fustat)] z-10">
+          <h1 className="relative text-6xl font-bold text-neutral-900 mb-6 leading-none font-[family-name:var(--font-fustat)] z-10">
             Make a tailored
             <br />
             course for you
           </h1>
-          <p className="relative text-xl text-gray-700 mb-12 font-medium leading-tight font-[family-name:var(--font-fustat)] z-10">
+          <p className="relative text-xl text-neutral-700 mb-12 font-medium leading-tight font-[family-name:var(--font-fustat)] z-10">
             Upload any materials to generate
             <br />a personalized course!
           </p>
@@ -317,14 +324,14 @@ function LandingScreen({
                   ? "border-blue-500 bg-blue-50/80"
                   : error
                   ? "border-red-500 bg-red-50/80"
-                  : "border-gray-300 bg-white/80"
+                  : "border-neutral-300 bg-white/80"
               } ${!isProcessing ? "cursor-pointer" : ""}`}
             >
               {isProcessing ? (
                 <div className="flex flex-col items-center">
                   <div className="mb-4 w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-                  <p className="text-gray-700 font-medium">{progress}</p>
-                  <p className="text-sm text-gray-500 mt-2">
+                  <p className="text-neutral-700 font-medium">{progress}</p>
+                  <p className="text-sm text-neutral-500 mt-2">
                     This may take a few minutes...
                   </p>
                 </div>
@@ -349,7 +356,7 @@ function LandingScreen({
                         e.stopPropagation();
                         fileInputRef.current?.click();
                       }}
-                      className="mb-4 px-6 py-3 bg-gray-900 text-white rounded-full font-medium hover:bg-gray-800 transition-colors flex items-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="mb-4 px-6 py-3 bg-neutral-900 text-white rounded-full font-medium hover:bg-neutral-800 transition-colors flex items-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                       disabled={isProcessing}
                     >
                       <svg
@@ -367,7 +374,7 @@ function LandingScreen({
                       </svg>
                       Upload a PDF
                     </button>
-                    <p className="text-sm text-gray-500">
+                    <p className="text-sm text-neutral-500">
                       Or drag-and-drop here
                     </p>
                   </label>
@@ -385,7 +392,7 @@ function LandingScreen({
       </main>
 
       {/* Footer */}
-      <footer className="fixed bottom-4 left-4">
+      <footer className="fixed bottom-4 left-4 z-10">
         <a 
           href="https://together.ai" 
           target="_blank" 
@@ -401,12 +408,12 @@ function LandingScreen({
       </footer>
 
       {/* Social Icons */}
-      <div className="fixed bottom-4 right-4 flex items-center gap-3">
+      <div className="fixed bottom-4 right-4 flex items-center gap-3 z-10">
         <a 
           href="https://github.com" 
           target="_blank" 
           rel="noopener noreferrer"
-          className="flex items-center justify-center w-10 h-10 bg-gray-50 border border-gray-200 rounded-full text-gray-700 hover:text-gray-900 transition-colors"
+          className="flex items-center justify-center w-10 h-10 bg-neutral-50 border border-neutral-200 rounded-full text-neutral-700 hover:text-neutral-900 transition-colors"
           aria-label="GitHub"
         >
           <Github className="w-5 h-5" />
@@ -415,7 +422,7 @@ function LandingScreen({
           href="https://x.com" 
           target="_blank" 
           rel="noopener noreferrer"
-          className="flex items-center justify-center w-10 h-10 bg-gray-50 border border-gray-200 rounded-full text-gray-700 hover:text-gray-900 transition-colors"
+          className="flex items-center justify-center w-10 h-10 bg-neutral-50 border border-neutral-200 rounded-full text-neutral-700 hover:text-neutral-900 transition-colors"
           aria-label="X (Twitter)"
         >
           <Twitter className="w-5 h-5" />

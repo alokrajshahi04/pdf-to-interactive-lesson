@@ -70,11 +70,11 @@ function LessonScreen({
     <>
       {step === "module-intro" && (
         <div className="animate-fadeIn">
-          <h1 className="text-3xl font-bold text-gray-900 mb-8">
+          <h1 className="text-3xl font-bold text-neutral-900 mb-8">
             Welcome to Module {moduleIndex + 1}! Let&apos;s start with{" "}
             {moduleTitle.toLowerCase()}
           </h1>
-          <p className="text-lg text-gray-600 leading-relaxed">
+          <p className="text-lg text-neutral-600 leading-relaxed">
             This module contains {successfulLessonsCount} interactive lessons
             about {moduleTitle.toLowerCase()}.
           </p>
@@ -83,32 +83,32 @@ function LessonScreen({
 
       {step === "content" && (
         <div className="animate-fadeIn space-y-8">
-          <h1 className="text-2xl font-bold text-gray-900">
+          <h1 className="text-2xl font-bold text-neutral-900">
             {lessonData.title}
           </h1>
-          <p className="text-lg text-gray-800 leading-relaxed">
+          <p className="text-lg text-neutral-800 leading-relaxed">
             {lessonData.content}
           </p>
           <div className="bg-pink-50 border border-pink-200 rounded-2xl p-6">
-            <p className="text-gray-800 leading-relaxed">{lessonData.info}</p>
+            <p className="text-neutral-800 leading-relaxed">{lessonData.info}</p>
           </div>
         </div>
       )}
 
       {(step === "question" || step === "answer") && (
         <div className="animate-fadeIn space-y-8">
-          <h1 className="text-2xl font-bold text-gray-900">
+          <h1 className="text-2xl font-bold text-neutral-900">
             {lessonData.title}
           </h1>
-          <p className="text-lg text-gray-800 leading-relaxed">
+          <p className="text-lg text-neutral-800 leading-relaxed">
             {lessonData.content}
           </p>
           <div className="bg-pink-50 border border-pink-200 rounded-2xl p-6">
-            <p className="text-gray-800 leading-relaxed">{lessonData.info}</p>
+            <p className="text-neutral-800 leading-relaxed">{lessonData.info}</p>
           </div>
 
           <div className="pt-4">
-            <p className="text-lg font-medium text-gray-900 mb-6">
+            <p className="text-lg font-medium text-neutral-900 mb-6">
               {lessonData.question}
             </p>
 
@@ -130,21 +130,21 @@ function LessonScreen({
                             : "bg-blue-50 border-2 border-blue-400"
                           : showResult && idx === lessonData.answer
                           ? "bg-green-100 border-2 border-green-400"
-                          : "bg-gray-100 border-2 border-gray-200 hover:border-gray-300"
+                          : "bg-neutral-100 border-2 border-neutral-200 hover:border-neutral-300"
                       }`}
                     >
                       <div
                         className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
                           userAnswer === idx
-                            ? "border-gray-600"
-                            : "border-gray-400"
+                            ? "border-neutral-600"
+                            : "border-neutral-400"
                         }`}
                       >
                         {userAnswer === idx && (
-                          <div className="w-3 h-3 rounded-full bg-gray-600" />
+                          <div className="w-3 h-3 rounded-full bg-neutral-600" />
                         )}
                       </div>
-                      <span className="text-gray-800 flex-1">{choice}</span>
+                      <span className="text-neutral-800 flex-1">{choice}</span>
                     </button>
                   ))}
                 </div>
@@ -167,21 +167,21 @@ function LessonScreen({
                           : "bg-blue-50 border-2 border-blue-400"
                         : showResult && value === lessonData.answer
                         ? "bg-green-100 border-2 border-green-400"
-                        : "bg-gray-100 border-2 border-gray-200 hover:border-gray-300"
+                        : "bg-neutral-100 border-2 border-neutral-200 hover:border-neutral-300"
                     }`}
                   >
                     <div
                       className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
                         userAnswer === value
-                          ? "border-gray-600"
-                          : "border-gray-400"
+                          ? "border-neutral-600"
+                          : "border-neutral-400"
                       }`}
                     >
                       {userAnswer === value && (
-                        <div className="w-3 h-3 rounded-full bg-gray-600" />
+                        <div className="w-3 h-3 rounded-full bg-neutral-600" />
                       )}
                     </div>
-                    <span className="text-gray-800 font-medium">
+                    <span className="text-neutral-800 font-medium">
                       {value ? "True" : "False"}
                     </span>
                   </button>
@@ -197,14 +197,14 @@ function LessonScreen({
                   onChange={(e) => onAnswerChange(e.target.value)}
                   disabled={showResult || isGrading}
                   placeholder="Type your answer here..."
-                  className={`w-full p-5 border-2 rounded-xl focus:outline-none resize-none text-gray-800 bg-gray-50 transition-all ${
+                  className={`w-full p-5 border-2 rounded-xl focus:outline-none resize-none text-neutral-800 bg-neutral-50 transition-all ${
                     showResult && lessonData.gradingResult
                       ? lessonData.gradingResult.isCorrect
                         ? "border-green-400 bg-green-50"
                         : "border-red-400 bg-red-50"
                       : showResult
-                      ? "border-gray-200"
-                      : "border-gray-200 focus:border-blue-400"
+                      ? "border-neutral-200"
+                      : "border-neutral-200 focus:border-blue-400"
                   }`}
                   rows={4}
                 />
@@ -230,7 +230,7 @@ function LessonScreen({
                         d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                       ></path>
                     </svg>
-                    <span className="text-gray-700">Grading your answer...</span>
+                    <span className="text-neutral-700">Grading your answer...</span>
                   </div>
                 )}
                 {gradingError && (
@@ -251,20 +251,20 @@ function LessonScreen({
                 )}
                 {showResult && lessonData.gradingResult && (
                   <div className="mt-4 p-5 bg-blue-50 border border-blue-200 rounded-xl">
-                    <p className="text-sm font-semibold text-gray-700 mb-2">
+                    <p className="text-sm font-semibold text-neutral-700 mb-2">
                       Answer:
                     </p>
-                    <p className="text-gray-800 leading-relaxed">
+                    <p className="text-neutral-800 leading-relaxed">
                       {lessonData.answer}
                     </p>
                   </div>
                 )}
                 {showResult && !lessonData.gradingResult && !isGrading && !gradingError && (
                   <div className="mt-4 p-5 bg-blue-50 border border-blue-200 rounded-xl">
-                    <p className="text-sm font-semibold text-gray-700 mb-2">
+                    <p className="text-sm font-semibold text-neutral-700 mb-2">
                       Answer:
                     </p>
-                    <p className="text-gray-800 leading-relaxed">
+                    <p className="text-neutral-800 leading-relaxed">
                       {lessonData.answer}
                     </p>
                   </div>
@@ -296,8 +296,8 @@ function LessonScreen({
           disabled={!canContinue || isGrading}
           className={`px-8 py-3 rounded-full font-medium transition-all ${
             canContinue && !isGrading
-              ? "bg-gray-700 text-white hover:bg-gray-800 active:scale-95"
-              : "bg-gray-300 text-gray-500 cursor-not-allowed"
+              ? "bg-neutral-700 text-white hover:bg-neutral-800 active:scale-95"
+              : "bg-neutral-300 text-neutral-500 cursor-not-allowed"
           }`}
         >
           {isGrading ? "Grading..." : getButtonText()}
