@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { Fustat } from "next/font/google";
 import "./globals.css";
 import { CreditsProviderWrapper } from "./components/credits-provider-wrapper";
 
@@ -11,6 +12,12 @@ const geistSans = Geist({
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
+});
+
+const fustat = Fustat({
+  variable: "--font-fustat",
+  subsets: ["latin"],
+  weight: ["400", "500", "700"],
 });
 
 export const metadata: Metadata = {
@@ -26,7 +33,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} ${fustat.variable} antialiased`}
       >
         <CreditsProviderWrapper>{children}</CreditsProviderWrapper>
       </body>
