@@ -139,25 +139,33 @@ export default function LessonPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
-        <div className="text-neutral-600">Loading course...</div>
+      <div className="min-h-screen bg-white flex flex-col">
+        <Header showNavLinks={true} courseTitle={course?.title} />
+        <div className="max-w-xl mx-auto px-6 py-16 flex-grow flex items-center justify-center">
+          <div className="text-neutral-600">Loading course...</div>
+        </div>
+        <Footer />
       </div>
     );
   }
 
   if (error || !course) {
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-neutral-900 mb-4">Course not found</h1>
-          <p className="text-neutral-600 mb-6">{error || "The course you're looking for doesn't exist."}</p>
-          <button
-            onClick={() => router.push("/courses")}
-            className="px-6 py-2 bg-neutral-900 text-white rounded-lg hover:bg-neutral-800"
-          >
-            Back to Courses
-          </button>
+      <div className="min-h-screen bg-white flex flex-col">
+        <Header showNavLinks={true} courseTitle={course?.title} />
+        <div className="max-w-xl mx-auto px-6 py-16 flex-grow flex items-center justify-center">
+          <div className="text-center">
+            <h1 className="text-2xl font-bold text-neutral-900 mb-4">Course not found</h1>
+            <p className="text-neutral-600 mb-6">{error || "The course you're looking for doesn't exist."}</p>
+            <button
+              onClick={() => router.push("/courses")}
+              className="px-6 py-2 bg-neutral-900 text-white rounded-lg hover:bg-neutral-800"
+            >
+              Back to Courses
+            </button>
+          </div>
         </div>
+        <Footer />
       </div>
     );
   }
@@ -182,16 +190,24 @@ export default function LessonPage() {
 
   if (!currentLesson) {
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-neutral-900 mb-4">Lesson not found</h1>
-          <button
-            onClick={handleBackToModules}
-            className="px-6 py-2 bg-neutral-900 text-white rounded-lg hover:bg-neutral-800"
-          >
-            Back to Modules
-          </button>
+      <div className="min-h-screen bg-white flex flex-col">
+        <Header
+          onBackClick={handleBackToModules}
+          showNavLinks={true}
+          courseTitle={course.title}
+        />
+        <div className="max-w-xl mx-auto px-6 py-16 flex-grow flex items-center justify-center">
+          <div className="text-center">
+            <h1 className="text-2xl font-bold text-neutral-900 mb-4">Lesson not found</h1>
+            <button
+              onClick={handleBackToModules}
+              className="px-6 py-2 bg-neutral-900 text-white rounded-lg hover:bg-neutral-800"
+            >
+              Back to Modules
+            </button>
+          </div>
         </div>
+        <Footer />
       </div>
     );
   }
@@ -199,16 +215,18 @@ export default function LessonPage() {
   const { data } = currentLesson;
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-white flex flex-col">
       <Header
         onBackClick={handleBackToModules}
         showProgressBar={true}
         moduleProgress={moduleProgressData}
         showNavLinks={true}
+        courseTitle={course.title}
+        course={course}
       />
 
       {/* Main Content */}
-      <div className="max-w-3xl mx-auto px-6 py-12">
+      <div className="max-w-xl mx-auto px-6 py-16 flex-grow">
         {step === "module-complete" ? (
           <ModuleCompleteScreen
             moduleIndex={moduleIndexParam}

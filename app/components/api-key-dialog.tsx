@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { ExternalLink, Info } from "lucide-react";
+import { ExternalLink } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -115,7 +115,7 @@ export function ApiKeyDialog({ open, onOpenChange }: ApiKeyDialogProps) {
             <span>Copy your API key and paste it above</span>
           </li>
         </ul>
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-3">
           <button
             onClick={handleSaveApiKey}
             disabled={!apiKey.trim()}
@@ -123,35 +123,25 @@ export function ApiKeyDialog({ open, onOpenChange }: ApiKeyDialogProps) {
           >
             {savedApiKey ? "Update API Key" : "Save API Key"}
           </button>
-          <a
-            href="https://together.ai"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="w-full px-4 py-2 border border-neutral-300 rounded-lg hover:bg-neutral-50 transition-colors flex items-center justify-center gap-2 text-neutral-900"
-          >
-            Get your API key
-            <ExternalLink className="w-4 h-4" />
-          </a>
-          {savedApiKey && (
-            <button
-              onClick={handleRemoveApiKey}
-              className="w-full px-4 py-2 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors"
+          <div className="flex items-center justify-between text-sm pt-2 gap-6">
+            <a
+              href="https://together.ai"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-neutral-600 hover:text-neutral-900 underline flex items-center gap-1"
             >
-              Remove API Key
-            </button>
-          )}
-          <button
-            onClick={() => onOpenChange(false)}
-            className="w-full px-4 py-2 border border-neutral-300 rounded-lg hover:bg-neutral-50 transition-colors text-neutral-900"
-          >
-            Dismiss
-          </button>
-        </div>
-        <div className="flex items-center gap-2 text-sm text-neutral-600 pt-2 border-t border-neutral-200">
-          <Info className="w-4 h-4" />
-          <span>
-            {savedApiKey ? "API Key saved ✓" : "No API key configured"}
-          </span>
+              Get your API key
+              <ExternalLink className="w-3 h-3" />
+            </a>
+            {savedApiKey && (
+              <button
+                onClick={handleRemoveApiKey}
+                className="text-red-600 hover:text-red-700 underline text-sm"
+              >
+                Remove
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </div>

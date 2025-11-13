@@ -49,11 +49,11 @@ function ModulesScreen({
   );
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-white flex flex-col">
       <Header showNavLinks={true} courseTitle={course.title} />
 
       {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-6 py-16">
+      <div className="max-w-7xl mx-auto px-6 py-16 flex-grow">
         <div className="grid grid-cols-1 lg:grid-cols-2 lg:gap-16">
           {/* Left Column - Course Overview */}
           <div className="flex flex-col justify-center items-center text-center lg:pr-16">

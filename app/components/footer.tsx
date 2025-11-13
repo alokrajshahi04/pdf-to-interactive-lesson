@@ -1,6 +1,7 @@
 function Footer() {
   return (
-    <div className="max-w-7xl mx-auto px-6 py-6 flex items-center justify-between">
+    <div className="w-full py-6">
+      <div className="max-w-7xl mx-auto px-6 flex items-center justify-between">
       <div className="text-sm text-neutral-600">
         Powered by <span className="font-semibold">together.ai</span>
       </div>
@@ -40,6 +41,7 @@ function Footer() {
             />
           </svg>
         </button>
+      </div>
       </div>
     </div>
   );

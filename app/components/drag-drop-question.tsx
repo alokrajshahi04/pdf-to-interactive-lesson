@@ -55,6 +55,9 @@ export function DragDropQuestion({
   const [historyIndex, setHistoryIndex] = useState(0);
   const historyIndexRef = useRef(0);
   
+  // Track element width for drag overlay
+  const [dragElementWidth, setDragElementWidth] = useState<number | null>(null);
+  
   // Keep ref in sync with state
   useEffect(() => {
     historyIndexRef.current = historyIndex;
@@ -188,11 +191,18 @@ export function DragDropQuestion({
 
   const handleDragStart = (event: DragStartEvent) => {
     setActiveId(String(event.active.id));
+    // Measure the actual element width
+    const element = document.getElementById(String(event.active.id));
+    if (element) {
+      const rect = element.getBoundingClientRect();
+      setDragElementWidth(rect.width);
+    }
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     setActiveId(null);
+    setDragElementWidth(null);
 
     if (!over) {
       return;
@@ -379,31 +389,33 @@ export function DragDropQuestion({
             const colors = CHOICE_COLORS[choiceIndex % CHOICE_COLORS.length];
             return (
               <div
-                className="h-[100px] p-4 rounded-2xl flex flex-col justify-center items-center shadow-lg"
+                className="h-[120px] p-4 rounded-2xl flex flex-col justify-center items-center shadow-lg"
                 style={{
-                  width: "320px", // Matches typical w-full width in 2-column grid (approx half of 800px container minus padding)
+                  width: dragElementWidth ? `${dragElementWidth}px` : "100%",
+                  maxWidth: "100%",
                   backgroundColor: colors.bg,
                   borderColor: colors.border,
                   borderWidth: "0.7px",
                 }}
               >
-                <span className="text-neutral-800 font-medium text-center">
+                <span className="text-neutral-800 font-medium text-center text-sm leading-relaxed line-clamp-3">
                   {choices[choiceIndex]}
                 </span>
               </div>
             );
           })() : activeId.startsWith("slot-") ? (
             <div
-              className="h-[100px] p-4 rounded-2xl flex flex-col justify-center items-center shadow-lg"
+              className="h-[120px] p-4 rounded-2xl flex flex-col justify-center items-center shadow-lg"
               style={{
-                width: "320px", // Matches typical w-full width in 2-column grid (approx half of 800px container minus padding)
+                width: dragElementWidth ? `${dragElementWidth}px` : "100%",
+                maxWidth: "100%",
                 borderColor: "#a3a3a3", // neutral-400 (darker)
                 borderWidth: "1.5px",
                 borderStyle: "dashed",
                 backgroundColor: "#ffffff", // white
               }}
             >
-              <span className="text-neutral-800 font-medium text-center">
+              <span className="text-neutral-800 font-medium text-center text-sm leading-relaxed line-clamp-3">
                 {slotAssignments[parseInt(activeId.replace("slot-", ""), 10)] !==
                 -1
                   ? choices[
@@ -457,17 +469,18 @@ function DraggableChoice({ id, text, disabled, index }: DraggableChoiceProps) {
 
   return (
     <div
+      id={id}
       ref={setNodeRef}
       style={style}
       {...attributes}
       {...listeners}
-      className={`w-full h-[100px] p-4 rounded-2xl flex flex-col justify-center items-center ${
+      className={`w-full h-[120px] p-4 rounded-2xl flex flex-col justify-center items-center ${
         disabled
           ? "opacity-50 cursor-not-allowed"
           : "cursor-grab active:cursor-grabbing transition-opacity"
       }`}
     >
-      <span className="text-neutral-800 font-medium text-center">{text}</span>
+      <span className="text-neutral-800 font-medium text-center text-sm leading-relaxed line-clamp-3">{text}</span>
     </div>
   );
 }
@@ -512,28 +525,28 @@ function DroppableSlot({
     ? CHOICE_COLORS[correctChoiceIndex % CHOICE_COLORS.length]
     : null;
 
-  // Determine border color - preserve choice color when assigned
+  // Determine border color
   const borderColor = 
     isOver && !showResult
       ? "#d4d4d8" // neutral-300
+      : showResult && isCorrect
+      ? "#22c55e" // green-500 - green for correct answers
+      : showResult && isIncorrect
+      ? "#ef4444" // red-500 - red border for incorrect answers
       : assignedChoiceColors && !showResult
-      ? assignedChoiceColors.border // preserve choice border color
-      : isCorrect && assignedChoiceColors
-      ? assignedChoiceColors.border // preserve choice border color even when correct
-      : isIncorrect && assignedChoiceColors
-      ? assignedChoiceColors.border // preserve choice border color even when incorrect
+      ? assignedChoiceColors.border // preserve choice border color when not showing results
       : "#a3a3a3"; // neutral-400 (darker) - default dashed border
 
-  // Determine background color - preserve choice color when assigned
+  // Determine background color
   const backgroundColor =
     isOver && !showResult
       ? "#dbeafe" // blue-100
+      : showResult && isCorrect
+      ? "#f0fdf4" // green-50 - green background for correct answers
+      : showResult && isIncorrect
+      ? "#fef2f2" // red-50 - light red background for incorrect answers
       : assignedChoiceColors && !showResult
-      ? assignedChoiceColors.bg // preserve choice background color
-      : isCorrect && assignedChoiceColors
-      ? assignedChoiceColors.bg // preserve choice background color even when correct
-      : isIncorrect && assignedChoiceColors
-      ? assignedChoiceColors.bg // preserve choice background color even when incorrect
+      ? assignedChoiceColors.bg // preserve choice background color when not showing results
       : "#ffffff"; // white
 
   // Use solid border when choice is assigned, dashed when empty
@@ -542,6 +555,7 @@ function DroppableSlot({
 
   return (
     <div
+      id={id}
       ref={setNodeRef}
       style={{
         borderColor,
@@ -550,11 +564,23 @@ function DroppableSlot({
         borderImage: "none",
         backgroundColor,
       }}
-      className={`w-full p-4 rounded-2xl flex flex-col items-center transition-all ${
-        showResult && isIncorrect && correctChoice ? "min-h-[140px]" : "h-[100px]"
+      className={`w-full p-4 rounded-2xl flex flex-col items-center transition-all relative ${
+        showResult && isIncorrect && correctChoice ? "min-h-[180px]" : "h-[120px]"
       }`}
     >
-      <p className="text-sm font-semibold text-neutral-700 mb-2">{label}</p>
+      <div className="flex flex-col items-center mb-2">
+        <p className="text-sm font-semibold text-neutral-700">{label}</p>
+        {showResult && isIncorrect && (
+          <svg className="w-5 h-5 text-red-600 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        )}
+        {showResult && isCorrect && (
+          <svg className="w-5 h-5 text-green-600 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+          </svg>
+        )}
+      </div>
       <div className="flex-1 flex items-center justify-center w-full min-h-0">
         {assignedChoice ? (
           <DraggableSlotContent
@@ -571,12 +597,7 @@ function DroppableSlot({
         <div className="mt-3 pt-2 border-t border-neutral-300 w-full">
           <p className="text-xs text-green-700 font-semibold mb-1 text-center">Correct:</p>
           <div 
-            className="text-xs text-center leading-relaxed px-2 py-1 rounded-lg inline-block"
-            style={{
-              backgroundColor: correctChoiceColors?.bg || "#f0fdf4",
-              borderColor: correctChoiceColors?.border || "#d4d4d8",
-              borderWidth: "0.7px",
-            }}
+            className="text-xs text-center leading-relaxed px-2 py-1 rounded-lg inline-block bg-green-50 border border-green-200"
           >
             <p className="text-neutral-800">{correctChoice}</p>
           </div>
@@ -622,7 +643,7 @@ function DraggableSlotContent({
       style={style}
       {...attributes}
       {...listeners}
-      className={`text-neutral-800 font-medium text-center ${
+      className={`text-neutral-800 font-medium text-center text-sm leading-relaxed line-clamp-3 ${
         disabled ? "" : "cursor-grab active:cursor-grabbing"
       }`}
     >
