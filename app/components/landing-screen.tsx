@@ -3,9 +3,11 @@
 import { useState, useEffect, useRef } from "react";
 import { upload } from "@vercel/blob/client";
 import { getApiKey } from "@/lib/api-key-storage";
+import { getStoredCourses } from "@/lib/storage";
 import { ApiKeyDialog } from "./api-key-dialog";
 import { useCredits } from "../hooks/use-credits";
 import { Github, Twitter } from "lucide-react";
+import Link from "next/link";
 
 interface LandingScreenProps {
   onCourseGenerated: (courseData: any) => void;
@@ -21,7 +23,31 @@ function LandingScreen({
   const [progress, setProgress] = useState("");
   const [isApiKeyDialogOpen, setIsApiKeyDialogOpen] = useState(false);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [hasCourses, setHasCourses] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const checkCourses = () => {
+      const courses = getStoredCourses();
+      setHasCourses(courses.length > 0);
+    };
+    
+    // Check on mount
+    checkCourses();
+    
+    // Listen for storage changes (from other tabs)
+    window.addEventListener("storage", checkCourses);
+    
+    return () => {
+      window.removeEventListener("storage", checkCourses);
+    };
+  }, []);
+
+  // Update hasCourses when a course is generated
+  const handleCourseGeneratedWrapper = (courseData: any) => {
+    setHasCourses(true);
+    onCourseGenerated(courseData);
+  };
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -139,7 +165,7 @@ function LandingScreen({
             
             setProgress("Course generated successfully!");
             // Pass the generated course data to parent
-            onCourseGenerated(event.data.course);
+            handleCourseGeneratedWrapper(event.data.course);
             setIsProcessing(false);
             return;
           } else {
@@ -254,6 +280,15 @@ function LandingScreen({
             />
           </div>
           <div className="flex items-center gap-4">
+            {hasCourses && (
+              <Link
+                href="/courses"
+                className="flex items-center justify-center h-10 px-4 bg-neutral-50 border border-neutral-200 rounded-full text-neutral-700 hover:text-neutral-900 transition-colors text-xs font-medium"
+                aria-label="Courses"
+              >
+                Courses
+              </Link>
+            )}
             <button 
               onClick={() => setIsApiKeyDialogOpen(true)}
               className="flex items-center justify-center w-10 h-10 bg-neutral-50 border border-neutral-200 rounded-full text-neutral-700 hover:text-neutral-900 transition-colors"
