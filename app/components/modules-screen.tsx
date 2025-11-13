@@ -56,7 +56,7 @@ function ModulesScreen({
       <div className="max-w-7xl mx-auto px-6 py-16">
         <div className="grid grid-cols-1 lg:grid-cols-2 lg:gap-16">
           {/* Left Column - Course Overview */}
-          <div className="flex flex-col justify-center items-center text-center lg:border-r lg:border-[#E5E5E5] lg:pr-16">
+          <div className="flex flex-col justify-center items-center text-center lg:pr-16">
             <h2 className="text-5xl font-bold text-neutral-900 mb-6 leading-tight">
               We built your course!
             </h2>
@@ -92,7 +92,6 @@ function ModulesScreen({
 
           {/* Right Column - Modules List */}
           <div className="space-y-4">
-            <div className="border-t border-[#E5E5E5] py-8"></div>
             {course.modules.map((module, index) => {
               const successfulLessons = module.lessons.filter((l) => l.success);
               const isCompleted = completedModules.includes(index);
