@@ -7,15 +7,13 @@ import {
   getStoredCourses,
   deleteCourse,
   getCompletionPercentage,
-  saveCourse,
   type StoredCourse,
 } from "@/lib/storage";
 import type { Course } from "@/app/hooks/use-course-navigation";
-import { useCredits } from "../hooks/use-credits";
 import { ApiKeyDialog } from "./api-key-dialog";
 import Link from "next/link";
 import { Github, Twitter } from "lucide-react";
-import { Loader } from "@/components/ai-elements/loader";
+import { useImageFadeIn } from "../hooks/use-image-fade-in";
 
 interface DashboardProps {
   onSelectCourse: (courseId: string) => void;
@@ -23,7 +21,6 @@ interface DashboardProps {
 }
 
 function Dashboard({ onSelectCourse, onCourseGenerated }: DashboardProps) {
-  const { updateCredits } = useCredits();
   const [courses, setCourses] = useState<StoredCourse[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -31,6 +28,8 @@ function Dashboard({ onSelectCourse, onCourseGenerated }: DashboardProps) {
   const [progress, setProgress] = useState("");
   const [isApiKeyDialogOpen, setIsApiKeyDialogOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const logoFadeIn = useImageFadeIn("/logo.svg");
+  const footerFadeIn = useImageFadeIn("/landing-footer-powered-by.svg");
 
   useEffect(() => {
     setCourses(getStoredCourses());
@@ -79,135 +78,31 @@ function Dashboard({ onSelectCourse, onCourseGenerated }: DashboardProps) {
       return;
     }
 
-    setIsProcessing(true);
-    setError(null);
-    setProgress("Uploading PDF...");
-
-    try {
+    // Check for API key before redirecting
       const apiKey = getApiKey();
       if (!apiKey) {
         setError("API key not configured. Please add your Together AI API key in settings.");
-        setIsProcessing(false);
         return;
       }
 
-      // Upload to Vercel Blob
-      setProgress("Uploading PDF to storage...");
-      const blob = await upload(file.name, file, {
-        access: "public",
-        handleUploadUrl: "/api/upload-url",
-      });
-
-      // Generate course from PDF
-      setProgress("Generating course from PDF...");
-      const formData = new FormData();
-      formData.append("url", blob.url);
-      
-      const response = await fetch("/api/generate-course", {
-        method: "POST",
-        headers: {
-          "X-Together-API-Key": apiKey,
-        },
-        body: formData,
-      });
-
-      // Check credits from response header
-      const creditsRemaining = response.headers.get("X-Credits-Remaining");
-      if (creditsRemaining) {
-        updateCredits(parseInt(creditsRemaining, 10));
-      }
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        if (response.status === 402) {
-          throw new Error(
-            errorData.message ||
-              `Insufficient credits. You have ${creditsRemaining || 0} credit(s) remaining.`
-          );
-        }
-        throw new Error(errorData.error || "Failed to generate course");
-      }
-
-      // Read the streaming response
-      const reader = response.body?.getReader();
-      const decoder = new TextDecoder();
-
-      if (!reader) {
-        throw new Error("No response body");
-      }
-
-      let buffer = "";
-      let courseData: Course | null = null;
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop() || "";
-
-        for (const line of lines) {
-          if (!line.trim()) continue;
-          try {
-            const event = JSON.parse(line);
-            if (event.type === "error") {
-              throw new Error(event.error);
-            } else if (event.type === "complete") {
-              if (event.data?.creditsRemaining !== undefined) {
-                updateCredits(event.data.creditsRemaining);
-              }
-              courseData = event.data.course;
-              break;
-            } else if (event.message) {
-              setProgress(event.message);
-            }
-          } catch (parseError) {
-            // Skip invalid JSON lines
-            continue;
-          }
-        }
-        if (courseData) break;
-      }
-
-      if (!courseData) {
-        throw new Error("Failed to generate course");
-      }
-
-      setProgress("Course generated successfully!");
-      
-      // Save course and refresh list
-      const courseId = saveCourse(courseData);
-      setCourses(getStoredCourses());
-
-      // Call callback if provided
-      if (onCourseGenerated) {
-        onCourseGenerated(courseData);
-      } else {
-        // Navigate to the new course
-        const stored = getStoredCourses().find((c) => c.id === courseId);
-        if (stored?.slug) {
-          window.location.href = `/course/${stored.slug}`;
-        }
-      }
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Failed to process PDF. Please try again.";
-      
-      // Make error messages more helpful
-      let displayError = errorMessage;
-      if (errorMessage.includes("pages") && errorMessage.includes("100")) {
-        displayError = "This PDF is too large. We currently support PDFs up to 100 pages. Please split your document into smaller sections or upload a shorter version.";
-      } else if (errorMessage.includes("credits")) {
-        displayError = errorMessage; // Keep credit errors as-is
-      } else if (errorMessage.includes("API key")) {
-        displayError = errorMessage; // Keep API key errors as-is
-      }
-      
-      setError(displayError);
-    } finally {
-      setIsProcessing(false);
-      setProgress("");
-    }
+    // Store file in sessionStorage and redirect immediately
+    // Convert file to base64 for storage
+    const reader = new FileReader();
+    reader.onload = () => {
+      const fileData = {
+        name: file.name,
+        type: file.type,
+        size: file.size,
+        data: reader.result as string, // base64 string
+      };
+      sessionStorage.setItem("pendingPdfUpload", JSON.stringify(fileData));
+      // Redirect immediately to generating page
+      window.location.href = "/generating";
+    };
+    reader.onerror = () => {
+      setError("Failed to read file. Please try again.");
+    };
+    reader.readAsDataURL(file);
   };
 
   return (
@@ -224,9 +119,12 @@ function Dashboard({ onSelectCourse, onCourseGenerated }: DashboardProps) {
           <div className="flex items-center gap-2">
             <Link href="/">
               <img 
+                ref={logoFadeIn.imgRef}
                 src="/logo.svg" 
                 alt="Logo"
-                className="h-6 w-auto"
+                onLoad={logoFadeIn.handleLoad}
+                onError={logoFadeIn.handleError}
+                className={`h-6 w-auto transition-opacity duration-700 ease-out ${logoFadeIn.isLoaded ? 'opacity-100' : 'opacity-0'}`}
               />
             </Link>
           </div>
@@ -283,10 +181,10 @@ function Dashboard({ onSelectCourse, onCourseGenerated }: DashboardProps) {
         >
           {isProcessing ? (
             <div className="flex flex-col items-center">
-              <Loader size={32} className="mb-4 text-blue-500 [animation-duration:0.6s]" />
+              <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4" />
               <p className="text-neutral-700 font-medium">{progress}</p>
               <p className="text-sm text-neutral-500 mt-2">
-                This may take a few minutes...
+                Redirecting to generation page...
               </p>
             </div>
           ) : (
@@ -569,9 +467,12 @@ function Dashboard({ onSelectCourse, onCourseGenerated }: DashboardProps) {
           className="inline-block"
         >
           <img 
+            ref={footerFadeIn.imgRef}
             src="/landing-footer-powered-by.svg" 
             alt="Powered by together.ai"
-            className="h-auto"
+            onLoad={footerFadeIn.handleLoad}
+            onError={footerFadeIn.handleError}
+            className={`h-auto transition-opacity duration-700 ease-out ${footerFadeIn.isLoaded ? 'opacity-100' : 'opacity-0'}`}
           />
         </a>
         <div className="flex items-center gap-3">

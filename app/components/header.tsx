@@ -9,6 +9,7 @@ import { useCredits } from "../hooks/use-credits";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import type { Course } from "../hooks/use-course-navigation";
+import { useImageFadeIn } from "../hooks/use-image-fade-in";
 
 interface HeaderProps {
   showProgressBar?: boolean;
@@ -24,6 +25,7 @@ function Header({ showProgressBar, moduleProgress, showNavLinks, courseTitle, co
   const [isOpen, setIsOpen] = useState(false);
   const [savedApiKey, setSavedApiKey] = useState<string | null>(null);
   const { credits } = useCredits();
+  const logoFadeIn = useImageFadeIn("/logo.svg");
 
   // Load saved API key on mount
   useEffect(() => {
@@ -43,24 +45,27 @@ function Header({ showProgressBar, moduleProgress, showNavLinks, courseTitle, co
 
   return (
     <div className="sticky top-0 z-50 bg-white border-b border-neutral-200">
-      <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-2">
+      <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between gap-2 min-w-0">
+        <div className="flex items-center gap-2 flex-shrink-0">
           <Link href="/">
             <img 
+              ref={logoFadeIn.imgRef}
               src="/logo.svg" 
               alt="Logo"
-              className="h-6 w-auto"
+              onLoad={logoFadeIn.handleLoad}
+              onError={logoFadeIn.handleError}
+              className={`h-6 w-auto transition-opacity duration-700 ease-out ${logoFadeIn.isLoaded ? 'opacity-100' : 'opacity-0'}`}
             />
           </Link>
         </div>
         {courseTitle ? (
-          <div className="flex items-center gap-1">
-            <h1 className="text-sm font-medium text-neutral-600 truncate max-w-md pl-8 pr-2">
+          <div className="flex items-center gap-1 min-w-0 flex-1 max-w-full">
+            <h1 className="text-sm font-medium text-neutral-600 truncate pl-2 md:pl-8 pr-2 min-w-0">
               {courseTitle}
             </h1>
             <Popover>
               <PopoverTrigger asChild>
-                <button className="text-neutral-600 hover:text-neutral-900 transition-colors">
+                <button className="text-neutral-600 hover:text-neutral-900 transition-colors flex-shrink-0">
                   <ChevronDown className="w-4 h-4" />
                 </button>
               </PopoverTrigger>
@@ -126,7 +131,7 @@ function Header({ showProgressBar, moduleProgress, showNavLinks, courseTitle, co
             </div>
           </div>
         )}
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-4 flex-shrink-0">
           <button
             onClick={() => setIsOpen(true)}
             className="flex items-center justify-center w-10 h-10 bg-neutral-50 border border-neutral-200 rounded-full text-neutral-700 hover:text-neutral-900 transition-colors"

@@ -45,3 +45,16 @@ body {
     linear-gradient(to right, #FB7372 0%, #FFC33E 30%, rgba(0, 0, 0, 0.45) 49%, #51B9F3 66%, #2CBF76 100%) border-box;
   border-radius: 9999px;
 }
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.6s ease-out;
+}

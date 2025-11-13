@@ -66,15 +66,16 @@ export async function POST(request: NextRequest) {
 
     debugLog.log("[API] Validation passed, checking credits");
     // Check credits before making expensive LLM call
+    // Grading credits = number of courses created - credits already used
     const currentCredits = gradeAnswerCreditsManager.getCredits(clientId);
-    debugLog.log("[API] Current credits:", currentCredits);
+    debugLog.log("[API] Current grading credits:", currentCredits);
     
     if (currentCredits < 1) {
       debugLog.warn("[API] Insufficient credits", { currentCredits });
       return Response.json(
         {
           error: "Insufficient credits",
-          message: `You have ${currentCredits} credit(s) remaining. Each grading request costs 1 credit.`,
+          message: `You have ${currentCredits} grading credit(s) remaining. Each grading request costs 1 credit. Create more courses to earn more grading credits.`,
         },
         {
           status: 402,
@@ -158,7 +159,7 @@ Respond ONLY with valid JSON in this exact format:
         return Response.json(
           {
             error: "Insufficient credits",
-            message: `You have ${creditsResult.creditsRemaining} credit(s) remaining. Each grading request costs 1 credit.`,
+            message: `You have ${creditsResult.creditsRemaining} grading credit(s) remaining. Each grading request costs 1 credit. Create more courses to earn more grading credits.`,
           },
           {
             status: 402,

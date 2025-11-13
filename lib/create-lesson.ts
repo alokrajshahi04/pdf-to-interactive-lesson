@@ -56,8 +56,12 @@ export async function createLessons({
   maxRetries = 3,
   onProgress,
 }: CreateLessonsInput): Promise<ModuleWithLessons> {
+  console.log(`\n📚 Starting lesson generation for module: "${module.title}"`);
   onProgress?.("lesson-start", `Generating lessons for "${module.title}"...`);
   const together = createTogetherClient(apiKey);
+  
+  console.log(`🤖 Requesting LLM to generate 4 lessons (one per question type)...`);
+  const generationStartTime = Date.now();
   const result = await generateText({
     model: together(DEFAULT_MODEL),
     prompt: `Analyse the following content and create 4 lessons for the module "${module.title}".
@@ -131,10 +135,16 @@ Content:
 ${content}`,
   });
 
+  const generationTime = ((Date.now() - generationStartTime) / 1000).toFixed(2);
+  console.log(`✅ LLM response received in ${generationTime}s`);
+
   const parser = createXMLParser(["lesson", "choice", "slot"]);
 
   try {
+    console.log(`🔍 Parsing XML structure...`);
     const lessonStructure = parser.parse(result.text);
+    const lessonCount = lessonStructure.module?.lessons?.length || lessonStructure.module?.lesson?.length || 0;
+    console.log(`✅ Parsed ${lessonCount} lesson(s) from XML`);
 
     // Track failures by lesson index
     const failuresByIndex = new Map<number, FailedLesson>();
@@ -194,9 +204,12 @@ ${content}`,
 
     // Run deterministic structure validation if requested
     if (validateStructure && lessonStructure.module?.lessons) {
+      console.log(`\n🔍 Running structure validation for ${lessonStructure.module.lessons.length} lesson(s)...`);
+      const validationStartTime = Date.now();
       const validationResult = validateLessonsStructure(
         lessonStructure.module.lessons
       );
+      const validationTime = ((Date.now() - validationStartTime) / 1000).toFixed(2);
 
       // Log warnings
       const warnings = validationResult.errors.filter(
@@ -217,6 +230,8 @@ ${content}`,
       );
 
       if (errors.length > 0) {
+        console.log(`❌ Found ${errors.length} structure error(s) (validated in ${validationTime}s)`);
+        
         // Group errors by lesson index
         const errorsByLesson = new Map<number, string[]>();
         errors.forEach((error) => {
@@ -230,9 +245,15 @@ ${content}`,
           }
         });
 
-        // Mark lessons as failed
+        // Mark lessons as failed and log details
         errorsByLesson.forEach((details, index) => {
           const lesson = lessonStructure.module.lessons[index];
+          const lessonTitle = lesson?.title || `Lesson ${index + 1}`;
+          console.error(`  ❌ Lesson "${lessonTitle}" failed structure validation:`);
+          details.forEach((detail) => {
+            console.error(`     - ${detail}`);
+          });
+          
           failuresByIndex.set(index, {
             success: false,
             data: lesson || { title: `Lesson ${index + 1}` },
@@ -243,20 +264,22 @@ ${content}`,
             },
           });
         });
-
-        console.error(
-          `❌ ${failuresByIndex.size} lesson(s) failed structure validation for module "${module.title}"`
-        );
+      } else {
+        console.log(`✅ All lessons passed structure validation (${validationTime}s)`);
       }
     }
 
     // Run LLM-based content validation if requested (concurrently)
     if (validateContent && lessonStructure.module?.lessons) {
+      const lessonsToValidate = lessonStructure.module.lessons.filter(
+        (_: any, i: number) => !failuresByIndex.has(i)
+      );
       console.log(
-        `🔍 Validating lesson content for module "${module.title}"...`
+        `\n🔍 Validating lesson content for module "${module.title}" (${lessonsToValidate.length} lesson(s) to validate)...`
       );
 
       // Validate all lessons concurrently
+      const validationStartTime = Date.now();
       const validationPromises = lessonStructure.module.lessons.map(
         async (lesson: any, i: number) => {
           // Skip if already failed structure validation
@@ -264,18 +287,29 @@ ${content}`,
             return { index: i, lesson, validation: null };
           }
 
+          console.log(`  🔍 Validating lesson "${lesson.title}"...`);
+          const lessonValidationStart = Date.now();
           const validation = await validateLesson({
             lesson,
             moduleTitle: module.title,
             content,
             apiKey,
           });
+          const lessonValidationTime = ((Date.now() - lessonValidationStart) / 1000).toFixed(2);
+          
+          if (validation.isValid) {
+            console.log(`  ✅ Lesson "${lesson.title}" passed content validation (${lessonValidationTime}s)`);
+          } else {
+            console.log(`  ❌ Lesson "${lesson.title}" failed content validation (${lessonValidationTime}s)`);
+          }
 
           return { index: i, lesson, validation };
         }
       );
 
       const validationResults = await Promise.all(validationPromises);
+      const totalValidationTime = ((Date.now() - validationStartTime) / 1000).toFixed(2);
+      console.log(`✅ Content validation completed in ${totalValidationTime}s`);
 
       // Process validation results
       for (const { index, lesson, validation } of validationResults) {
@@ -299,15 +333,19 @@ ${content}`,
             },
           });
 
-          console.error(
-            `❌ Lesson "${lesson.title}" failed content validation`
-          );
+          console.error(`  ❌ Lesson "${lesson.title}" failed content validation:`);
+          console.error(`     Reason: ${validation.explanation}`);
+          if (validation.issues) {
+            Object.entries(validation.issues).forEach(([field, issue]) => {
+              console.error(`     - [${field}] ${issue}`);
+            });
+          }
         } else {
           // Log warnings for lessons that passed but have concerns
           if (validation.issues) {
-            console.warn(`⚠️  Lesson "${lesson.title}" has minor issues:`);
+            console.warn(`  ⚠️  Lesson "${lesson.title}" has minor issues:`);
             Object.entries(validation.issues).forEach(([field, issue]) => {
-              console.warn(`  - [${field}] ${issue}`);
+              console.warn(`     - [${field}] ${issue}`);
             });
           }
         }
@@ -326,7 +364,14 @@ ${content}`,
         `\n🔧 Attempting to fix ${failuresByIndex.size} failed lesson(s) for module "${module.title}"...`
       );
 
+      // Log which lessons need fixing
+      failuresByIndex.forEach((failedLesson, index) => {
+        const lessonTitle = failedLesson.data?.title || `Lesson ${index + 1}`;
+        console.log(`  🔧 Will fix lesson "${lessonTitle}" (${failedLesson.error.validationType} validation failed)`);
+      });
+
       // Fix all failed lessons concurrently
+      const fixStartTime = Date.now();
       const fixPromises = Array.from(failuresByIndex.entries()).map(
         async ([index, failedLesson]) => {
           // Convert FailedLesson to the format expected by fixLesson
@@ -350,6 +395,8 @@ ${content}`,
       );
 
       const fixResults = await Promise.all(fixPromises);
+      const fixTime = ((Date.now() - fixStartTime) / 1000).toFixed(2);
+      console.log(`✅ Fix attempts completed in ${fixTime}s`);
 
       // Process fix results
       for (const { index, fixResult } of fixResults) {
@@ -359,9 +406,21 @@ ${content}`,
           // Remove from failures map (it's now successful)
           failuresByIndex.delete(index);
           console.log(
-            `✅ Fixed lesson "${fixResult.lesson.title}" after ${fixResult.attempts} attempt(s)`
+            `  ✅ Fixed lesson "${fixResult.lesson.title}" after ${fixResult.attempts} attempt(s)`
           );
         } else if (fixResult.failure) {
+          const lessonTitle = fixResult.failure.lesson?.title || `Lesson ${index + 1}`;
+          console.error(
+            `  ❌ Failed to fix lesson "${lessonTitle}" after ${fixResult.attempts} attempt(s)`
+          );
+          console.error(`     Reason: ${fixResult.failure.reason}`);
+          if (fixResult.failure.details && fixResult.failure.details.length > 0) {
+            console.error(`     Details:`);
+            fixResult.failure.details.forEach((detail) => {
+              console.error(`       - ${detail}`);
+            });
+          }
+          
           // Update the failure with attempts and fixHistory
           failuresByIndex.set(index, {
             success: false,
@@ -411,6 +470,14 @@ ${content}`,
 
     // Send completion progress
     const successfulCount = lessonResults.filter((r) => r.success).length;
+    const failedCount = lessonResults.length - successfulCount;
+    
+    console.log(`\n📊 Module "${module.title}" summary:`);
+    console.log(`   ✅ Successful: ${successfulCount}/${lessonResults.length}`);
+    if (failedCount > 0) {
+      console.log(`   ❌ Failed: ${failedCount}/${lessonResults.length}`);
+    }
+    
     onProgress?.("lesson-complete", `Completed "${module.title}" (${successfulCount}/${lessonResults.length} lessons)`, {
       moduleTitle: module.title,
       successful: successfulCount,

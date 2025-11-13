@@ -180,7 +180,9 @@ export async function generateCourseFromPdf(
     });
 
     // Generate course
-    console.log("🤖 Generating course...");
+    console.log("\n" + "=".repeat(60));
+    console.log("🤖 GENERATING COURSE FROM CONTENT");
+    console.log("=".repeat(60));
     const courseStartTime = Date.now();
 
     const course = await createCourse({
@@ -194,6 +196,7 @@ export async function generateCourseFromPdf(
     });
 
     const courseElapsed = ((Date.now() - courseStartTime) / 1000).toFixed(2);
+    console.log(`\n⏱️  Total course generation time: ${courseElapsed}s`);
 
     // Calculate lesson statistics
     const lessonStats = calculateLessonStats(course);

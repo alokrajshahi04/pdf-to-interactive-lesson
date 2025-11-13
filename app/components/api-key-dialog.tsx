@@ -27,6 +27,7 @@ export function ApiKeyDialog({ open, onOpenChange }: ApiKeyDialogProps) {
   const [savedApiKey, setSavedApiKey] = useState<string | null>(null);
   const isDesktop = useMediaQuery("(min-width: 768px)");
   const inputRef = useRef<HTMLInputElement>(null);
+  const submitButtonRef = useRef<HTMLButtonElement>(null);
 
   // Load saved API key on mount and when dialog opens
   useEffect(() => {
@@ -75,7 +76,15 @@ export function ApiKeyDialog({ open, onOpenChange }: ApiKeyDialogProps) {
 
   const ApiKeyForm = ({ className }: { className?: string }) => (
     <div className={className}>
-      <div className="space-y-4">
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (apiKey.trim()) {
+            handleSaveApiKey();
+          }
+        }}
+        className="space-y-4"
+      >
         <div className="text-base text-neutral-900">
           {savedApiKey ? "Update" : "Add"} your{" "}
           <span className="font-semibold underline">Together AI</span> API key
@@ -86,11 +95,11 @@ export function ApiKeyDialog({ open, onOpenChange }: ApiKeyDialogProps) {
           placeholder="API Key"
           value={apiKey}
           onChange={(e) => setApiKey(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && apiKey.trim()) {
-              e.preventDefault();
-              handleSaveApiKey();
-            }
+          onPaste={() => {
+            // Focus the submit button after paste
+            setTimeout(() => {
+              submitButtonRef.current?.focus();
+            }, 0);
           }}
           className="w-full px-4 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:border-transparent text-neutral-900 placeholder:text-neutral-400"
         />
@@ -117,7 +126,8 @@ export function ApiKeyDialog({ open, onOpenChange }: ApiKeyDialogProps) {
         </ul>
         <div className="flex flex-col gap-3">
           <button
-            onClick={handleSaveApiKey}
+            ref={submitButtonRef}
+            type="submit"
             disabled={!apiKey.trim()}
             className="w-full px-4 py-2 bg-neutral-900 text-white rounded-lg hover:bg-neutral-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
@@ -135,6 +145,7 @@ export function ApiKeyDialog({ open, onOpenChange }: ApiKeyDialogProps) {
             </a>
             {savedApiKey && (
               <button
+                type="button"
                 onClick={handleRemoveApiKey}
                 className="text-red-600 hover:text-red-700 underline text-sm"
               >
@@ -143,7 +154,7 @@ export function ApiKeyDialog({ open, onOpenChange }: ApiKeyDialogProps) {
             )}
           </div>
         </div>
-      </div>
+      </form>
     </div>
   );
 

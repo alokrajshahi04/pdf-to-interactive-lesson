@@ -69,7 +69,7 @@ function LessonScreen({
   return (
     <>
       {step === "module-intro" && (
-        <div className="animate-fadeIn">
+        <div>
           <h1 className="text-3xl font-bold text-neutral-900 mb-8">
             Welcome to Module {moduleIndex + 1}! Let&apos;s start with{" "}
             {moduleTitle.toLowerCase()}
@@ -82,7 +82,7 @@ function LessonScreen({
       )}
 
       {step === "content" && (
-        <div className="animate-fadeIn space-y-8">
+        <div className="space-y-8">
           <h1 className="text-2xl font-bold text-neutral-900">
             {lessonData.title}
           </h1>
@@ -96,7 +96,7 @@ function LessonScreen({
       )}
 
       {(step === "question" || step === "answer") && (
-        <div className="animate-fadeIn space-y-8">
+        <div className="space-y-8">
           <h1 className="text-2xl font-bold text-neutral-900">
             {lessonData.title}
           </h1>

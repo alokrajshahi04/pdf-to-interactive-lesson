@@ -5,9 +5,9 @@ import { upload } from "@vercel/blob/client";
 import { getApiKey } from "@/lib/api-key-storage";
 import { getStoredCourses } from "@/lib/storage";
 import { ApiKeyDialog } from "./api-key-dialog";
-import { useCredits } from "../hooks/use-credits";
 import { Github, Twitter } from "lucide-react";
 import Link from "next/link";
+import { useImageFadeIn } from "../hooks/use-image-fade-in";
 import { Loader } from "@/components/ai-elements/loader";
 
 interface LandingScreenProps {
@@ -17,7 +17,6 @@ interface LandingScreenProps {
 function LandingScreen({
   onCourseGenerated,
 }: LandingScreenProps) {
-  const { updateCredits } = useCredits();
   const [isDragging, setIsDragging] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -43,12 +42,6 @@ function LandingScreen({
       window.removeEventListener("storage", checkCourses);
     };
   }, []);
-
-  // Update hasCourses when a course is generated
-  const handleCourseGeneratedWrapper = (courseData: any) => {
-    setHasCourses(true);
-    onCourseGenerated(courseData);
-  };
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -86,128 +79,25 @@ function LandingScreen({
       return;
     }
 
-    setIsProcessing(true);
-    setError(null);
-    setProgress("Uploading PDF to storage...");
-
-    try {
-      // Upload file directly to Vercel Blob (client-side)
-      // This bypasses the 4.5MB function payload limit
-      const blob = await upload(file.name, file, {
-        access: "public",
-        handleUploadUrl: "/api/upload-url",
-      });
-
-      setProgress("PDF uploaded! Generating course...");
-
-      // Pass the blob URL to generate-course API with API key in headers
-      const formData = new FormData();
-      formData.append("url", blob.url);
-
-      const response = await fetch("/api/generate-course", {
-        method: "POST",
-        headers: {
-          "X-Together-API-Key": apiKey,
-        },
-        body: formData,
-      });
-
-      // Check credits from response header
-      const creditsRemaining = response.headers.get("X-Credits-Remaining");
-      if (creditsRemaining) {
-        updateCredits(parseInt(creditsRemaining, 10));
-      }
-
-      if (!response.ok) {
-        throw new Error("Failed to generate course");
-      }
-
-      // Read the streaming response
-      const reader = response.body?.getReader();
-      const decoder = new TextDecoder();
-
-      if (!reader) {
-        throw new Error("No response body");
-      }
-
-      let buffer = "";
-
-      while (true) {
-        const { done, value } = await reader.read();
-
-        if (done) break;
-
-        // Decode the chunk and add to buffer
-        buffer += decoder.decode(value, { stream: true });
-
-        // Process complete JSON objects (separated by newlines)
-        const lines = buffer.split("\n");
-        buffer = lines.pop() || ""; // Keep incomplete line in buffer
-
-        for (const line of lines) {
-          if (!line.trim()) continue;
-
-          let event;
-          try {
-            event = JSON.parse(line);
-          } catch (parseError) {
-            console.error("Failed to parse JSON:", line, parseError);
-            continue;
-          }
-
-          // Handle the parsed event
-          if (event.type === "error") {
-            throw new Error(event.error);
-          } else if (event.type === "complete") {
-            // Update credits from completion data if available
-            if (event.data?.creditsRemaining !== undefined) {
-              updateCredits(event.data.creditsRemaining);
-            }
-            
-            setProgress("Course generated successfully!");
-            // Pass the generated course data to parent
-            handleCourseGeneratedWrapper(event.data.course);
-            setIsProcessing(false);
-            return;
-          } else {
-            // Update progress with the message
-            // For OCR progress, show more detailed info if available
-            if (event.type === "ocr-progress" && event.data) {
-              const { completed, total } = event.data;
-              setProgress(`Extracting text from PDF (${completed}/${total} pages)`);
-            } else if (event.type === "ocr-start" && event.data) {
-              const { totalPages } = event.data;
-              setProgress(`Extracting text from ${totalPages} pages...`);
-            } else if (event.type === "modules-start") {
-              setProgress("Generating course structure...");
-            } else if (event.type === "modules-complete" && event.data) {
-              const { moduleCount } = event.data;
-              setProgress(`Generated ${moduleCount} modules`);
-            } else if (event.type === "lessons-start" && event.data) {
-              const { totalModules } = event.data;
-              setProgress(`Generating lessons for ${totalModules} modules...`);
-            } else if (event.type === "lessons-progress" && event.data) {
-              const { completed, total, moduleTitle } = event.data;
-              if (moduleTitle) {
-                setProgress(`Generating lessons (${completed}/${total} modules): "${moduleTitle}"`);
-              } else {
-                setProgress(`Generating lessons (${completed}/${total} modules)`);
-              }
-            } else if (event.type === "course-complete") {
-              setProgress(event.message);
-            } else {
-              setProgress(event.message);
-            }
-          }
-        }
-      }
-    } catch (err) {
-      console.error("Error generating course:", err);
-      setError(
-        err instanceof Error ? err.message : "Failed to generate course"
-      );
+    // Store file in sessionStorage and redirect immediately
+    // Convert file to base64 for storage
+    const reader = new FileReader();
+    reader.onload = () => {
+      const fileData = {
+        name: file.name,
+        type: file.type,
+        size: file.size,
+        data: reader.result as string, // base64 string
+      };
+      sessionStorage.setItem("pendingPdfUpload", JSON.stringify(fileData));
+      // Redirect immediately to generating page
+      window.location.href = "/generating";
+    };
+    reader.onerror = () => {
+      setError("Failed to read file. Please try again.");
       setIsProcessing(false);
-    }
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleFileUpload = async (file: File) => {
@@ -249,13 +139,54 @@ function LandingScreen({
     }
   };
 
+  const [loadedImages, setLoadedImages] = useState<Set<string>>(new Set());
+  const footerFadeIn = useImageFadeIn("/landing-footer-powered-by.svg");
+  const imageRefs = {
+    bg: useRef<HTMLImageElement>(null),
+    logo: useRef<HTMLImageElement>(null),
+    heroPowered: useRef<HTMLImageElement>(null),
+    left: useRef<HTMLImageElement>(null),
+    right: useRef<HTMLImageElement>(null),
+  };
+
+  const handleImageLoad = (imageName: string) => {
+    setLoadedImages((prev) => new Set(prev).add(imageName));
+  };
+
+  const handleImageError = (imageName: string) => {
+    // If image fails to load, still mark it as "loaded" so it doesn't stay invisible
+    setLoadedImages((prev) => new Set(prev).add(imageName));
+  };
+
+  // Check if images are already loaded (for cached images)
+  useEffect(() => {
+    const checkImageLoaded = (ref: React.RefObject<HTMLImageElement | null>, imageName: string) => {
+      if (ref.current && ref.current.complete && ref.current.naturalWidth > 0) {
+        // Image is already loaded
+        handleImageLoad(imageName);
+      }
+    };
+
+    // Small delay to ensure refs are set
+    setTimeout(() => {
+      checkImageLoaded(imageRefs.bg, 'bg');
+      checkImageLoaded(imageRefs.logo, 'logo');
+      checkImageLoaded(imageRefs.heroPowered, 'hero-powered');
+      checkImageLoaded(imageRefs.left, 'left');
+      checkImageLoaded(imageRefs.right, 'right');
+    }, 0);
+  }, []);
+
   return (
     <div className="min-h-screen bg-white relative">
       {/* Background SVG */}
       <img 
+        ref={imageRefs.bg}
         src="/landing-bg.svg" 
         alt="" 
-        className="fixed -bottom-40 left-0 w-full h-auto z-0 opacity-[0.08] blur-2xl"
+        onLoad={() => handleImageLoad('bg')}
+        onError={() => handleImageError('bg')}
+        className={`fixed -bottom-40 left-0 w-full h-auto z-0 opacity-[0.08] blur-2xl transition-opacity duration-700 ease-out ${loadedImages.has('bg') ? 'opacity-[0.08]' : 'opacity-0'}`}
       />
       
       {/* API Key Dialog */}
@@ -275,9 +206,12 @@ function LandingScreen({
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <img 
+              ref={imageRefs.logo}
               src="/logo.svg" 
               alt="Logo"
-              className="h-6 w-auto"
+              onLoad={() => handleImageLoad('logo')}
+              onError={() => handleImageError('logo')}
+              className={`h-6 w-auto transition-opacity duration-700 ease-out ${loadedImages.has('logo') ? 'opacity-100' : 'opacity-0'}`}
             />
           </div>
           <div className="flex items-center gap-4">
@@ -314,9 +248,12 @@ function LandingScreen({
             className="inline-block"
           >
             <img 
+              ref={imageRefs.heroPowered}
               src="/landing-hero-powered-by.svg" 
               alt="Made & powered by together.ai"
-              className="h-auto"
+              onLoad={() => handleImageLoad('hero-powered')}
+              onError={() => handleImageError('hero-powered')}
+              className={`h-auto transition-opacity duration-700 ease-out ${loadedImages.has('hero-powered') ? 'opacity-100' : 'opacity-0'}`}
             />
           </a>
         </div>
@@ -325,15 +262,21 @@ function LandingScreen({
         <div className="text-center mb-16 relative">
           {/* Decorative elements */}
           <img 
+            ref={imageRefs.left}
             src="/landing-left.svg" 
             alt="" 
-            className="hidden md:block absolute left-0 top-0 w-80 h-80 opacity-100 z-0"
+            onLoad={() => handleImageLoad('left')}
+            onError={() => handleImageError('left')}
+            className={`hidden md:block absolute left-0 top-0 w-80 h-80 z-0 transition-opacity duration-700 ease-out ${loadedImages.has('left') ? 'opacity-100' : 'opacity-0'}`}
           />
 
           <img 
+            ref={imageRefs.right}
             src="/landing-right.svg" 
             alt="" 
-            className="hidden md:block absolute right-0 top-0 w-80 h-80 opacity-100 z-0"
+            onLoad={() => handleImageLoad('right')}
+            onError={() => handleImageError('right')}
+            className={`hidden md:block absolute right-0 top-0 w-80 h-80 z-0 transition-opacity duration-700 ease-out ${loadedImages.has('right') ? 'opacity-100' : 'opacity-0'}`}
           />
 
           <h1 className="relative text-7xl font-bold text-neutral-900 mb-6 leading-none font-[family-name:var(--font-fustat)] z-10">
@@ -436,9 +379,12 @@ function LandingScreen({
           className="inline-block"
         >
           <img 
+            ref={footerFadeIn.imgRef}
             src="/landing-footer-powered-by.svg" 
             alt="Powered by together.ai"
-            className="h-auto"
+            onLoad={footerFadeIn.handleLoad}
+            onError={footerFadeIn.handleError}
+            className={`h-auto transition-opacity duration-700 ease-out ${footerFadeIn.isLoaded ? 'opacity-100' : 'opacity-0'}`}
           />
         </a>
       </footer>

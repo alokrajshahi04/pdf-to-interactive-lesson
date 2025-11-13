@@ -38,7 +38,9 @@ export async function createModules({
   onProgress,
 }: CreateModulesInput): Promise<CourseStructure> {
   onProgress?.("modules-start", "Generating course structure...");
+  console.log("🤖 Requesting LLM to generate course structure...");
   const together = createTogetherClient(apiKey);
+  const generationStartTime = Date.now();
   const result = await generateText({
     model: together(DEFAULT_MODEL),
     prompt: `Analyse the following content and create a course structure with 3 modules.
@@ -55,12 +57,22 @@ Content:
 ${content}`,
   });
 
+  const generationTime = ((Date.now() - generationStartTime) / 1000).toFixed(2);
+  console.log(`✅ LLM response received in ${generationTime}s`);
+
   // Extract XML in case there's extra text
+  console.log("🔍 Parsing course structure XML...");
   const xmlText = extractXml(result.text, "course");
 
   // Parse XML to JavaScript object
   const parser = createXMLParser(["module"]);
   const courseStructure = parser.parse(xmlText);
+  
+  console.log(`✅ Parsed course structure:`);
+  console.log(`   Title: "${courseStructure.course.title}"`);
+  courseStructure.course.module.forEach((module: any, index: number) => {
+    console.log(`   Module ${index + 1}: "${module.title}"`);
+  });
 
   onProgress?.("modules-complete", `Generated ${courseStructure.course.module.length} modules`, {
     moduleCount: courseStructure.course.module.length,
@@ -81,10 +93,21 @@ export async function createCourse({
   maxRetries = 3,
   onProgress,
 }: CreateCourseInput): Promise<CourseOutput> {
+  console.log("\n" + "=".repeat(60));
+  console.log("📚 COURSE GENERATION STARTED");
+  console.log("=".repeat(60));
+  
   // Generate course modules
+  console.log("\n📋 Step 1: Generating course structure...");
+  const modulesStartTime = Date.now();
   const courseStructure = await createModules({ content, apiKey, onProgress });
+  const modulesTime = ((Date.now() - modulesStartTime) / 1000).toFixed(2);
+  console.log(`✅ Course structure generated in ${modulesTime}s`);
+  console.log(`   Title: "${courseStructure.course.title}"`);
+  console.log(`   Modules: ${courseStructure.course.module.length}`);
 
   const totalModules = courseStructure.course.module.length;
+  console.log(`\n📚 Step 2: Generating lessons for ${totalModules} module(s)...`);
   onProgress?.("lessons-start", `Generating lessons for ${totalModules} modules...`, {
     totalModules,
   });
@@ -122,7 +145,37 @@ export async function createCourse({
     })
   );
 
+  const lessonsStartTime = Date.now();
   const allLessons = await Promise.all(lessonsPromises);
+  const lessonsTime = ((Date.now() - lessonsStartTime) / 1000).toFixed(2);
+  
+  // Calculate final statistics
+  let totalLessons = 0;
+  let successfulLessons = 0;
+  let failedLessons = 0;
+  
+  allLessons.forEach((module) => {
+    module.lessons.forEach((lessonResult) => {
+      totalLessons++;
+      if (lessonResult.success) {
+        successfulLessons++;
+      } else {
+        failedLessons++;
+      }
+    });
+  });
+  
+  console.log("\n" + "=".repeat(60));
+  console.log("📊 COURSE GENERATION COMPLETE");
+  console.log("=".repeat(60));
+  console.log(`⏱️  Lessons generation time: ${lessonsTime}s`);
+  console.log(`📚 Total modules: ${totalModules}`);
+  console.log(`📝 Total lessons: ${totalLessons}`);
+  console.log(`✅ Successful lessons: ${successfulLessons} (${Math.round((successfulLessons / totalLessons) * 100)}%)`);
+  if (failedLessons > 0) {
+    console.log(`❌ Failed lessons: ${failedLessons}`);
+  }
+  console.log("=".repeat(60) + "\n");
 
   return {
     title: courseStructure.course.title,

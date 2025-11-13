@@ -1,5 +1,7 @@
 "use client";
 
+import { useImageFadeIn } from "../hooks/use-image-fade-in";
+
 interface LessonData {
   content: string;
   info: string;
@@ -44,14 +46,19 @@ function ModuleCompleteScreen({
   onContinue,
   onBackToModules,
 }: ModuleCompleteScreenProps) {
+  const greatWorkFadeIn = useImageFadeIn("/great-work.svg");
+  
   return (
     <div className="animate-fadeIn text-center">
       {/* Celebration Image */}
       <div className="mb-4 flex justify-center">
         <img 
+          ref={greatWorkFadeIn.imgRef}
           src="/great-work.svg" 
           alt="Great Work"
-          className="h-auto w-auto"
+          onLoad={greatWorkFadeIn.handleLoad}
+          onError={greatWorkFadeIn.handleError}
+          className={`h-auto w-auto transition-opacity duration-700 ease-out ${greatWorkFadeIn.isLoaded ? 'opacity-100' : 'opacity-0'}`}
         />
       </div>
 

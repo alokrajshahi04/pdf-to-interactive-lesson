@@ -57,12 +57,24 @@ export async function fixLesson({
     lesson: originalLesson, // Snapshot of the original failed lesson
   });
 
+  const lessonTitle = originalLesson.title || "Untitled Lesson";
   console.log(
-    `🔧 Attempting to fix lesson "${originalLesson.title}" (max ${maxRetries} retries)...`
+    `  🔧 Attempting to fix lesson "${lessonTitle}" (max ${maxRetries} retries)...`
   );
+  console.log(`     Validation type: ${failure.validationType}`);
+  console.log(`     Reason: ${failure.reason}`);
+  if (failure.details && failure.details.length > 0) {
+    console.log(`     Issues:`);
+    failure.details.forEach((detail) => {
+      console.log(`       - ${detail}`);
+    });
+  }
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    const attemptStartTime = Date.now();
     try {
+      console.log(`     📝 Fix attempt ${attempt}/${maxRetries}...`);
+      
       // Ask LLM to fix the lesson
       const result = await generateText({
         model: together(DEFAULT_MODEL),
@@ -144,12 +156,16 @@ For multiple-choice questions, the answer must be the INDEX (0, 1, 2, or 3) of t
 For drag-drop questions, must have exactly 3 choices and 3 slots, answer format is "0,1,2" (comma-separated choice indices for each slot).`,
       });
 
+      const generationTime = ((Date.now() - attemptStartTime) / 1000).toFixed(2);
+      console.log(`     ✅ LLM response received (${generationTime}s), parsing...`);
+
       // Extract and parse the XML
       const xmlText = extractXml(result.text, "lesson");
       const parser = createXMLParser(["choice", "slot"]);
       const parsed = parser.parse(xmlText);
 
       let fixedLesson = parsed.lesson;
+      console.log(`     ✅ Parsed fixed lesson: "${fixedLesson.title || 'Untitled'}"`);
 
       // Post-process: flatten choices and convert answer types
       // Handle both nested structure (choices.choice[]) and flat structure (choice[])
@@ -186,6 +202,7 @@ For drag-drop questions, must have exactly 3 choices and 3 slots, answer format 
       }
 
       // Run structure validation
+      console.log(`     🔍 Validating fixed lesson structure...`);
       const structureValidation = validateLessonsStructure([fixedLesson]);
       const structureErrors = structureValidation.errors.filter(
         (e) => e.severity === "error"
@@ -193,8 +210,11 @@ For drag-drop questions, must have exactly 3 choices and 3 slots, answer format 
 
       if (structureErrors.length > 0) {
         console.log(
-          `❌ Attempt ${attempt}/${maxRetries}: Structure validation failed`
+          `     ❌ Attempt ${attempt}/${maxRetries}: Structure validation failed`
         );
+        structureErrors.forEach((error) => {
+          console.log(`        - [${error.field}] ${error.message}`);
+        });
 
         // Add to history
         fixHistory.push({
@@ -223,6 +243,7 @@ For drag-drop questions, must have exactly 3 choices and 3 slots, answer format 
       }
 
       // Run content validation
+      console.log(`     🔍 Validating fixed lesson content...`);
       const contentValidation = await validateLesson({
         lesson: fixedLesson as Lesson,
         moduleTitle,
@@ -232,8 +253,14 @@ For drag-drop questions, must have exactly 3 choices and 3 slots, answer format 
 
       if (!contentValidation.isValid) {
         console.log(
-          `❌ Attempt ${attempt}/${maxRetries}: Content validation failed`
+          `     ❌ Attempt ${attempt}/${maxRetries}: Content validation failed`
         );
+        console.log(`        Reason: ${contentValidation.explanation}`);
+        if (contentValidation.issues) {
+          Object.entries(contentValidation.issues).forEach(([field, issue]) => {
+            console.log(`        - [${field}] ${issue}`);
+          });
+        }
 
         const details: string[] = [contentValidation.explanation];
         if (contentValidation.issues) {
@@ -269,7 +296,8 @@ For drag-drop questions, must have exactly 3 choices and 3 slots, answer format 
       }
 
       // Success!
-      console.log(`✅ Successfully fixed lesson on attempt ${attempt}`);
+      const totalFixTime = ((Date.now() - attemptStartTime) / 1000).toFixed(2);
+      console.log(`     ✅ Successfully fixed lesson on attempt ${attempt} (${totalFixTime}s total)`);
 
       // Attach fix history to the lesson
       const lessonWithHistory = fixedLesson as Lesson;
@@ -281,9 +309,10 @@ For drag-drop questions, must have exactly 3 choices and 3 slots, answer format 
         attempts: attempt,
       };
     } catch (error) {
+      const errorTime = ((Date.now() - attemptStartTime) / 1000).toFixed(2);
       console.error(
-        `❌ Attempt ${attempt}/${maxRetries}: Error during fix:`,
-        error
+        `     ❌ Attempt ${attempt}/${maxRetries}: Error during fix (${errorTime}s):`,
+        error instanceof Error ? error.message : String(error)
       );
 
       // Add to history
