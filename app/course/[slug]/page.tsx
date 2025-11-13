@@ -29,6 +29,9 @@ export default function CoursePage() {
     setCompletedModules(stored.progress.completedModules);
     setCurrentModuleIndex(stored.progress.currentModuleIndex);
     setLoading(false);
+    
+    // Update page title dynamically
+    document.title = `${stored.course.title} | PDF to Interactive Lesson Generator`;
   }, [slug]);
 
   const handleStartModule = (moduleIndex: number) => {

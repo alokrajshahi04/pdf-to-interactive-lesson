@@ -77,6 +77,13 @@ export default function LessonPage() {
     onNavigate: handleNavigate,
   });
 
+  // Update page title dynamically when course and module are loaded
+  useEffect(() => {
+    if (course && navigation.currentModule) {
+      document.title = `${navigation.currentModule.title} - ${course.title} | PDF to Interactive Lesson Generator`;
+    }
+  }, [course, navigation.currentModule]);
+
   // Debug log for lesson data (must be before any conditional returns)
   useEffect(() => {
     if (course && navigation.currentLesson) {
