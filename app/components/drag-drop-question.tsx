@@ -1,21 +1,6 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import {
-  DndContext,
-  DragOverlay,
-  pointerWithin,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  useDroppable,
-  useDraggable,
-  DragEndEvent,
-  DragStartEvent,
-  DragOverEvent,
-} from "@dnd-kit/core";
-import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 
 const CHOICE_COLORS = [
   { bg: "#FDE0FF", border: "#550059" },
@@ -55,15 +40,19 @@ export function DragDropQuestion({
   const [historyIndex, setHistoryIndex] = useState(0);
   const historyIndexRef = useRef(0);
   
-  // Track element width for drag overlay
-  const [dragElementWidth, setDragElementWidth] = useState<number | null>(null);
+  // Track what's being dragged
+  const [draggedItem, setDraggedItem] = useState<{ type: 'choice' | 'slot', index: number } | null>(null);
+  const [dragOverSlot, setDragOverSlot] = useState<number | null>(null);
+  
+  // Ref to store the cloned drag image element for cleanup
+  const dragImageRef = useRef<HTMLElement | null>(null);
   
   // Keep ref in sync with state
   useEffect(() => {
     historyIndexRef.current = historyIndex;
   }, [historyIndex]);
 
-  // Sync userAnswer prop changes to state (e.g., when navigating between questions)
+  // Sync userAnswer prop changes to state
   useEffect(() => {
     const newAssignments = (() => {
       if (userAnswer && userAnswer.length === 3) {
@@ -73,23 +62,10 @@ export function DragDropQuestion({
     })();
     
     setSlotAssignments(newAssignments);
-    // Reset history when question changes
     setHistory([newAssignments]);
     setHistoryIndex(0);
     historyIndexRef.current = 0;
   }, [userAnswer]);
-
-  const [activeId, setActiveId] = useState<string | null>(null);
-  const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 8, // Require 8px of movement before drag starts
-      },
-    }),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    })
-  );
 
   // Add to history when user makes a change
   const addToHistory = useCallback((newAssignments: number[]) => {
@@ -97,18 +73,15 @@ export function DragDropQuestion({
     
     setHistory((prevHistory) => {
       const currentState = prevHistory[currentIndex];
-      // Don't add if state hasn't changed
       if (currentState && 
           currentState.length === newAssignments.length &&
           currentState.every((val, idx) => val === newAssignments[idx])) {
         return prevHistory;
       }
       
-      // Remove any future history if we're not at the end
       const newHistory = prevHistory.slice(0, currentIndex + 1);
       newHistory.push([...newAssignments]);
       
-      // Update index to point to the new entry
       const newIndex = newHistory.length - 1;
       setHistoryIndex(newIndex);
       historyIndexRef.current = newIndex;
@@ -121,12 +94,10 @@ export function DragDropQuestion({
   const handleSlotChange = useCallback((newAssignments: number[], skipHistory = false) => {
     setSlotAssignments(newAssignments);
     
-    // Add to history unless this is an undo/redo operation
     if (!skipHistory && !showResult) {
       addToHistory(newAssignments);
     }
     
-    // Only call onAnswerChange if all slots are filled
     if (newAssignments.every((val) => val !== -1)) {
       onAnswerChange(newAssignments);
     }
@@ -163,7 +134,6 @@ export function DragDropQuestion({
     if (showResult) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Don't trigger shortcuts if user is typing in an input field
       const target = e.target as HTMLElement;
       if (
         target.tagName === 'INPUT' ||
@@ -173,12 +143,10 @@ export function DragDropQuestion({
         return;
       }
 
-      // Undo: Ctrl+Z (Windows/Linux) or Cmd+Z (Mac)
       if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
         e.preventDefault();
         handleUndo();
       }
-      // Redo: Ctrl+Shift+Z or Ctrl+Y (Windows/Linux) or Cmd+Shift+Z (Mac)
       else if ((e.ctrlKey || e.metaKey) && ((e.key === 'z' || e.key === 'Z') && e.shiftKey || e.key === 'y')) {
         e.preventDefault();
         handleRedo();
@@ -189,53 +157,96 @@ export function DragDropQuestion({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [showResult, handleUndo, handleRedo]);
 
-  const handleDragStart = (event: DragStartEvent) => {
-    setActiveId(String(event.active.id));
-    // Measure the actual element width
-    const element = document.getElementById(String(event.active.id));
-    if (element) {
-      const rect = element.getBoundingClientRect();
-      setDragElementWidth(rect.width);
+  // Cleanup drag image on unmount
+  useEffect(() => {
+    return () => {
+      if (dragImageRef.current && dragImageRef.current.parentNode) {
+        document.body.removeChild(dragImageRef.current);
+      }
+    };
+  }, []);
+
+  // Drag and drop handlers
+  const handleDragStart = (e: React.DragEvent, type: 'choice' | 'slot', index: number) => {
+    if (showResult) return;
+    
+    setDraggedItem({ type, index });
+    e.dataTransfer.effectAllowed = 'move';
+    
+    // Create custom drag image from the actual element
+    if (e.dataTransfer.setDragImage) {
+      const originalElement = e.currentTarget as HTMLElement;
+      const clonedElement = originalElement.cloneNode(true) as HTMLElement;
+      
+      // Style the cloned element
+      clonedElement.style.position = 'absolute';
+      clonedElement.style.top = '-9999px';
+      clonedElement.style.left = '-9999px';
+      clonedElement.style.width = `${originalElement.offsetWidth}px`;
+      clonedElement.style.height = `${originalElement.offsetHeight}px`;
+      clonedElement.style.opacity = '0.8';
+      clonedElement.style.pointerEvents = 'none';
+      
+      // Add to DOM
+      document.body.appendChild(clonedElement);
+      dragImageRef.current = clonedElement;
+      
+      // Set as drag image (offset to center it on cursor)
+      const rect = originalElement.getBoundingClientRect();
+      e.dataTransfer.setDragImage(clonedElement, rect.width / 2, rect.height / 2);
+      
+      // Clean up after a short delay to ensure browser has captured the image
+      setTimeout(() => {
+        if (clonedElement.parentNode) {
+          document.body.removeChild(clonedElement);
+        }
+      }, 0);
     }
   };
 
-  const handleDragEnd = (event: DragEndEvent) => {
-    const { active, over } = event;
-    setActiveId(null);
-    setDragElementWidth(null);
-
-    if (!over) {
-      return;
+  const handleDragEnd = () => {
+    setDraggedItem(null);
+    setDragOverSlot(null);
+    
+    // Clean up drag image if it still exists
+    if (dragImageRef.current && dragImageRef.current.parentNode) {
+      document.body.removeChild(dragImageRef.current);
     }
+    dragImageRef.current = null;
+  };
 
-    const activeIdStr = String(active.id);
-    const overIdStr = String(over.id);
-
-    // If dragging a choice to a slot
-    if (activeIdStr.startsWith("choice-") && overIdStr.startsWith("slot-")) {
-      const choiceIndex = parseInt(activeIdStr.replace("choice-", ""), 10);
-      const slotIndex = parseInt(overIdStr.replace("slot-", ""), 10);
-
-      const newAssignments = [...slotAssignments];
-      newAssignments[slotIndex] = choiceIndex;
-      handleSlotChange(newAssignments, false);
+  const handleDragOver = (e: React.DragEvent, slotIndex: number) => {
+    e.preventDefault();
+    if (!showResult) {
+      setDragOverSlot(slotIndex);
     }
-    // If dragging from one slot to another
-    else if (
-      activeIdStr.startsWith("slot-") &&
-      overIdStr.startsWith("slot-")
-    ) {
-      const fromSlotIndex = parseInt(activeIdStr.replace("slot-", ""), 10);
-      const toSlotIndex = parseInt(overIdStr.replace("slot-", ""), 10);
+  };
 
-      const newAssignments = [...slotAssignments];
-      const choiceIndex = slotAssignments[fromSlotIndex];
+  const handleDragLeave = () => {
+    setDragOverSlot(null);
+  };
+
+  const handleDrop = (e: React.DragEvent, slotIndex: number) => {
+    e.preventDefault();
+    if (showResult || !draggedItem) return;
+
+    const newAssignments = [...slotAssignments];
+
+    if (draggedItem.type === 'choice') {
+      // Dragging from available choices
+      newAssignments[slotIndex] = draggedItem.index;
+    } else if (draggedItem.type === 'slot') {
+      // Dragging from one slot to another
+      const choiceIndex = slotAssignments[draggedItem.index];
       if (choiceIndex !== -1) {
-        newAssignments[fromSlotIndex] = -1;
-        newAssignments[toSlotIndex] = choiceIndex;
-        handleSlotChange(newAssignments, false);
+        newAssignments[draggedItem.index] = -1;
+        newAssignments[slotIndex] = choiceIndex;
       }
     }
+
+    handleSlotChange(newAssignments, false);
+    setDraggedItem(null);
+    setDragOverSlot(null);
   };
 
   // Get available choices (not yet assigned to slots)
@@ -247,409 +258,260 @@ export function DragDropQuestion({
     }))
     .filter((choice) => !slotAssignments.includes(choice.index));
 
-  const handleDragOver = (event: DragOverEvent) => {
-    // This helps with visual feedback but doesn't affect the drop logic
-  };
-
   return (
-    <DndContext
-      sensors={sensors}
-      collisionDetection={pointerWithin}
-      onDragStart={handleDragStart}
-      onDragEnd={handleDragEnd}
-      onDragOver={handleDragOver}
-    >
-      <div className="rounded-xl overflow-hidden bg-white" style={{ border: "1px solid #d4d4d8" }}>
-        <div className="bg-white px-4 py-5" style={{ borderBottom: "1px solid #d4d4d8" }}>
-          <div className="flex items-center justify-between">
-            <h3 className="text-base font-medium text-neutral-900">
-              Drag and drop the colored pills to their correct spot
-            </h3>
-            {!showResult && (
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={handleUndo}
-                  disabled={historyIndex === 0}
-                  className={`p-2 rounded-lg transition-colors ${
-                    historyIndex === 0
-                      ? "text-neutral-300 cursor-not-allowed"
-                      : "text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900"
-                  }`}
-                  title="Undo (Ctrl+Z / ⌘+Z)"
-                  aria-label="Undo last action"
-                >
-                  <svg
-                    className="w-5 h-5"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"
-                    />
-                  </svg>
-                </button>
-                <button
-                  onClick={handleRedo}
-                  disabled={historyIndex >= history.length - 1}
-                  className={`p-2 rounded-lg transition-colors ${
-                    historyIndex >= history.length - 1
-                      ? "text-neutral-300 cursor-not-allowed"
-                      : "text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900"
-                  }`}
-                  title="Redo (Ctrl+Shift+Z / ⌘+Shift+Z or Ctrl+Y / ⌘+Y)"
-                  aria-label="Redo last undone action"
-                >
-                  <svg
-                    className="w-5 h-5"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M21 10h-10a8 8 0 00-8 8v2M21 10l-6 6m6-6l-6-6"
-                    />
-                  </svg>
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-        <div className="p-6 relative">
-          <div className="grid grid-cols-2 gap-0">
-            {/* Left Column - Choices */}
-            <div className="space-y-5 px-6 py-5">
-              {availableChoices.map((choice, idx) => (
-                <DraggableChoice
-                  key={choice.id}
-                  id={choice.id}
-                  text={choice.text}
-                  disabled={showResult}
-                  index={choice.index}
-                />
-              ))}
-            </div>
-            
-            {/* Divider - Full Height */}
-            <div className="absolute left-1/2 top-0 bottom-0 w-0.5 bg-neutral-300 -translate-x-1/2"></div>
-            
-            {/* Right Column - Slots */}
-            <div className="relative">
-              {/* Background that extends to edges */}
-              <div className="absolute inset-0 bg-neutral-50 -mr-6 -mb-6 -mt-6 rounded-r-xl"></div>
-              {/* Content with consistent padding */}
-              <div className="relative space-y-5 px-6 py-5">
-                {slots.map((slotLabel, slotIndex) => {
-                  const assignedChoiceIndex = slotAssignments[slotIndex];
-                  const assignedChoice =
-                    assignedChoiceIndex !== -1
-                      ? choices[assignedChoiceIndex]
-                      : null;
-                  const isCorrect =
-                    showResult &&
-                    assignedChoiceIndex === correctAnswer[slotIndex];
-                  const isIncorrect =
-                    showResult &&
-                    assignedChoiceIndex !== -1 &&
-                    assignedChoiceIndex !== correctAnswer[slotIndex];
-
-                  return (
-                    <DroppableSlot
-                      key={`slot-${slotIndex}`}
-                      id={`slot-${slotIndex}`}
-                      label={(slotIndex + 1).toString()}
-                      assignedChoice={assignedChoice}
-                      assignedChoiceIndex={assignedChoiceIndex}
-                      isCorrect={isCorrect}
-                      isIncorrect={isIncorrect}
-                      showResult={showResult}
-                      correctChoice={
-                        showResult ? choices[correctAnswer[slotIndex]] : null
-                      }
-                      correctChoiceIndex={showResult ? correctAnswer[slotIndex] : -1}
-                    />
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <DragOverlay>
-        {activeId ? (
-          activeId.startsWith("choice-") ? (() => {
-            const choiceIndex = parseInt(activeId.replace("choice-", ""), 10);
-            const colors = CHOICE_COLORS[choiceIndex % CHOICE_COLORS.length];
-            return (
-              <div
-                className="h-[120px] p-4 rounded-2xl flex flex-col justify-center items-center shadow-lg"
-                style={{
-                  width: dragElementWidth ? `${dragElementWidth}px` : "100%",
-                  maxWidth: "100%",
-                  backgroundColor: colors.bg,
-                  borderColor: colors.border,
-                  borderWidth: "0.7px",
-                }}
+    <div className="rounded-xl overflow-hidden bg-white" style={{ border: "1px solid #d4d4d8" }}>
+      <div className="bg-white px-4 py-5" style={{ borderBottom: "1px solid #d4d4d8" }}>
+        <div className="flex items-center justify-between">
+          <h3 className="text-base font-medium text-neutral-900">
+            Drag and drop the colored pills to their correct spot
+          </h3>
+          {!showResult && (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleUndo}
+                disabled={historyIndex === 0}
+                className={`p-2 rounded-lg transition-colors ${
+                  historyIndex === 0
+                    ? "text-neutral-300 cursor-not-allowed"
+                    : "text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900"
+                }`}
+                title="Undo (Ctrl+Z / ⌘+Z)"
+                aria-label="Undo last action"
               >
-                <span className="text-neutral-800 font-medium text-center text-sm leading-relaxed line-clamp-3">
-                  {choices[choiceIndex]}
-                </span>
-              </div>
-            );
-          })() : activeId.startsWith("slot-") ? (
-            <div
-              className="h-[120px] p-4 rounded-2xl flex flex-col justify-center items-center shadow-lg"
-              style={{
-                width: dragElementWidth ? `${dragElementWidth}px` : "100%",
-                maxWidth: "100%",
-                borderColor: "#a3a3a3", // neutral-400 (darker)
-                borderWidth: "1.5px",
-                borderStyle: "dashed",
-                backgroundColor: "#ffffff", // white
-              }}
-            >
-              <span className="text-neutral-800 font-medium text-center text-sm leading-relaxed line-clamp-3">
-                {slotAssignments[parseInt(activeId.replace("slot-", ""), 10)] !==
-                -1
-                  ? choices[
-                      slotAssignments[
-                        parseInt(activeId.replace("slot-", ""), 10)
-                      ]
-                    ]
-                  : ""}
-              </span>
+                <svg
+                  className="w-5 h-5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"
+                  />
+                </svg>
+              </button>
+              <button
+                onClick={handleRedo}
+                disabled={historyIndex >= history.length - 1}
+                className={`p-2 rounded-lg transition-colors ${
+                  historyIndex >= history.length - 1
+                    ? "text-neutral-300 cursor-not-allowed"
+                    : "text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900"
+                }`}
+                title="Redo (Ctrl+Shift+Z / ⌘+Shift+Z or Ctrl+Y / ⌘+Y)"
+                aria-label="Redo last undone action"
+              >
+                <svg
+                  className="w-5 h-5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M21 10h-10a8 8 0 00-8 8v2M21 10l-6 6m6-6l-6-6"
+                  />
+                </svg>
+              </button>
             </div>
-          ) : null
-        ) : null}
-      </DragOverlay>
-    </DndContext>
-  );
-}
-
-// Draggable Choice Component
-interface DraggableChoiceProps {
-  id: string;
-  text: string;
-  disabled: boolean;
-  index: number;
-}
-
-function DraggableChoice({ id, text, disabled, index }: DraggableChoiceProps) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    isDragging,
-  } = useDraggable({
-    id,
-    disabled,
-  });
-
-  const colors = CHOICE_COLORS[index % CHOICE_COLORS.length];
-
-  const style = {
-    ...(transform
-      ? {
-          transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
-          opacity: isDragging ? 0.5 : 1,
-        }
-      : {}),
-    backgroundColor: colors.bg,
-    borderColor: colors.border,
-    borderWidth: "0.7px",
-  };
-
-  return (
-    <div
-      id={id}
-      ref={setNodeRef}
-      style={style}
-      {...attributes}
-      {...listeners}
-      className={`w-full h-[120px] p-4 rounded-2xl flex flex-col justify-center items-center ${
-        disabled
-          ? "opacity-50 cursor-not-allowed"
-          : "cursor-grab active:cursor-grabbing transition-opacity"
-      }`}
-    >
-      <span className="text-neutral-800 font-medium text-center text-sm leading-relaxed line-clamp-3">{text}</span>
-    </div>
-  );
-}
-
-// Droppable Slot Component
-interface DroppableSlotProps {
-  id: string;
-  label: string;
-  assignedChoice: string | null;
-  assignedChoiceIndex: number;
-  isCorrect: boolean;
-  isIncorrect: boolean;
-  showResult: boolean;
-  correctChoice: string | null;
-  correctChoiceIndex: number;
-}
-
-function DroppableSlot({
-  id,
-  label,
-  assignedChoice,
-  assignedChoiceIndex,
-  isCorrect,
-  isIncorrect,
-  showResult,
-  correctChoice,
-  correctChoiceIndex,
-}: DroppableSlotProps) {
-  // Always use droppable for the drop zone
-  const { setNodeRef, isOver } = useDroppable({
-    id,
-    disabled: showResult,
-  });
-
-  // Get colors for the assigned choice
-  const assignedChoiceColors = assignedChoiceIndex !== -1 
-    ? CHOICE_COLORS[assignedChoiceIndex % CHOICE_COLORS.length]
-    : null;
-
-  // Get colors for the correct choice (when showing result)
-  const correctChoiceColors = correctChoiceIndex !== -1
-    ? CHOICE_COLORS[correctChoiceIndex % CHOICE_COLORS.length]
-    : null;
-
-  // Determine border color
-  const borderColor = 
-    isOver && !showResult
-      ? "#d4d4d8" // neutral-300
-      : showResult && isCorrect
-      ? "#22c55e" // green-500 - green for correct answers
-      : showResult && isIncorrect
-      ? "#ef4444" // red-500 - red border for incorrect answers
-      : assignedChoiceColors && !showResult
-      ? assignedChoiceColors.border // preserve choice border color when not showing results
-      : "#a3a3a3"; // neutral-400 (darker) - default dashed border
-
-  // Determine background color
-  const backgroundColor =
-    isOver && !showResult
-      ? "#dbeafe" // blue-100
-      : showResult && isCorrect
-      ? "#f0fdf4" // green-50 - green background for correct answers
-      : showResult && isIncorrect
-      ? "#fef2f2" // red-50 - light red background for incorrect answers
-      : assignedChoiceColors && !showResult
-      ? assignedChoiceColors.bg // preserve choice background color when not showing results
-      : "#ffffff"; // white
-
-  // Use solid border when choice is assigned, dashed when empty
-  const borderStyle = assignedChoice ? "solid" : "dashed";
-  const borderWidth = assignedChoice ? "0.7px" : "1.5px";
-
-  return (
-    <div
-      id={id}
-      ref={setNodeRef}
-      style={{
-        borderColor,
-        borderWidth,
-        borderStyle,
-        borderImage: "none",
-        backgroundColor,
-      }}
-      className={`w-full p-4 rounded-2xl flex flex-col items-center transition-all relative ${
-        showResult && isIncorrect && correctChoice ? "min-h-[180px]" : "h-[120px]"
-      }`}
-    >
-      <div className="flex flex-col items-center mb-2">
-        <p className="text-sm font-semibold text-neutral-700">{label}</p>
-        {showResult && isIncorrect && (
-          <svg className="w-5 h-5 text-red-600 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        )}
-        {showResult && isCorrect && (
-          <svg className="w-5 h-5 text-green-600 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-          </svg>
-        )}
+          )}
+        </div>
       </div>
-      <div className="flex-1 flex items-center justify-center w-full min-h-0">
-        {assignedChoice ? (
-          <DraggableSlotContent
-            id={id}
-            text={assignedChoice}
-            disabled={showResult}
-            choiceIndex={assignedChoiceIndex}
-          />
-        ) : (
-          <p className="text-neutral-400 text-sm text-center">Drop a choice here</p>
-        )}
-      </div>
-      {showResult && isIncorrect && correctChoice && (
-        <div className="mt-3 pt-2 border-t border-neutral-300 w-full">
-          <p className="text-xs text-green-700 font-semibold mb-1 text-center">Correct:</p>
-          <div 
-            className="text-xs text-center leading-relaxed px-2 py-1 rounded-lg inline-block bg-green-50 border border-green-200"
-          >
-            <p className="text-neutral-800">{correctChoice}</p>
+      <div className="p-6 relative">
+        <div className="grid grid-cols-2 gap-0">
+          {/* Left Column - Choices */}
+          <div className="space-y-5 px-6 py-5">
+            {availableChoices.map((choice) => {
+              const colors = CHOICE_COLORS[choice.index % CHOICE_COLORS.length];
+              const isDragging = draggedItem?.type === 'choice' && draggedItem.index === choice.index;
+              
+              return (
+                <div
+                  key={choice.id}
+                  draggable={!showResult}
+                  onDragStart={(e) => handleDragStart(e, 'choice', choice.index)}
+                  onDragEnd={handleDragEnd}
+                  className={`w-full h-[120px] p-4 rounded-2xl flex flex-col justify-center items-center transition-opacity ${
+                    showResult
+                      ? "opacity-50 cursor-not-allowed"
+                      : isDragging
+                      ? "opacity-40 cursor-grabbing"
+                      : "cursor-grab hover:opacity-90"
+                  }`}
+                  style={{
+                    backgroundColor: colors.bg,
+                    borderColor: colors.border,
+                    borderWidth: "0.7px",
+                    borderStyle: "solid",
+                  }}
+                >
+                  <span className="text-neutral-800 font-medium text-center text-sm leading-relaxed line-clamp-3">
+                    {choice.text}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+          
+          {/* Divider - Full Height */}
+          <div className="absolute left-1/2 top-0 bottom-0 w-0.5 bg-neutral-300 -translate-x-1/2"></div>
+          
+          {/* Right Column - Slots */}
+          <div className="relative">
+            <div className="absolute inset-0 bg-neutral-50 -mr-6 -mb-6 -mt-6 rounded-r-xl"></div>
+            <div className="relative space-y-5 px-6 py-5">
+              {slots.map((slotLabel, slotIndex) => {
+                const assignedChoiceIndex = slotAssignments[slotIndex];
+                const assignedChoice = assignedChoiceIndex !== -1 ? choices[assignedChoiceIndex] : null;
+                const isCorrect = showResult && assignedChoiceIndex === correctAnswer[slotIndex];
+                const isIncorrect = showResult && assignedChoiceIndex !== -1 && assignedChoiceIndex !== correctAnswer[slotIndex];
+                const isDragOver = dragOverSlot === slotIndex && !showResult;
+                const isDragging = draggedItem?.type === 'slot' && draggedItem.index === slotIndex;
+                
+                const assignedChoiceColors = assignedChoiceIndex !== -1 
+                  ? CHOICE_COLORS[assignedChoiceIndex % CHOICE_COLORS.length]
+                  : null;
+
+                const correctChoiceIndex = showResult ? correctAnswer[slotIndex] : -1;
+                const correctChoice = showResult ? choices[correctAnswer[slotIndex]] : null;
+
+                const isEmpty = assignedChoiceIndex === -1;
+                const isEmptyWhenShowingResult = showResult && isEmpty;
+
+                const borderColor = 
+                  isDragOver
+                    ? "#3b82f6" // blue-500
+                    : showResult && isCorrect
+                    ? "#16a34a" // green-600
+                    : showResult && isIncorrect
+                    ? "#dc2626" // red-600
+                    : isEmptyWhenShowingResult
+                    ? "#f59e0b" // amber-500 for missing answer
+                    : assignedChoiceColors && !showResult
+                    ? assignedChoiceColors.border
+                    : "#a3a3a3"; // neutral-400
+
+                const backgroundColor =
+                  isDragOver
+                    ? "#dbeafe" // blue-100
+                    : showResult && isCorrect
+                    ? "#dcfce7" // green-100
+                    : showResult && isIncorrect
+                    ? "#fee2e2" // red-100
+                    : isEmptyWhenShowingResult
+                    ? "#fef3c7" // amber-100 for missing answer
+                    : assignedChoiceColors && !showResult
+                    ? assignedChoiceColors.bg
+                    : "#ffffff";
+
+                const borderStyle = assignedChoice || isEmptyWhenShowingResult ? "solid" : "dashed";
+                const borderWidth = showResult 
+                  ? "2px" 
+                  : assignedChoice 
+                  ? "0.7px" 
+                  : "1.5px";
+
+                return (
+                  <div
+                    key={`slot-${slotIndex}`}
+                    onDragOver={(e) => handleDragOver(e, slotIndex)}
+                    onDragLeave={handleDragLeave}
+                    onDrop={(e) => handleDrop(e, slotIndex)}
+                    style={{
+                      borderColor,
+                      borderWidth,
+                      borderStyle,
+                      backgroundColor,
+                    }}
+                    className={`w-full p-4 rounded-2xl flex flex-col items-center transition-all relative ${
+                      showResult && (isIncorrect || isEmptyWhenShowingResult) && correctChoice 
+                        ? "min-h-[200px]" 
+                        : showResult 
+                        ? "h-[140px]" 
+                        : "h-[120px]"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between w-full mb-1">
+                      <p className={`text-sm font-semibold ${
+                        showResult && isCorrect ? "text-green-700" : 
+                        showResult && isIncorrect ? "text-red-700" : 
+                        isEmptyWhenShowingResult ? "text-amber-700" :
+                        "text-neutral-700"
+                      }`}>
+                        {slotIndex + 1}
+                      </p>
+                      {showResult && isIncorrect && (
+                        <div className="flex items-center justify-center w-6 h-6 rounded-full bg-red-100">
+                          <svg className="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </div>
+                      )}
+                      {showResult && isCorrect && (
+                        <div className="flex items-center justify-center w-6 h-6 rounded-full bg-green-100">
+                          <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                          </svg>
+                        </div>
+                      )}
+                      {isEmptyWhenShowingResult && (
+                        <div className="flex items-center justify-center w-6 h-6 rounded-full bg-amber-100">
+                          <svg className="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                          </svg>
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex-1 flex items-center justify-center w-full min-h-0">
+                      {assignedChoice ? (
+                        <div
+                          draggable={!showResult}
+                          onDragStart={(e) => handleDragStart(e, 'slot', slotIndex)}
+                          onDragEnd={handleDragEnd}
+                          className={`text-neutral-800 font-medium text-center text-sm leading-relaxed line-clamp-3 transition-opacity ${
+                            showResult 
+                              ? isCorrect 
+                                ? "text-green-900" 
+                                : isIncorrect 
+                                ? "text-red-900" 
+                                : ""
+                              : isDragging 
+                              ? "opacity-40 cursor-grabbing" 
+                              : "cursor-grab hover:opacity-80"
+                          }`}
+                        >
+                          {assignedChoice}
+                        </div>
+                      ) : showResult && correctChoice ? (
+                        <div className="text-center w-full">
+                          <p className="text-neutral-400 text-xs mb-2">Not answered</p>
+                          <div className="text-xs text-center leading-relaxed px-3 py-2 rounded-lg bg-green-50 border-2 border-green-300">
+                            <p className="text-green-900 font-medium">{correctChoice}</p>
+                          </div>
+                        </div>
+                      ) : (
+                        <p className="text-neutral-400 text-sm text-center w-full">Drop a choice here</p>
+                      )}
+                    </div>
+                    {showResult && isIncorrect && correctChoice && (
+                      <div className="mt-3 pt-3 border-t-2 border-red-200 w-full">
+                        <p className="text-xs text-green-700 font-semibold mb-2 text-center">Correct answer:</p>
+                        <div className="text-xs text-center leading-relaxed px-3 py-2 rounded-lg bg-green-50 border-2 border-green-300">
+                          <p className="text-green-900 font-medium">{correctChoice}</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
-      )}
+      </div>
     </div>
   );
 }
-
-// Draggable content inside a slot
-function DraggableSlotContent({
-  id,
-  text,
-  disabled,
-  choiceIndex,
-}: {
-  id: string;
-  text: string;
-  disabled: boolean;
-  choiceIndex: number;
-}) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    isDragging,
-  } = useDraggable({
-    id,
-    disabled,
-  });
-
-  const style = transform
-    ? {
-        transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
-        opacity: isDragging ? 0.5 : 1,
-      }
-    : undefined;
-
-  return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      {...attributes}
-      {...listeners}
-      className={`text-neutral-800 font-medium text-center text-sm leading-relaxed line-clamp-3 ${
-        disabled ? "" : "cursor-grab active:cursor-grabbing"
-      }`}
-    >
-      {text}
-    </div>
-  );
-}
-
-

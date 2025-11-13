@@ -47,7 +47,7 @@ function ModuleCompleteScreen({
   return (
     <div className="text-center">
       {/* Celebration Image */}
-      <div className="mb-4 flex justify-center">
+      <div className="mb-4 flex justify-center animate-scaleIn">
         <img 
           src="/great-work.svg" 
           alt="Great Work"
@@ -55,19 +55,19 @@ function ModuleCompleteScreen({
         />
       </div>
 
-      <h1 className="text-3xl font-bold text-neutral-900 mb-2">
+      <h1 className="text-3xl font-bold text-neutral-900 mb-2 animate-fadeInUp">
         Module {moduleIndex + 1} - Complete
       </h1>
-      <p className="text-lg text-neutral-600 mb-6 leading-relaxed">
+      <p className="text-lg text-neutral-600 mb-6 leading-relaxed animate-fadeInUp" style={{ animationDelay: '0.1s' }}>
         Good work—your {moduleTitle.toLowerCase()} basics are locked in.
       </p>
 
       {/* Action Buttons */}
-      <div className="flex flex-col items-center gap-3 mb-8">
+      <div className="flex flex-col items-center gap-3 mb-8 animate-fadeInUp" style={{ animationDelay: '0.2s' }}>
         {hasNextModule ? (
           <button
             onClick={onContinue}
-            className="px-8 py-4 bg-neutral-900 text-white rounded-full font-medium hover:bg-neutral-800 flex items-center gap-2"
+            className="px-8 py-4 bg-neutral-900 text-white rounded-full font-medium hover:bg-neutral-800 flex items-center gap-2 transition-all active:scale-95"
           >
             Begin Module {moduleIndex + 2}
             <svg
@@ -87,7 +87,7 @@ function ModuleCompleteScreen({
         ) : (
           <button
             onClick={onBackToModules}
-            className="px-8 py-4 bg-neutral-900 text-white rounded-full font-medium hover:bg-neutral-800 flex items-center gap-2"
+            className="px-8 py-4 bg-neutral-900 text-white rounded-full font-medium hover:bg-neutral-800 flex items-center gap-2 transition-all active:scale-95"
           >
             View All Modules
             <svg
@@ -108,7 +108,7 @@ function ModuleCompleteScreen({
       </div>
 
       {/* Statistics */}
-      <div className="max-w-md mx-auto bg-neutral-50 rounded-2xl p-6 text-left">
+      <div className="max-w-md mx-auto bg-neutral-50 rounded-2xl p-6 text-left animate-fadeInUp" style={{ animationDelay: '0.3s' }}>
         {/* Accuracy */}
         <div className="mb-4">
           <div className="flex justify-between items-center mb-2">
@@ -173,6 +173,39 @@ function ModuleCompleteScreen({
           </ul>
         </div>
       </div>
+
+      <style jsx>{`
+        @keyframes scaleIn {
+          from {
+            opacity: 0;
+            transform: scale(0.9);
+          }
+          to {
+            opacity: 1;
+            transform: scale(1);
+          }
+        }
+        @keyframes fadeInUp {
+          from {
+            opacity: 0;
+            transform: translateY(10px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        .animate-scaleIn {
+          animation: scaleIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+          opacity: 0;
+          animation-fill-mode: forwards;
+        }
+        .animate-fadeInUp {
+          animation: fadeInUp 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+          opacity: 0;
+          animation-fill-mode: forwards;
+        }
+      `}</style>
     </div>
   );
 }

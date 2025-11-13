@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { ModuleCompleteScreen } from "@/app/components/module-complete-screen";
 import { LessonScreen } from "@/app/components/lesson-screen";
@@ -25,6 +25,20 @@ export default function LessonPage() {
   const [course, setCourse] = useState<Course | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const hasAnimatedPage = useRef(false);
+  const shouldAnimatePage = !hasAnimatedPage.current;
+
+  useEffect(() => {
+    hasAnimatedPage.current = true;
+  }, []);
+
+  // Validate module index
+  useEffect(() => {
+    if (isNaN(moduleIndexParam)) {
+      setError("Invalid module");
+      setLoading(false);
+    }
+  }, [moduleIndexParam]);
 
   // Load course from storage
   useEffect(() => {
@@ -59,7 +73,7 @@ export default function LessonPage() {
     }
     const queryString = urlParams.toString();
     const url = `/course/${slug}/module/${moduleIndex}${queryString ? `?${queryString}` : ""}`;
-    router.push(url);
+    router.push(url, { scroll: false });
   };
 
   // Default empty course structure to satisfy Rules of Hooks
@@ -70,8 +84,8 @@ export default function LessonPage() {
 
   // Always call the hook (Rules of Hooks requirement)
   const navigation = useCourseNavigation(course || defaultCourse, {
-    initialModuleIndex: moduleIndexParam,
-    initialLessonIndex: lessonIndexParam,
+    initialModuleIndex: isNaN(moduleIndexParam) ? 0 : moduleIndexParam,
+    initialLessonIndex: isNaN(lessonIndexParam) ? 0 : lessonIndexParam,
     initialStep: stepParam,
     initialCompletedModules: storedCourse?.progress.completedModules,
     onNavigate: handleNavigate,
@@ -83,6 +97,19 @@ export default function LessonPage() {
       document.title = `${navigation.currentModule.title} - ${course.title} | PDF to Interactive Lesson Generator`;
     }
   }, [course, navigation.currentModule]);
+
+  // Smooth scroll to top when reaching module-complete
+  useEffect(() => {
+    if (navigation.step === "module-complete") {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  }, [navigation.step]);
+
+  // Preload celebration image
+  useEffect(() => {
+    const img = new Image();
+    img.src = "/great-work.svg";
+  }, []);
 
   // Debug log for lesson data (must be before any conditional returns)
   useEffect(() => {
@@ -175,6 +202,7 @@ export default function LessonPage() {
     currentLesson,
     moduleProgressData,
     step,
+    lessonIndex,
     userAnswer,
     showResult,
     isGrading,
@@ -187,14 +215,15 @@ export default function LessonPage() {
     handleContinue,
   } = navigation;
 
-  if (!currentLesson) {
+  // Only check for currentLesson if we're not on module-complete or module-intro steps
+  if (!currentLesson && step !== "module-complete" && step !== "module-intro") {
     return (
       <div className="min-h-screen bg-white flex flex-col">
         <Header
           showNavLinks={true}
-          courseTitle={course.title}
+          courseTitle={course?.title}
           course={course}
-          currentModuleIndex={moduleIndexParam}
+          currentModuleIndex={isNaN(moduleIndexParam) ? 0 : moduleIndexParam}
           onModuleSelect={(moduleIndex) => {
             router.push(`/course/${slug}/module/${moduleIndex}`);
           }}
@@ -215,7 +244,29 @@ export default function LessonPage() {
     );
   }
 
-  const { data } = currentLesson;
+  const { data } = currentLesson || { data: null };
+
+  // If module doesn't exist, show error
+  if (!currentModule) {
+    return (
+      <div className="min-h-screen bg-white flex flex-col">
+        <Header showNavLinks={true} courseTitle={course?.title} />
+        <div className="max-w-xl mx-auto px-6 py-16 flex-grow flex items-center justify-center">
+          <div className="text-center">
+            <h1 className="text-2xl font-bold text-neutral-900 mb-4">Module not found</h1>
+            <p className="text-neutral-600 mb-6">The module you're looking for doesn't exist.</p>
+            <button
+              onClick={() => router.push(`/course/${slug}`)}
+              className="px-6 py-2 bg-neutral-900 text-white rounded-lg hover:bg-neutral-800"
+            >
+              Back to Modules
+            </button>
+          </div>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
@@ -223,9 +274,9 @@ export default function LessonPage() {
         showProgressBar={true}
         moduleProgress={moduleProgressData}
         showNavLinks={true}
-        courseTitle={course.title}
+        courseTitle={course?.title}
         course={course}
-        currentModuleIndex={moduleIndexParam}
+        currentModuleIndex={isNaN(moduleIndexParam) ? 0 : moduleIndexParam}
         onModuleSelect={(moduleIndex) => {
           router.push(`/course/${slug}/module/${moduleIndex}`);
         }}
@@ -234,32 +285,36 @@ export default function LessonPage() {
       {/* Main Content */}
       <div className="max-w-xl mx-auto px-6 py-16 flex-grow">
         {step === "module-complete" ? (
-          <ModuleCompleteScreen
-            moduleIndex={moduleIndexParam}
-            moduleTitle={currentModule.title}
-            moduleStats={moduleStats}
-            successfulLessons={successfulLessons}
-            hasNextModule={moduleIndexParam < course.modules.length - 1}
-            onContinue={handleContinue}
-            onBackToModules={handleBackToModules}
-          />
+          <div className={shouldAnimatePage ? "animate-fadeIn" : undefined}>
+            <ModuleCompleteScreen
+              moduleIndex={isNaN(moduleIndexParam) ? 0 : moduleIndexParam}
+              moduleTitle={currentModule.title}
+              moduleStats={moduleStats}
+              successfulLessons={successfulLessons}
+              hasNextModule={!isNaN(moduleIndexParam) && moduleIndexParam < course.modules.length - 1}
+              onContinue={handleContinue}
+              onBackToModules={handleBackToModules}
+            />
+          </div>
         ) : (
-          <LessonScreen
-            step={step}
-            moduleIndex={moduleIndexParam}
-            moduleTitle={currentModule.title}
-            lessonData={data}
-            successfulLessonsCount={successfulLessons.length}
-            userAnswer={userAnswer}
-            showResult={showResult}
-            isGrading={isGrading}
-            gradingError={gradingError}
-            onAnswerChange={setUserAnswer}
-            canContinue={canContinue()}
-            onContinue={handleContinue}
-            onRetryGrading={handleRetryGrading}
-            getButtonText={getButtonText}
-          />
+          <div className={shouldAnimatePage ? "animate-fadeIn" : undefined}>
+            <LessonScreen
+              step={step}
+              moduleIndex={isNaN(moduleIndexParam) ? 0 : moduleIndexParam}
+              moduleTitle={currentModule.title}
+              lessonData={data}
+              successfulLessonsCount={successfulLessons.length}
+              userAnswer={userAnswer}
+              showResult={showResult}
+              isGrading={isGrading}
+              gradingError={gradingError}
+              onAnswerChange={setUserAnswer}
+              canContinue={canContinue()}
+              onContinue={handleContinue}
+              onRetryGrading={handleRetryGrading}
+              getButtonText={getButtonText}
+            />
+          </div>
         )}
       </div>
 
@@ -269,7 +324,7 @@ export default function LessonPage() {
         @keyframes fadeIn {
           from {
             opacity: 0;
-            transform: translateY(10px);
+            transform: translateY(8px);
           }
           to {
             opacity: 1;
@@ -277,7 +332,7 @@ export default function LessonPage() {
           }
         }
         .animate-fadeIn {
-          animation: fadeIn 0.4s ease-out;
+          animation: fadeIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
       `}</style>
     </div>

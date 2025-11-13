@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, Eye, EyeOff, X } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -25,6 +25,7 @@ interface ApiKeyDialogProps {
 export function ApiKeyDialog({ open, onOpenChange }: ApiKeyDialogProps) {
   const [apiKey, setApiKey] = useState("");
   const [savedApiKey, setSavedApiKey] = useState<string | null>(null);
+  const [showApiKey, setShowApiKey] = useState(false);
   const isDesktop = useMediaQuery("(min-width: 768px)");
   const inputRef = useRef<HTMLInputElement>(null);
   const submitButtonRef = useRef<HTMLButtonElement>(null);
@@ -89,20 +90,49 @@ export function ApiKeyDialog({ open, onOpenChange }: ApiKeyDialogProps) {
           {savedApiKey ? "Update" : "Add"} your{" "}
           <span className="font-semibold underline">Together AI</span> API key
         </div>
-        <input
-          ref={inputRef}
-          type="password"
-          placeholder="API Key"
-          value={apiKey}
-          onChange={(e) => setApiKey(e.target.value)}
-          onPaste={() => {
-            // Focus the submit button after paste
-            setTimeout(() => {
-              submitButtonRef.current?.focus();
-            }, 0);
-          }}
-          className="w-full px-4 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:border-transparent text-neutral-900 placeholder:text-neutral-400"
-        />
+        <div className="relative">
+          <input
+            ref={inputRef}
+            type={showApiKey ? "text" : "password"}
+            placeholder="API Key"
+            value={apiKey}
+            onChange={(e) => setApiKey(e.target.value)}
+            onPaste={() => {
+              // Focus the submit button after paste
+              setTimeout(() => {
+                submitButtonRef.current?.focus();
+              }, 0);
+            }}
+            className="w-full px-4 py-2 pr-20 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:border-transparent text-neutral-900 placeholder:text-neutral-400"
+          />
+          <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-2">
+            {apiKey && (
+              <button
+                type="button"
+                onClick={() => {
+                  setApiKey("");
+                  inputRef.current?.focus();
+                }}
+                className="p-1.5 text-neutral-400 hover:text-neutral-600 transition-colors touch-manipulation"
+                aria-label="Clear API key"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => setShowApiKey(!showApiKey)}
+              className="p-1.5 text-neutral-400 hover:text-neutral-600 transition-colors touch-manipulation"
+              aria-label={showApiKey ? "Hide API key" : "Show API key"}
+            >
+              {showApiKey ? (
+                <EyeOff className="w-5 h-5" />
+              ) : (
+                <Eye className="w-5 h-5" />
+              )}
+            </button>
+          </div>
+        </div>
         <ul className="space-y-2 text-sm text-neutral-600">
           <li className="flex items-start">
             <span className="mr-2">•</span>

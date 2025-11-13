@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import { DragDropQuestion } from "./drag-drop-question";
 
 type QuestionType = "short-answer" | "true-false" | "multiple-choice" | "drag-drop";
@@ -66,15 +67,28 @@ function LessonScreen({
   onRetryGrading,
   getButtonText,
 }: LessonScreenProps) {
+  const hasPlayedInitialAnimation = useRef(false);
+  const shouldAnimateOnLoad = !hasPlayedInitialAnimation.current;
+
+  useEffect(() => {
+    hasPlayedInitialAnimation.current = true;
+  }, []);
+
+  const animateClass = (condition = true) =>
+    shouldAnimateOnLoad && condition ? "animate-fadeInUp" : "";
+
   return (
     <>
       {step === "module-intro" && (
         <div>
-          <h1 className="text-3xl font-bold text-neutral-900 mb-8">
+          <h1 className={`text-3xl font-bold text-neutral-900 mb-8 ${animateClass()}`}>
             Welcome to Module {moduleIndex + 1}! Let&apos;s start with{" "}
             {moduleTitle.toLowerCase()}
           </h1>
-          <p className="text-lg text-neutral-600 leading-relaxed">
+          <p
+            className={`text-lg text-neutral-600 leading-relaxed ${animateClass()}`}
+            style={{ animationDelay: "0.1s" }}
+          >
             This module contains {successfulLessonsCount} interactive lessons
             about {moduleTitle.toLowerCase()}.
           </p>
@@ -83,13 +97,19 @@ function LessonScreen({
 
       {step === "content" && (
         <div className="space-y-8">
-          <h1 className="text-2xl font-bold text-neutral-900">
+          <h1 className={`text-2xl font-bold text-neutral-900 ${animateClass()}`}>
             {lessonData.title}
           </h1>
-          <p className="text-lg text-neutral-800 leading-relaxed">
+          <p
+            className={`text-lg text-neutral-800 leading-relaxed ${animateClass()}`}
+            style={{ animationDelay: "0.1s" }}
+          >
             {lessonData.content}
           </p>
-          <div className="bg-pink-50 border border-pink-200 rounded-2xl p-6">
+          <div
+            className={`bg-pink-50 border border-pink-200 rounded-2xl p-6 ${animateClass()}`}
+            style={{ animationDelay: "0.2s" }}
+          >
             <p className="text-neutral-800 leading-relaxed">{lessonData.info}</p>
           </div>
         </div>
@@ -97,25 +117,37 @@ function LessonScreen({
 
       {(step === "question" || step === "answer") && (
         <div className="space-y-8">
-          <h1 className="text-2xl font-bold text-neutral-900">
+          <h1 className={`text-2xl font-bold text-neutral-900 ${animateClass(!showResult)}`}>
             {lessonData.title}
           </h1>
-          <p className="text-lg text-neutral-800 leading-relaxed">
+          <p
+            className={`text-lg text-neutral-800 leading-relaxed ${animateClass(!showResult)}`}
+            style={!showResult ? { animationDelay: "0.1s" } : {}}
+          >
             {lessonData.content}
           </p>
-          <div className="bg-pink-50 border border-pink-200 rounded-2xl p-6">
+          <div
+            className={`bg-pink-50 border border-pink-200 rounded-2xl p-6 ${animateClass(!showResult)}`}
+            style={!showResult ? { animationDelay: "0.2s" } : {}}
+          >
             <p className="text-neutral-800 leading-relaxed">{lessonData.info}</p>
           </div>
 
           <div className="pt-4">
-            <p className="text-lg font-medium text-neutral-900 mb-6">
+            <p
+              className={`text-lg font-medium text-neutral-900 mb-6 ${animateClass(!showResult)}`}
+              style={!showResult ? { animationDelay: "0.3s" } : {}}
+            >
               {lessonData.question}
             </p>
 
             {/* Multiple Choice */}
             {lessonData.questionType === "multiple-choice" &&
               lessonData.choices && (
-                <div className="space-y-3">
+                <div
+                  className={`space-y-3 ${animateClass(!showResult)}`}
+                  style={!showResult ? { animationDelay: "0.4s" } : {}}
+                >
                   {lessonData.choices.map((choice, idx) => (
                     <button
                       key={idx}
@@ -152,7 +184,10 @@ function LessonScreen({
 
             {/* True/False */}
             {lessonData.questionType === "true-false" && (
-              <div className="space-y-3">
+              <div
+                className={`space-y-3 ${animateClass(!showResult)}`}
+                style={!showResult ? { animationDelay: "0.4s" } : {}}
+              >
                 {[true, false].map((value) => (
                   <button
                     key={value.toString()}
@@ -191,7 +226,10 @@ function LessonScreen({
 
             {/* Short Answer */}
             {lessonData.questionType === "short-answer" && (
-              <div>
+              <div
+                className={animateClass(!showResult)}
+                style={!showResult ? { animationDelay: "0.4s" } : {}}
+              >
                 <textarea
                   value={(userAnswer as string) || ""}
                   onChange={(e) => onAnswerChange(e.target.value)}
@@ -251,21 +289,33 @@ function LessonScreen({
             {lessonData.questionType === "drag-drop" &&
               lessonData.choices &&
               lessonData.slots && (
-                <DragDropQuestion
-                  choices={lessonData.choices}
-                  slots={lessonData.slots}
-                  correctAnswer={lessonData.answer as number[]}
-                  userAnswer={(userAnswer as number[]) || null}
-                  showResult={showResult}
-                  onAnswerChange={onAnswerChange}
-                />
+                <div
+                  className={animateClass(!showResult)}
+                  style={!showResult ? { animationDelay: "0.4s" } : {}}
+                >
+                  <DragDropQuestion
+                    choices={lessonData.choices}
+                    slots={lessonData.slots}
+                    correctAnswer={lessonData.answer as number[]}
+                    userAnswer={(userAnswer as number[]) || null}
+                    showResult={showResult}
+                    onAnswerChange={onAnswerChange}
+                  />
+                </div>
               )}
           </div>
         </div>
       )}
 
       {/* Action Button */}
-      <div className="mt-12">
+      <div
+        className={`mt-12 ${animateClass(step === "module-intro" || step === "content" || !showResult)}`}
+        style={
+          step === "module-intro" || step === "content" || !showResult
+            ? { animationDelay: "0.5s" }
+            : {}
+        }
+      >
         <button
           onClick={onContinue}
           disabled={!canContinue || isGrading}
@@ -300,6 +350,24 @@ function LessonScreen({
           {isGrading ? "Grading..." : getButtonText()}
         </button>
       </div>
+
+      <style jsx>{`
+        @keyframes fadeInUp {
+          from {
+            opacity: 0;
+            transform: translateY(10px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        .animate-fadeInUp {
+          animation: fadeInUp 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+          opacity: 0;
+          animation-fill-mode: forwards;
+        }
+      `}</style>
     </>
   );
 }

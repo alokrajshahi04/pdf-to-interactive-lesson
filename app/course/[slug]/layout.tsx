@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 
 type Props = {
-  params: { slug: string };
+  params: Promise<{ slug: string }>;
 };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const { slug } = params;
+  const { slug } = await params;
   
   // Note: Course data is stored in localStorage (client-side only),
   // so we can't access the actual course title server-side.
