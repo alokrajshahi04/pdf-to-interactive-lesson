@@ -8,6 +8,7 @@ import { ApiKeyDialog } from "./api-key-dialog";
 import { useCredits } from "../hooks/use-credits";
 import { Github, Twitter } from "lucide-react";
 import Link from "next/link";
+import { Loader } from "@/components/ai-elements/loader";
 
 interface LandingScreenProps {
   onCourseGenerated: (courseData: any) => void;
@@ -291,11 +292,11 @@ function LandingScreen({
             )}
             <button 
               onClick={() => setIsApiKeyDialogOpen(true)}
-              className="flex items-center justify-center w-10 h-10 bg-neutral-50 border border-neutral-200 rounded-full text-neutral-700 hover:text-neutral-900 transition-colors"
+              className="flex items-center justify-center w-10 h-10 bg-neutral-50 border border-neutral-200 rounded-full text-neutral-700 hover:text-neutral-900 transition-colors cursor-pointer"
               aria-label="API Key"
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
               </svg>
             </button>
           </div>
@@ -335,7 +336,7 @@ function LandingScreen({
             className="hidden md:block absolute right-0 top-0 w-80 h-80 opacity-100 z-0"
           />
 
-          <h1 className="relative text-6xl font-bold text-neutral-900 mb-6 leading-none font-[family-name:var(--font-fustat)] z-10">
+          <h1 className="relative text-7xl font-bold text-neutral-900 mb-6 leading-none font-[family-name:var(--font-fustat)] z-10">
             Make a tailored
             <br />
             course for you
@@ -352,7 +353,7 @@ function LandingScreen({
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
               onClick={() => !isProcessing && fileInputRef.current?.click()}
-              className={`relative border-2 border-dashed rounded-3xl p-16 transition-all backdrop-blur-sm ${
+              className={`relative border-2 border-dashed rounded-3xl p-16 transition-all backdrop-blur-sm min-h-[200px] flex items-center justify-center ${
                 isDragging
                   ? "border-blue-500 bg-blue-50/80"
                   : isProcessing
@@ -364,7 +365,7 @@ function LandingScreen({
             >
               {isProcessing ? (
                 <div className="flex flex-col items-center">
-                  <div className="mb-4 w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                  <Loader size={32} className="mb-4 text-blue-500 [animation-duration:0.6s]" />
                   <p className="text-neutral-700 font-medium">{progress}</p>
                   <p className="text-sm text-neutral-500 mt-2">
                     This may take a few minutes...
@@ -444,24 +445,24 @@ function LandingScreen({
 
       {/* Social Icons */}
       <div className="fixed bottom-4 right-4 flex items-center gap-3 z-10">
-        <a 
-          href="https://github.com" 
-          target="_blank" 
-          rel="noopener noreferrer"
-          className="flex items-center justify-center w-10 h-10 bg-neutral-50 border border-neutral-200 rounded-full text-neutral-700 hover:text-neutral-900 transition-colors"
-          aria-label="GitHub"
-        >
-          <Github className="w-5 h-5" />
-        </a>
-        <a 
-          href="https://x.com" 
-          target="_blank" 
-          rel="noopener noreferrer"
-          className="flex items-center justify-center w-10 h-10 bg-neutral-50 border border-neutral-200 rounded-full text-neutral-700 hover:text-neutral-900 transition-colors"
-          aria-label="X (Twitter)"
-        >
-          <Twitter className="w-5 h-5" />
-        </a>
+          <a 
+            href="https://github.com" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="flex items-center justify-center w-8 h-8 bg-neutral-50 border border-neutral-200 rounded-full text-neutral-700 hover:text-neutral-900 transition-colors"
+            aria-label="GitHub"
+          >
+            <Github className="w-4 h-4" />
+          </a>
+          <a 
+            href="https://x.com" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="flex items-center justify-center w-8 h-8 bg-neutral-50 border border-neutral-200 rounded-full text-neutral-700 hover:text-neutral-900 transition-colors"
+            aria-label="X (Twitter)"
+          >
+            <Twitter className="w-4 h-4" />
+          </a>
       </div>
     </div>
   );

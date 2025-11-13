@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { upload } from "@vercel/blob/client";
 import { getApiKey } from "@/lib/api-key-storage";
 import {
@@ -12,6 +12,10 @@ import {
 } from "@/lib/storage";
 import type { Course } from "@/app/hooks/use-course-navigation";
 import { useCredits } from "../hooks/use-credits";
+import { ApiKeyDialog } from "./api-key-dialog";
+import Link from "next/link";
+import { Github, Twitter } from "lucide-react";
+import { Loader } from "@/components/ai-elements/loader";
 
 interface DashboardProps {
   onSelectCourse: (courseId: string) => void;
@@ -25,6 +29,8 @@ function Dashboard({ onSelectCourse, onCourseGenerated }: DashboardProps) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState("");
+  const [isApiKeyDialogOpen, setIsApiKeyDialogOpen] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setCourses(getStoredCourses());
@@ -205,14 +211,57 @@ function Dashboard({ onSelectCourse, onCourseGenerated }: DashboardProps) {
   };
 
   return (
-    <div className="min-h-screen bg-neutral-50 flex">
+    <div className="min-h-screen bg-neutral-50 flex flex-col">
+      {/* API Key Dialog */}
+      <ApiKeyDialog 
+        open={isApiKeyDialogOpen} 
+        onOpenChange={setIsApiKeyDialogOpen}
+      />
+      
+      {/* Header */}
+      <header className="sticky top-0 z-50 border-b-[0.5px] border-neutral-200 bg-white w-full">
+        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Link href="/">
+              <img 
+                src="/logo.svg" 
+                alt="Logo"
+                className="h-6 w-auto"
+              />
+            </Link>
+          </div>
+          <div className="flex items-center gap-4">
+            {courses.length > 0 && (
+              <Link
+                href="/courses"
+                className="flex items-center justify-center h-10 px-4 bg-neutral-50 border border-neutral-200 rounded-full text-neutral-700 hover:text-neutral-900 transition-colors text-xs font-medium"
+                aria-label="Courses"
+              >
+                Courses
+              </Link>
+            )}
+            <button 
+              onClick={() => setIsApiKeyDialogOpen(true)}
+              className="flex items-center justify-center w-10 h-10 bg-neutral-50 border border-neutral-200 rounded-full text-neutral-700 hover:text-neutral-900 transition-colors cursor-pointer"
+              aria-label="API Key"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      </header>
+      
+      {/* Content Area */}
+      <div className="flex flex-col lg:flex-row flex-1">
       {/* Left Sidebar */}
-      <aside className="w-96 bg-white border-r border-neutral-200 p-8 flex flex-col">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-neutral-900 mb-2">
+      <aside className="w-full lg:w-96 bg-white border-r-[0.5px] border-neutral-200 p-8 flex flex-col">
+        <div className="mb-8 text-center lg:text-left">
+          <h1 className="text-2xl lg:text-3xl font-bold text-neutral-900 mb-2">
             Welcome back!
           </h1>
-          <p className="text-neutral-600">
+          <p className="text-sm lg:text-base text-neutral-600">
             Pick up right where you left off or start a fresh course from any
             PDF.
           </p>
@@ -223,41 +272,61 @@ function Dashboard({ onSelectCourse, onCourseGenerated }: DashboardProps) {
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
-          className={`flex-1 border-2 border-dashed rounded-2xl p-8 flex flex-col items-center justify-center transition-colors ${
+          onClick={() => !isProcessing && fileInputRef.current?.click()}
+          className={`lg:flex-1 border-[0.5px] border-dashed rounded-2xl p-8 flex flex-col items-center justify-center transition-colors backdrop-blur-sm relative overflow-hidden ${
             isDragging
-              ? "border-blue-500 bg-blue-50"
-              : "border-neutral-300 bg-neutral-50"
-          } ${isProcessing ? "opacity-50 pointer-events-none" : ""}`}
+              ? "border-blue-500 bg-blue-50/80"
+              : isProcessing
+              ? "border-blue-500 bg-blue-50/80"
+              : "border-neutral-400 bg-white/80"
+          } ${!isProcessing ? "cursor-pointer" : ""}`}
         >
-          <input
-            type="file"
-            accept="application/pdf"
-            onChange={handleFileSelect}
-            className="hidden"
-            id="pdf-upload"
-            disabled={isProcessing}
+          {/* Background SVG */}
+          <img 
+            src="/landing-bg.svg" 
+            alt="" 
+            className="absolute inset-0 w-full h-full object-cover opacity-20 blur-2xl -z-10"
           />
-          <label
-            htmlFor="pdf-upload"
-            className="cursor-pointer"
-          >
-            <button
-              type="button"
-              onClick={(e) => {
-                e.preventDefault();
-                if (!isProcessing) {
-                  document.getElementById("pdf-upload")?.click();
-                }
-              }}
-              disabled={isProcessing}
-              className="px-6 py-3 bg-neutral-900 text-white rounded-full font-medium hover:bg-neutral-800 transition-colors mb-3 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isProcessing ? "Processing..." : "Upload a PDF"}
-            </button>
-          </label>
-          <p className="text-sm text-neutral-500">
-            {isProcessing ? progress : "Or drag-and-drop here"}
-          </p>
+          {isProcessing ? (
+            <div className="flex flex-col items-center">
+              <Loader size={32} className="mb-4 text-blue-500 [animation-duration:0.6s]" />
+              <p className="text-neutral-700 font-medium">{progress}</p>
+              <p className="text-sm text-neutral-500 mt-2">
+                This may take a few minutes...
+              </p>
+            </div>
+          ) : (
+            <>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="application/pdf"
+                onChange={handleFileSelect}
+                className="hidden"
+                id="pdf-upload"
+                disabled={isProcessing}
+              />
+              <label
+                htmlFor="pdf-upload"
+                className="cursor-pointer"
+              >
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    fileInputRef.current?.click();
+                  }}
+                  disabled={isProcessing}
+                  className="px-6 py-3 bg-neutral-900 text-white rounded-full font-medium hover:bg-neutral-800 transition-colors mb-3 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Upload a PDF
+                </button>
+              </label>
+              <p className="text-sm text-neutral-500">
+                Or drag-and-drop here
+              </p>
+            </>
+          )}
           {error && (
             <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg w-full">
               <div className="flex items-start gap-3">
@@ -283,24 +352,17 @@ function Dashboard({ onSelectCourse, onCourseGenerated }: DashboardProps) {
           )}
         </div>
 
-        {/* Footer */}
-        <div className="mt-8 text-xs text-neutral-500 flex items-center gap-2">
-          <span>Powered by</span>
-          <span className="font-semibold">together.ai</span>
-        </div>
-      </aside>
-
-      {/* Main Content */}
-      <main className="flex-1 p-12">
-        <div className="max-w-7xl mx-auto">
-          {courses.length === 0 ? (
-            <div className="text-center py-20">
-              <p className="text-neutral-500 text-lg">
-                No courses yet. Upload a PDF to get started!
-              </p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {/* Mobile: Course list section with separator and bg */}
+        <div className="lg:hidden border-t-[0.5px] border-neutral-200 pt-12 mt-6 bg-neutral-100 -mx-8 -mb-8 px-8 pb-12">
+          <div className="max-w-7xl mx-auto">
+            {courses.length === 0 ? (
+              <div className="text-center py-10">
+                <p className="text-neutral-500 text-sm">
+                  No courses yet. Upload a PDF to get started!
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-4">
               {courses.map((stored) => {
                 const completion = getCompletionPercentage(stored);
                 const isComplete = completion === 100;
@@ -310,11 +372,140 @@ function Dashboard({ onSelectCourse, onCourseGenerated }: DashboardProps) {
                   <div
                     key={stored.id}
                     onClick={() => onSelectCourse(stored.id)}
-                    className={`relative p-6 rounded-2xl border-2 text-left transition-all hover:shadow-lg cursor-pointer ${
+                    className="relative p-6 rounded-2xl border-[0.5px] text-left transition-all cursor-pointer"
+                    style={
                       isComplete
-                        ? "bg-green-50 border-green-200"
-                        : "bg-white border-neutral-200 hover:border-neutral-300"
-                    }`}
+                        ? {
+                            backgroundColor: "#D8FFDC",
+                            borderColor: "#00780E",
+                          }
+                        : {
+                            backgroundColor: "#ffffff",
+                            borderColor: "#d1d5db",
+                          }
+                    }
+                    onMouseEnter={(e) => {
+                      if (!isComplete) {
+                        e.currentTarget.style.backgroundColor = "#f9fafb";
+                      } else {
+                        e.currentTarget.style.backgroundColor = "#c8f5d0";
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!isComplete) {
+                        e.currentTarget.style.backgroundColor = "#ffffff";
+                      } else {
+                        e.currentTarget.style.backgroundColor = "#D8FFDC";
+                      }
+                    }}
+                  >
+                    {/* Delete Button */}
+                    <button
+                      onClick={(e) => handleDelete(stored.id, e)}
+                      className="absolute top-4 right-4 p-2 text-neutral-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors z-10"
+                      title="Delete course"
+                    >
+                      <svg
+                        className="w-4 h-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M6 18L18 6M6 6l12 12"
+                        />
+                      </svg>
+                    </button>
+
+                    {/* Course Title */}
+                    <h3 className="text-xl font-bold text-neutral-900 mb-2 pr-8">
+                      {stored.course.title}
+                    </h3>
+
+                    {/* Progress */}
+                    <p className="text-sm text-neutral-600 mb-1">
+                      {isComplete ? (
+                        <span className="text-green-600 font-medium">
+                          100% Complete
+                        </span>
+                      ) : (
+                        <>
+                          <span className="font-medium">
+                            {completion}% Complete
+                          </span>
+                          {" - "}
+                          <span className="text-neutral-500">
+                            [Module {currentModuleIndex + 1}/{totalModules}]
+                          </span>
+                        </>
+                      )}
+                    </p>
+
+                    {/* Timestamp */}
+                    <p className="text-xs text-neutral-400 mt-3">
+                      Last accessed:{" "}
+                      {new Date(stored.lastAccessedAt).toLocaleDateString()}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          </div>
+        </div>
+
+      </aside>
+
+      {/* Main Content */}
+      <main className="flex-1 lg:p-12 bg-white lg:bg-white">
+        {/* Desktop: Course list */}
+        <div className="hidden lg:block max-w-7xl mx-auto">
+          {courses.length === 0 ? (
+            <div className="text-center py-20">
+              <p className="text-neutral-500 text-lg">
+                No courses yet. Upload a PDF to get started!
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {courses.map((stored) => {
+                const completion = getCompletionPercentage(stored);
+                const isComplete = completion === 100;
+                const { currentModuleIndex, totalModules } = stored.progress;
+
+                return (
+                  <div
+                    key={stored.id}
+                    onClick={() => onSelectCourse(stored.id)}
+                    className="relative p-6 rounded-2xl border-[0.5px] text-left transition-all cursor-pointer"
+                    style={
+                      isComplete
+                        ? {
+                            backgroundColor: "#D8FFDC",
+                            borderColor: "#00780E",
+                          }
+                        : {
+                            backgroundColor: "#ffffff",
+                            borderColor: "#d1d5db",
+                          }
+                    }
+                    onMouseEnter={(e) => {
+                      if (!isComplete) {
+                        e.currentTarget.style.backgroundColor = "#f9fafb";
+                      } else {
+                        e.currentTarget.style.backgroundColor = "#c8f5d0";
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!isComplete) {
+                        e.currentTarget.style.backgroundColor = "#ffffff";
+                      } else {
+                        e.currentTarget.style.backgroundColor = "#D8FFDC";
+                      }
+                    }}
                   >
                     {/* Delete Button */}
                     <button
@@ -373,6 +564,43 @@ function Dashboard({ onSelectCourse, onCourseGenerated }: DashboardProps) {
           )}
         </div>
       </main>
+      </div>
+
+      {/* Footer */}
+      <footer className="bg-white border-t-[0.5px] border-neutral-200 px-4 py-4 flex items-center justify-between">
+        <a 
+          href="https://together.ai" 
+          target="_blank" 
+          rel="noopener noreferrer"
+          className="inline-block"
+        >
+          <img 
+            src="/landing-footer-powered-by.svg" 
+            alt="Powered by together.ai"
+            className="h-auto"
+          />
+        </a>
+        <div className="flex items-center gap-3">
+          <a 
+            href="https://github.com" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="flex items-center justify-center w-8 h-8 bg-neutral-50 border border-neutral-200 rounded-full text-neutral-700 hover:text-neutral-900 transition-colors"
+            aria-label="GitHub"
+          >
+            <Github className="w-4 h-4" />
+          </a>
+          <a 
+            href="https://x.com" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="flex items-center justify-center w-8 h-8 bg-neutral-50 border border-neutral-200 rounded-full text-neutral-700 hover:text-neutral-900 transition-colors"
+            aria-label="X (Twitter)"
+          >
+            <Twitter className="w-4 h-4" />
+          </a>
+        </div>
+      </footer>
     </div>
   );
 }
