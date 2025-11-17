@@ -70,34 +70,40 @@ function LandingScreen({
   };
 
   const processFileUpload = async (file: File, apiKey: string) => {
+    setIsProcessing(true);
+    setProgress("Uploading PDF...");
+
     // Check file size as a rough proxy for page count (most PDFs are ~50-200KB per page)
     const estimatedPages = Math.ceil(file.size / (100 * 1024)); // Rough estimate
     if (estimatedPages > 100) {
       setError(
         `This PDF appears to be very large (~${estimatedPages} pages). We currently only support PDFs up to 100 pages. Please upload a shorter document.`
       );
+      setIsProcessing(false);
       return;
     }
 
-    // Store file in sessionStorage and redirect immediately
-    // Convert file to base64 for storage
-    const reader = new FileReader();
-    reader.onload = () => {
+    try {
+      // Upload to Vercel Blob immediately instead of storing in sessionStorage
+      const blob = await upload(file.name, file, {
+        access: "public",
+        handleUploadUrl: "/api/upload-url",
+      });
+
+      // Store only the blob URL and filename in sessionStorage (much smaller than base64)
       const fileData = {
+        url: blob.url,
         name: file.name,
-        type: file.type,
-        size: file.size,
-        data: reader.result as string, // base64 string
       };
       sessionStorage.setItem("pendingPdfUpload", JSON.stringify(fileData));
-      // Redirect immediately to generating page
+      
+      // Redirect to generating page
       window.location.href = "/generating";
-    };
-    reader.onerror = () => {
-      setError("Failed to read file. Please try again.");
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "Failed to upload file. Please try again.";
+      setError(errorMessage);
       setIsProcessing(false);
-    };
-    reader.readAsDataURL(file);
+    }
   };
 
   const handleFileUpload = async (file: File) => {

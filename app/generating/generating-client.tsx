@@ -32,7 +32,7 @@ export function GeneratingPageContent() {
   useEffect(() => {
     if (hasStarted.current) return;
 
-    // First check for file in sessionStorage (immediate redirect from upload)
+    // First check for file URL in sessionStorage (immediate redirect from upload)
     const pendingFileData = sessionStorage.getItem("pendingPdfUpload");
     if (pendingFileData) {
       hasStarted.current = true;
@@ -40,16 +40,24 @@ export function GeneratingPageContent() {
       
       try {
         const fileData = JSON.parse(pendingFileData);
-        // Convert base64 back to File
-        const byteCharacters = atob(fileData.data.split(",")[1]);
-        const byteNumbers = new Array(byteCharacters.length);
-        for (let i = 0; i < byteCharacters.length; i++) {
-          byteNumbers[i] = byteCharacters.charCodeAt(i);
+        // If it's the new format with URL, use it directly
+        if (fileData.url && fileData.name) {
+          handleGenerateFromUrl(fileData.url, fileData.name, true);
+          return;
         }
-        const byteArray = new Uint8Array(byteNumbers);
-        const file = new File([byteArray], fileData.name, { type: fileData.type });
-        
-        handleFileUpload(file);
+        // Legacy format: Convert base64 back to File (for backwards compatibility)
+        if (fileData.data) {
+          const byteCharacters = atob(fileData.data.split(",")[1]);
+          const byteNumbers = new Array(byteCharacters.length);
+          for (let i = 0; i < byteCharacters.length; i++) {
+            byteNumbers[i] = byteCharacters.charCodeAt(i);
+          }
+          const byteArray = new Uint8Array(byteNumbers);
+          const file = new File([byteArray], fileData.name, { type: fileData.type });
+          handleFileUpload(file);
+          return;
+        }
+        throw new Error("Invalid file data format");
       } catch (error) {
         console.error("Failed to process pending file:", error);
         setError("Failed to process file. Please try uploading again.");
@@ -236,19 +244,27 @@ export function GeneratingPageContent() {
   };
 
   const handleApiKeySaved = () => {
-    // Check if there's a pending file to upload
+    // Check if there's a pending file URL to process
     const pendingFileData = sessionStorage.getItem("pendingPdfUpload");
     if (pendingFileData && !hasStarted.current) {
       try {
         const fileData = JSON.parse(pendingFileData);
-        const byteCharacters = atob(fileData.data.split(",")[1]);
-        const byteNumbers = new Array(byteCharacters.length);
-        for (let i = 0; i < byteCharacters.length; i++) {
-          byteNumbers[i] = byteCharacters.charCodeAt(i);
+        // If it's the new format with URL, use it directly
+        if (fileData.url && fileData.name) {
+          handleGenerateFromUrl(fileData.url, fileData.name, true);
+          return;
         }
-        const byteArray = new Uint8Array(byteNumbers);
-        const file = new File([byteArray], fileData.name, { type: fileData.type });
-        handleFileUpload(file);
+        // Legacy format: Convert base64 back to File (for backwards compatibility)
+        if (fileData.data) {
+          const byteCharacters = atob(fileData.data.split(",")[1]);
+          const byteNumbers = new Array(byteCharacters.length);
+          for (let i = 0; i < byteCharacters.length; i++) {
+            byteNumbers[i] = byteCharacters.charCodeAt(i);
+          }
+          const byteArray = new Uint8Array(byteNumbers);
+          const file = new File([byteArray], fileData.name, { type: fileData.type });
+          handleFileUpload(file);
+        }
       } catch (error) {
         console.error("Failed to process pending file after API key save:", error);
       }
