@@ -11,7 +11,22 @@ export enum QuestionType {
   TrueFalse = "true-false",
   ShortAnswer = "short-answer",
   DragDrop = "drag-drop",
+  FlowDiagram = "flow-diagram",
 }
+
+// Flow diagram types (matches FlowConfig from app/components/flow-diagram.tsx)
+export type SimpleNode = {
+  id: string;
+  label: string;
+  type: 'start' | 'process' | 'output';
+};
+
+export type SimpleEdge = [string, string];
+
+export type FlowConfig = {
+  nodes: SimpleNode[];
+  edges: SimpleEdge[];
+};
 
 export interface FixAttempt {
   attempt: number;
@@ -53,7 +68,15 @@ export interface DragDropLesson extends LessonBase {
   answer: number[]; // Array of 3 numbers (choice indices), where index = slot index, value = choice index
 }
 
-export type Lesson = ShortAnswerLesson | TrueFalseLesson | MultipleChoiceLesson | DragDropLesson;
+export interface FlowDiagramLesson extends LessonBase {
+  questionType: QuestionType.FlowDiagram;
+  flowConfig: FlowConfig; // The flow diagram structure
+  answer: number[]; // Array of 3 slot indices for ordering
+  choices: string[]; // Exactly 3 node labels from flow
+  slots: string[]; // Exactly 3 slot labels (e.g., "First", "Second", "Third")
+}
+
+export type Lesson = ShortAnswerLesson | TrueFalseLesson | MultipleChoiceLesson | DragDropLesson | FlowDiagramLesson;
 
 export interface LessonError {
   validationType: "structure" | "content";

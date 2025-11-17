@@ -1,5 +1,7 @@
 "use client";
 
+import type { FlowConfig } from "@/lib/types";
+
 interface LessonData {
   content: string;
   info: string;
@@ -9,6 +11,7 @@ interface LessonData {
   questionType: string;
   choices?: string[];
   slots?: string[];
+  flowConfig?: FlowConfig;
 }
 
 interface Lesson {

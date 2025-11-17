@@ -1,7 +1,9 @@
 "use client";
 
+import { useState } from "react";
 import { Header } from "./header";
 import { Footer } from "./footer";
+import type { FlowConfig } from "@/lib/types";
 
 interface LessonData {
   content: string;
@@ -12,6 +14,7 @@ interface LessonData {
   questionType: string;
   choices?: string[];
   slots?: string[];
+  flowConfig?: FlowConfig;
 }
 
 interface Lesson {
@@ -32,6 +35,7 @@ interface Course {
 interface ModulesScreenProps {
   course: Course;
   onStartModule: (moduleIndex: number) => void;
+  onJumpToLesson?: (moduleIndex: number, lessonIndex: number) => void;
   completedModules: number[];
   currentModuleIndex: number;
 }
@@ -39,14 +43,26 @@ interface ModulesScreenProps {
 function ModulesScreen({
   course,
   onStartModule,
+  onJumpToLesson,
   completedModules,
   currentModuleIndex,
 }: ModulesScreenProps) {
+  const [copied, setCopied] = useState(false);
   const totalModules = course.modules.length;
   const totalLessons = course.modules.reduce(
     (sum, mod) => sum + mod.lessons.filter((l) => l.success).length,
     0
   );
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(JSON.stringify(course, null, 2));
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy:', err);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
@@ -132,6 +148,114 @@ function ModulesScreen({
             })}
           </div>
         </div>
+
+        {/* Debug Info (Local Development Only) */}
+        {process.env.NODE_ENV === 'development' && (
+          <div className="mt-16 space-y-6">
+            {/* Quick Jump to Lessons */}
+            {onJumpToLesson && (
+              <div className="p-6 bg-blue-50 border border-blue-200 rounded-xl">
+                <h3 className="text-sm font-semibold text-blue-900 mb-4">Debug: Jump to Lesson (Local Only)</h3>
+                <div className="space-y-4">
+                  {course.modules.map((module, moduleIndex) => {
+                    const successfulLessons = module.lessons.filter((l) => l.success);
+                    return (
+                      <div key={moduleIndex} className="bg-white rounded-lg p-4 border border-blue-100">
+                        <h4 className="text-sm font-semibold text-neutral-900 mb-3">
+                          Module {moduleIndex + 1}: {module.title}
+                        </h4>
+                        <div className="flex flex-wrap gap-2">
+                          {successfulLessons.map((lesson, lessonIndex) => {
+                            const questionType = lesson.data.questionType;
+                            const getTypeColor = (type: string) => {
+                              switch (type) {
+                                case 'flow-diagram':
+                                  return 'bg-purple-100 text-purple-800 border-purple-300 hover:bg-purple-200';
+                                case 'drag-drop':
+                                  return 'bg-orange-100 text-orange-800 border-orange-300 hover:bg-orange-200';
+                                case 'multiple-choice':
+                                  return 'bg-green-100 text-green-800 border-green-300 hover:bg-green-200';
+                                case 'true-false':
+                                  return 'bg-blue-100 text-blue-800 border-blue-300 hover:bg-blue-200';
+                                case 'short-answer':
+                                  return 'bg-yellow-100 text-yellow-800 border-yellow-300 hover:bg-yellow-200';
+                                default:
+                                  return 'bg-gray-100 text-gray-800 border-gray-300 hover:bg-gray-200';
+                              }
+                            };
+                            
+                            const getTypeLabel = (type: string) => {
+                              switch (type) {
+                                case 'flow-diagram':
+                                  return '🌊 Flow';
+                                case 'drag-drop':
+                                  return '🔀 Drag-Drop';
+                                case 'multiple-choice':
+                                  return '✓ MC';
+                                case 'true-false':
+                                  return '✓✗ T/F';
+                                case 'short-answer':
+                                  return '✍️ Short';
+                                default:
+                                  return type;
+                              }
+                            };
+
+                            return (
+                              <button
+                                key={lessonIndex}
+                                onClick={() => onJumpToLesson(moduleIndex, lessonIndex)}
+                                className={`px-3 py-2 text-xs font-medium rounded-lg border transition-all cursor-pointer ${getTypeColor(questionType)}`}
+                                title={`${lesson.data.title} - Click to jump to this lesson`}
+                              >
+                                <div className="flex flex-col items-start gap-1">
+                                  <span className="font-semibold">{getTypeLabel(questionType)}</span>
+                                  <span className="text-[10px] opacity-80 max-w-[120px] truncate">
+                                    {lesson.data.title}
+                                  </span>
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Full Course JSON */}
+            <div className="p-6 bg-neutral-100 border border-neutral-300 rounded-xl">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-semibold text-neutral-900">Debug: Full Course JSON (Local Only)</h3>
+                <button
+                  onClick={handleCopy}
+                  className="px-3 py-1.5 text-xs font-medium bg-neutral-900 text-white rounded-lg hover:bg-neutral-800 transition-colors flex items-center gap-2"
+                >
+                  {copied ? (
+                    <>
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                      Copied!
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                      </svg>
+                      Copy JSON
+                    </>
+                  )}
+                </button>
+              </div>
+              <pre className="text-xs text-neutral-800 overflow-auto max-h-96 whitespace-pre-wrap break-words">
+                {JSON.stringify(course, null, 2)}
+              </pre>
+            </div>
+          </div>
+        )}
       </div>
 
       <Footer />

@@ -5,6 +5,7 @@ import {
   type TrueFalseLesson,
   type MultipleChoiceLesson,
   type DragDropLesson,
+  type FlowDiagramLesson,
 } from "./types";
 
 export interface ValidationError {
@@ -39,6 +40,8 @@ export function validateLessonStructure(
     errors.push(...validateShortAnswer(lesson));
   } else if (lesson.questionType === QuestionType.DragDrop) {
     errors.push(...validateDragDrop(lesson));
+  } else if (lesson.questionType === QuestionType.FlowDiagram) {
+    errors.push(...validateFlowDiagram(lesson));
   } else {
     errors.push({
       field: "questionType",
@@ -421,6 +424,211 @@ function validateDragDrop(lesson: any): ValidationError[] {
         });
       }
     }
+  }
+
+  return errors;
+}
+
+/**
+ * Validates flow diagram specific fields
+ */
+function validateFlowDiagram(lesson: any): ValidationError[] {
+  const errors: ValidationError[] = [];
+
+  // Must have flowConfig
+  if (!lesson.flowConfig || typeof lesson.flowConfig !== "object") {
+    errors.push({
+      field: "flowConfig",
+      severity: "error",
+      message: "Flow diagram questions must have a flowConfig object",
+    });
+    return errors; // Can't validate further without flowConfig
+  }
+
+  // Validate flowConfig.nodes
+  if (!Array.isArray(lesson.flowConfig.nodes)) {
+    errors.push({
+      field: "flowConfig.nodes",
+      severity: "error",
+      message: "flowConfig must have a nodes array",
+    });
+  } else {
+    if (lesson.flowConfig.nodes.length === 0) {
+      errors.push({
+        field: "flowConfig.nodes",
+        severity: "error",
+        message: "flowConfig must have at least one node",
+      });
+    }
+
+    // Validate each node
+    lesson.flowConfig.nodes.forEach((node: any, index: number) => {
+      if (!node.id || typeof node.id !== "string") {
+        errors.push({
+          field: `flowConfig.nodes[${index}].id`,
+          severity: "error",
+          message: `Node at index ${index} must have an id string`,
+        });
+      }
+      if (!node.label || typeof node.label !== "string") {
+        errors.push({
+          field: `flowConfig.nodes[${index}].label`,
+          severity: "error",
+          message: `Node at index ${index} must have a label string`,
+        });
+      }
+      if (!["start", "process", "output"].includes(node.type)) {
+        errors.push({
+          field: `flowConfig.nodes[${index}].type`,
+          severity: "error",
+          message: `Node at index ${index} has invalid type "${node.type}" (must be "start", "process", or "output")`,
+        });
+      }
+    });
+  }
+
+  // Validate flowConfig.edges
+  if (!Array.isArray(lesson.flowConfig.edges)) {
+    errors.push({
+      field: "flowConfig.edges",
+      severity: "error",
+      message: "flowConfig must have an edges array",
+    });
+  } else {
+    // Validate each edge
+    lesson.flowConfig.edges.forEach((edge: any, index: number) => {
+      if (!Array.isArray(edge) || edge.length !== 2) {
+        errors.push({
+          field: `flowConfig.edges[${index}]`,
+          severity: "error",
+          message: `Edge at index ${index} must be an array of [source, target]`,
+        });
+      } else {
+        const [source, target] = edge;
+        if (typeof source !== "string" || typeof target !== "string") {
+          errors.push({
+            field: `flowConfig.edges[${index}]`,
+            severity: "error",
+            message: `Edge at index ${index} must have string source and target`,
+          });
+        }
+      }
+    });
+  }
+
+  // Must have choices array
+  if (!Array.isArray(lesson.choices)) {
+    errors.push({
+      field: "choices",
+      severity: "error",
+      message: "Flow diagram questions must have a choices array",
+    });
+  } else {
+    // Must have exactly 3 choices
+    if (lesson.choices.length !== 3) {
+      errors.push({
+        field: "choices",
+        severity: "error",
+        message: `Flow diagram must have exactly 3 choices (found ${lesson.choices.length})`,
+      });
+    }
+
+    // All choices must be strings
+    lesson.choices.forEach((choice: any, index: number) => {
+      if (typeof choice !== "string") {
+        errors.push({
+          field: `choices[${index}]`,
+          severity: "error",
+          message: `Choice at index ${index} must be a string, got ${typeof choice}`,
+        });
+      } else if (choice.trim().length === 0) {
+        errors.push({
+          field: `choices[${index}]`,
+          severity: "error",
+          message: `Choice at index ${index} cannot be empty`,
+        });
+      }
+    });
+  }
+
+  // Must have slots array
+  if (!Array.isArray(lesson.slots)) {
+    errors.push({
+      field: "slots",
+      severity: "error",
+      message: "Flow diagram questions must have a slots array",
+    });
+  } else {
+    // Must have exactly 3 slots
+    if (lesson.slots.length !== 3) {
+      errors.push({
+        field: "slots",
+        severity: "error",
+        message: `Flow diagram must have exactly 3 slots (found ${lesson.slots.length})`,
+      });
+    }
+
+    // All slots must be strings
+    lesson.slots.forEach((slot: any, index: number) => {
+      if (typeof slot !== "string") {
+        errors.push({
+          field: `slots[${index}]`,
+          severity: "error",
+          message: `Slot at index ${index} must be a string, got ${typeof slot}`,
+        });
+      } else if (slot.trim().length === 0) {
+        errors.push({
+          field: `slots[${index}]`,
+          severity: "error",
+          message: `Slot at index ${index} cannot be empty`,
+        });
+      }
+    });
+  }
+
+  // Answer must be an array
+  if (!Array.isArray(lesson.answer)) {
+    errors.push({
+      field: "answer",
+      severity: "error",
+      message: `Flow diagram answer must be an array, got ${typeof lesson.answer}`,
+    });
+  } else {
+    // Must have exactly 3 elements
+    if (lesson.answer.length !== 3) {
+      errors.push({
+        field: "answer",
+        severity: "error",
+        message: `Flow diagram answer must have exactly 3 elements (found ${lesson.answer.length})`,
+      });
+    }
+
+    // All answer elements must be valid choice indices
+    lesson.answer.forEach((choiceIndex: any, slotIndex: number) => {
+      if (typeof choiceIndex !== "number") {
+        errors.push({
+          field: `answer[${slotIndex}]`,
+          severity: "error",
+          message: `Answer at slot index ${slotIndex} must be a number (choice index), got ${typeof choiceIndex}`,
+        });
+      } else if (!Number.isInteger(choiceIndex)) {
+        errors.push({
+          field: `answer[${slotIndex}]`,
+          severity: "error",
+          message: `Answer at slot index ${slotIndex} must be an integer, got ${choiceIndex}`,
+        });
+      } else if (lesson.choices && Array.isArray(lesson.choices)) {
+        if (choiceIndex < 0 || choiceIndex >= lesson.choices.length) {
+          errors.push({
+            field: `answer[${slotIndex}]`,
+            severity: "error",
+            message: `Answer at slot index ${slotIndex} references invalid choice index ${choiceIndex} (must be 0-${
+              lesson.choices.length - 1
+            })`,
+          });
+        }
+      }
+    });
   }
 
   return errors;

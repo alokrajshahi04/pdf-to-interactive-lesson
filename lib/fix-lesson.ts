@@ -99,6 +99,16 @@ ${
     ? `Choices: ${JSON.stringify(originalLesson.choices)}`
     : ""
 }
+${
+  originalLesson.slots
+    ? `Slots: ${JSON.stringify(originalLesson.slots)}`
+    : ""
+}
+${
+  originalLesson.flowConfig
+    ? `Flow Config: ${JSON.stringify(originalLesson.flowConfig, null, 2)}`
+    : ""
+}
 
 Source Material:
 ${content}
@@ -112,7 +122,30 @@ Please generate a CORRECTED lesson that addresses all the validation issues. The
 
 Respond ONLY with XML in this exact format:
 
-<lesson title="Lesson Title" questionType="${
+${
+  originalLesson.questionType === QuestionType.FlowDiagram
+    ? `<flowLesson title="Lesson Title" questionType="flow-diagram">
+  <content>Detailed educational content here (2-3 sentences minimum)</content>
+  <info>Key takeaway or summary (1 sentence)</info>
+  <question>Put the following steps in the correct order</question>
+  <answer>0,1,2</answer>
+  <choices>
+    <choice>First step from flow</choice>
+    <choice>Second step from flow</choice>
+    <choice>Third step from flow</choice>
+  </choices>
+  <slots>
+    <slot>First</slot>
+    <slot>Second</slot>
+    <slot>Third</slot>
+  </slots>
+  <flowConfig>
+${originalLesson.flowConfig ? JSON.stringify(originalLesson.flowConfig, null, 4) : '    <!-- Keep the existing flow config -->'}
+  </flowConfig>
+</flowLesson>
+
+Note: Keep the existing flowConfig structure. Only fix the content, question, choices (must be 3 node labels from the flow), slots (must be exactly "First", "Second", "Third"), and answer (must be exactly 3 comma-separated indices).`
+    : `<lesson title="Lesson Title" questionType="${
           originalLesson.questionType || QuestionType.ShortAnswer
         }">
   <content>Detailed educational content here (2-3 sentences minimum)</content>
@@ -148,23 +181,27 @@ Respond ONLY with XML in this exact format:
       ? "0,1,2"
       : "Your answer here"
   }</answer>
-</lesson>
+</lesson>`
+}
 
 Valid questionType values: ${Object.values(QuestionType).join(", ")}
 For numeric/quantitative questions, you can use numbers as choices (e.g., <choice>256</choice>).
 For multiple-choice questions, the answer must be the INDEX (0, 1, 2, or 3) of the correct choice.
-For drag-drop questions, must have exactly 3 choices and 3 slots, answer format is "0,1,2" (comma-separated choice indices for each slot).`,
+For drag-drop questions, must have exactly 3 choices and 3 slots, answer format is "0,1,2" (comma-separated choice indices for each slot).
+For flow-diagram questions, must have exactly 3 choices (node labels from the flow), 3 slots (First, Second, Third), and answer format is "0,1,2" (comma-separated indices).`,
       });
 
       const generationTime = ((Date.now() - attemptStartTime) / 1000).toFixed(2);
       console.log(`     ✅ LLM response received (${generationTime}s), parsing...`);
 
-      // Extract and parse the XML
-      const xmlText = extractXml(result.text, "lesson");
+      // Extract and parse the XML (handle both lesson and flowLesson tags)
+      const isFlowLesson = originalLesson.questionType === QuestionType.FlowDiagram;
+      const xmlTag = isFlowLesson ? "flowLesson" : "lesson";
+      const xmlText = extractXml(result.text, xmlTag);
       const parser = createXMLParser(["choice", "slot"]);
       const parsed = parser.parse(xmlText);
 
-      let fixedLesson = parsed.lesson;
+      let fixedLesson = isFlowLesson ? parsed.flowLesson : parsed.lesson;
       console.log(`     ✅ Parsed fixed lesson: "${fixedLesson.title || 'Untitled'}"`);
 
       // Post-process: flatten choices and convert answer types
@@ -192,12 +229,42 @@ For drag-drop questions, must have exactly 3 choices and 3 slots, answer format 
       } else if (fixedLesson.questionType === QuestionType.TrueFalse) {
         fixedLesson.answer =
           fixedLesson.answer === "true" || fixedLesson.answer === true;
-      } else if (fixedLesson.questionType === QuestionType.DragDrop) {
+      } else if (fixedLesson.questionType === QuestionType.DragDrop || fixedLesson.questionType === QuestionType.FlowDiagram) {
         // Parse comma-separated string to array of numbers
         if (typeof fixedLesson.answer === "string") {
           fixedLesson.answer = fixedLesson.answer.split(",").map((val: string) => parseInt(val.trim(), 10));
         } else if (Array.isArray(fixedLesson.answer)) {
           fixedLesson.answer = fixedLesson.answer.map((val: any) => parseInt(val, 10));
+        }
+
+        // For flow-diagram, parse flowConfig from JSON string if needed
+        if (fixedLesson.questionType === QuestionType.FlowDiagram) {
+          if (typeof fixedLesson.flowConfig === "string") {
+            try {
+              fixedLesson.flowConfig = JSON.parse(fixedLesson.flowConfig);
+            } catch (parseError) {
+              console.error(`     ❌ Failed to parse flowConfig JSON:`, parseError);
+              // If parsing fails, keep the original flowConfig
+              fixedLesson.flowConfig = originalLesson.flowConfig;
+            }
+          } else if (!fixedLesson.flowConfig) {
+            // If no flowConfig in response, use the original
+            fixedLesson.flowConfig = originalLesson.flowConfig;
+          }
+
+          // Truncate to exactly 3 items if needed
+          if (fixedLesson.choices && fixedLesson.choices.length > 3) {
+            console.log(`     ⚠️  Truncating choices from ${fixedLesson.choices.length} to 3`);
+            fixedLesson.choices = fixedLesson.choices.slice(0, 3);
+          }
+          if (fixedLesson.slots && fixedLesson.slots.length > 3) {
+            console.log(`     ⚠️  Truncating slots from ${fixedLesson.slots.length} to 3`);
+            fixedLesson.slots = fixedLesson.slots.slice(0, 3);
+          }
+          if (fixedLesson.answer && fixedLesson.answer.length > 3) {
+            console.log(`     ⚠️  Truncating answer from ${fixedLesson.answer.length} to 3`);
+            fixedLesson.answer = fixedLesson.answer.slice(0, 3);
+          }
         }
       }
 

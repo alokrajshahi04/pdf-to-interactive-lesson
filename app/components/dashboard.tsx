@@ -20,6 +20,56 @@ interface DashboardProps {
   onCourseGenerated?: (course: Course) => void;
 }
 
+interface QuestionTypeCount {
+  "multiple-choice": number;
+  "true-false": number;
+  "short-answer": number;
+  "drag-drop": number;
+  "flow-diagram": number;
+}
+
+function getQuestionTypeCounts(course: Course): QuestionTypeCount {
+  const counts: QuestionTypeCount = {
+    "multiple-choice": 0,
+    "true-false": 0,
+    "short-answer": 0,
+    "drag-drop": 0,
+    "flow-diagram": 0,
+  };
+
+  course.modules.forEach((module) => {
+    module.lessons.forEach((lesson) => {
+      if (lesson.success && lesson.data.questionType) {
+        counts[lesson.data.questionType]++;
+      }
+    });
+  });
+
+  return counts;
+}
+
+function formatQuestionTypeCounts(counts: QuestionTypeCount): string {
+  const parts: string[] = [];
+  
+  if (counts["multiple-choice"] > 0) {
+    parts.push(`${counts["multiple-choice"]} multiple choice`);
+  }
+  if (counts["true-false"] > 0) {
+    parts.push(`${counts["true-false"]} true/false`);
+  }
+  if (counts["short-answer"] > 0) {
+    parts.push(`${counts["short-answer"]} short answer`);
+  }
+  if (counts["drag-drop"] > 0) {
+    parts.push(`${counts["drag-drop"]} drag-drop`);
+  }
+  if (counts["flow-diagram"] > 0) {
+    parts.push(`${counts["flow-diagram"]} flow diagram`);
+  }
+
+  return parts.join(", ");
+}
+
 function Dashboard({ onSelectCourse, onCourseGenerated }: DashboardProps) {
   const [courses, setCourses] = useState<StoredCourse[]>([]);
   const [isDragging, setIsDragging] = useState(false);
@@ -259,6 +309,8 @@ function Dashboard({ onSelectCourse, onCourseGenerated }: DashboardProps) {
                 const completion = getCompletionPercentage(stored);
                 const isComplete = completion === 100;
                 const { currentModuleIndex, totalModules } = stored.progress;
+                const questionCounts = getQuestionTypeCounts(stored.course);
+                const questionCountsText = formatQuestionTypeCounts(questionCounts);
 
                 return (
                   <div
@@ -335,6 +387,13 @@ function Dashboard({ onSelectCourse, onCourseGenerated }: DashboardProps) {
                         </>
                       )}
                     </p>
+
+                    {/* Question Types */}
+                    {questionCountsText && (
+                      <p className="text-xs text-neutral-500 mt-2">
+                        {questionCountsText}
+                      </p>
+                    )}
 
                     {/* Timestamp */}
                     <p className="text-xs text-neutral-400 mt-3">
@@ -367,6 +426,8 @@ function Dashboard({ onSelectCourse, onCourseGenerated }: DashboardProps) {
                 const completion = getCompletionPercentage(stored);
                 const isComplete = completion === 100;
                 const { currentModuleIndex, totalModules } = stored.progress;
+                const questionCounts = getQuestionTypeCounts(stored.course);
+                const questionCountsText = formatQuestionTypeCounts(questionCounts);
 
                 return (
                   <div
@@ -443,6 +504,13 @@ function Dashboard({ onSelectCourse, onCourseGenerated }: DashboardProps) {
                         </>
                       )}
                     </p>
+
+                    {/* Question Types */}
+                    {questionCountsText && (
+                      <p className="text-xs text-neutral-500 mt-2">
+                        {questionCountsText}
+                      </p>
+                    )}
 
                     {/* Timestamp */}
                     <p className="text-xs text-neutral-400 mt-3">
