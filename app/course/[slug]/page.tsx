@@ -38,6 +38,11 @@ export default function CoursePage() {
     router.push(`/course/${slug}/module/${moduleIndex}`);
   };
 
+  const handleJumpToLesson = (moduleIndex: number, lessonIndex: number) => {
+    // Jump directly to a specific lesson at the content step
+    router.push(`/course/${slug}/module/${moduleIndex}?step=content&lesson=${lessonIndex}`);
+  };
+
   if (loading) {
     return null;
   }
@@ -63,6 +68,7 @@ export default function CoursePage() {
     <ModulesScreen
       course={course}
       onStartModule={handleStartModule}
+      onJumpToLesson={handleJumpToLesson}
       completedModules={completedModules}
       currentModuleIndex={currentModuleIndex}
     />

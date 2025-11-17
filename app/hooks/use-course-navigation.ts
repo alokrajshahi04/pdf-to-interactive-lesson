@@ -2,8 +2,9 @@ import { useState, useEffect } from "react";
 import { getApiKey } from "@/lib/api-key-storage";
 import { useCredits } from "./use-credits";
 import { debugLog } from "@/lib/utils/debug";
+import type { FlowConfig } from "@/lib/types";
 
-type QuestionType = "short-answer" | "true-false" | "multiple-choice" | "drag-drop";
+type QuestionType = "short-answer" | "true-false" | "multiple-choice" | "drag-drop" | "flow-diagram";
 
 interface GradingResult {
   isCorrect: boolean;
@@ -19,6 +20,7 @@ interface LessonData {
   questionType: QuestionType;
   choices?: string[];
   slots?: string[];
+  flowConfig?: FlowConfig;
   gradingResult?: GradingResult;
 }
 
@@ -404,9 +406,9 @@ export function useCourseNavigation(
           setIsGrading(false);
           debugLog.log("[GRADING] Grading process completed");
         }
-      } else if (data.questionType === "drag-drop") {
-        // For drag-drop, check arrays match exactly
-        debugLog.log("[NAVIGATION] Processing drag-drop question", {
+      } else if (data.questionType === "drag-drop" || data.questionType === "flow-diagram") {
+        // For drag-drop and flow-diagram, check arrays match exactly
+        debugLog.log("[NAVIGATION] Processing drag-drop/flow question", {
           questionType: data.questionType,
           userAnswer,
           correctAnswer: data.answer,
@@ -531,8 +533,8 @@ export function useCourseNavigation(
     if (step === "question" && !showResult) {
       if (isGrading) return false;
       
-      // For drag-drop, check that all 3 slots are filled
-      if (currentLesson?.data?.questionType === "drag-drop") {
+      // For drag-drop and flow-diagram, check that all 3 slots are filled
+      if (currentLesson?.data?.questionType === "drag-drop" || currentLesson?.data?.questionType === "flow-diagram") {
         if (Array.isArray(userAnswer)) {
           return userAnswer.length === 3 && userAnswer.every((val) => val !== -1 && val !== null && val !== undefined);
         }

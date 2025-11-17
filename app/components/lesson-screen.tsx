@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { DragDropQuestion } from "./drag-drop-question";
+import { FlowDiagram } from "./flow-diagram";
+import type { FlowConfig } from "@/lib/types";
 
-type QuestionType = "short-answer" | "true-false" | "multiple-choice" | "drag-drop";
+type QuestionType = "short-answer" | "true-false" | "multiple-choice" | "drag-drop" | "flow-diagram";
 
 interface GradingResult {
   isCorrect: boolean;
@@ -19,6 +21,7 @@ interface LessonData {
   questionType: QuestionType;
   choices?: string[];
   slots?: string[];
+  flowConfig?: FlowConfig;
   gradingResult?: GradingResult;
 }
 
@@ -69,10 +72,18 @@ function LessonScreen({
 }: LessonScreenProps) {
   const hasPlayedInitialAnimation = useRef(false);
   const shouldAnimateOnLoad = !hasPlayedInitialAnimation.current;
+  const [showFlowHint, setShowFlowHint] = useState(false);
 
   useEffect(() => {
     hasPlayedInitialAnimation.current = true;
   }, []);
+
+  // Reset flow hint when step changes
+  useEffect(() => {
+    if (step !== "question") {
+      setShowFlowHint(false);
+    }
+  }, [step]);
 
   const animateClass = (condition = true) =>
     shouldAnimateOnLoad && condition ? "animate-fadeInUp" : "";
@@ -112,6 +123,26 @@ function LessonScreen({
           >
             <p className="text-neutral-800 leading-relaxed">{lessonData.info}</p>
           </div>
+
+          {/* Show Flow Diagram for flow-diagram questions */}
+          {lessonData.questionType === "flow-diagram" && lessonData.flowConfig && (
+            <div
+              className={`bg-blue-50 border-2 border-blue-200 rounded-xl p-6 ${animateClass()}`}
+              style={{ animationDelay: "0.3s" }}
+            >
+              <div className="flex items-center gap-2 mb-4">
+                <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <h3 className="text-sm font-semibold text-blue-900">
+                  Study this process flow carefully — you'll be tested on the sequence!
+                </h3>
+              </div>
+              <div style={{ height: '500px', minHeight: '500px' }}>
+                <FlowDiagram config={lessonData.flowConfig} />
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -303,6 +334,67 @@ function LessonScreen({
                   />
                 </div>
               )}
+
+            {/* Flow Diagram */}
+            {lessonData.questionType === "flow-diagram" &&
+              lessonData.flowConfig &&
+              lessonData.choices &&
+              lessonData.slots && (
+                <div
+                  className={animateClass(!showResult)}
+                  style={!showResult ? { animationDelay: "0.4s" } : {}}
+                >
+                  {/* Flow Visualization Hint */}
+                  {!showResult && !showFlowHint && (
+                    <div className="mb-6">
+                      <button
+                        onClick={() => setShowFlowHint(true)}
+                        className="px-4 py-2 bg-blue-50 text-blue-700 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors text-sm font-medium flex items-center gap-2"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        Show Flow Diagram (Hint)
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Flow Visualization (shown as hint or after answer) */}
+                  {(showFlowHint || showResult) && (
+                    <div className="mb-8 bg-neutral-50 border-2 border-neutral-200 rounded-xl p-6">
+                      <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-sm font-semibold text-neutral-700">
+                          Process Flow:
+                        </h3>
+                        {!showResult && showFlowHint && (
+                          <button
+                            onClick={() => setShowFlowHint(false)}
+                            className="text-xs text-neutral-500 hover:text-neutral-700 flex items-center gap-1"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                            Hide
+                          </button>
+                        )}
+                      </div>
+                      <div style={{ height: '500px', minHeight: '500px' }}>
+                        <FlowDiagram config={lessonData.flowConfig} />
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Drag-Drop Question */}
+                  <DragDropQuestion
+                    choices={lessonData.choices}
+                    slots={lessonData.slots}
+                    correctAnswer={lessonData.answer as number[]}
+                    userAnswer={(userAnswer as number[]) || null}
+                    showResult={showResult}
+                    onAnswerChange={onAnswerChange}
+                  />
+                </div>
+              )}
           </div>
         </div>
       )}
@@ -350,6 +442,18 @@ function LessonScreen({
           {isGrading ? "Grading..." : getButtonText()}
         </button>
       </div>
+
+      {/* Debug Info (Local Development Only) */}
+      {process.env.NODE_ENV === 'development' && lessonData && step !== "module-intro" && (
+        <div className="mt-12 p-6 bg-neutral-100 border border-neutral-300 rounded-xl">
+          <h3 className="text-sm font-semibold text-neutral-900 mb-3">
+            Debug: Lesson JSON (Local Only)
+          </h3>
+          <pre className="text-xs text-neutral-800 overflow-auto max-h-96 whitespace-pre-wrap break-words">
+            {JSON.stringify(lessonData, null, 2)}
+          </pre>
+        </div>
+      )}
 
       <style jsx>{`
         @keyframes fadeInUp {

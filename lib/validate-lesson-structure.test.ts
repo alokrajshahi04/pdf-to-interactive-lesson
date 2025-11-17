@@ -181,10 +181,136 @@ function runTests() {
     })
   );
 
-  // Test 11: Validate multiple lessons
+  // Test 11: Valid Flow Diagram Lesson
+  printResult(
+    "Test 11: Valid Flow Diagram Lesson",
+    validateLessonStructure({
+      title: "Photosynthesis Flow",
+      content: "Photosynthesis converts light energy to chemical energy.",
+      info: "This process occurs in chloroplasts.",
+      question: "Put the following steps in the correct order",
+      answer: [0, 2, 1],
+      choices: ["Light Capture", "Water Splitting", "Electron Transport"],
+      slots: ["First", "Second", "Third"],
+      flowConfig: {
+        nodes: [
+          { id: "n1", label: "Light Capture", type: "start" },
+          { id: "n2", label: "Water Splitting", type: "process" },
+          { id: "n3", label: "Electron Transport", type: "output" },
+        ],
+        edges: [
+          ["n1", "n2"],
+          ["n2", "n3"],
+        ],
+      },
+      questionType: QuestionType.FlowDiagram,
+    })
+  );
+
+  // Test 12: Invalid - Flow diagram missing flowConfig
+  printResult(
+    "Test 12: Flow diagram missing flowConfig",
+    validateLessonStructure({
+      title: "Test",
+      content: "Test content",
+      info: "Test info",
+      question: "Test question?",
+      answer: [0, 1, 2],
+      choices: ["A", "B", "C"],
+      slots: ["First", "Second", "Third"],
+      questionType: QuestionType.FlowDiagram,
+    })
+  );
+
+  // Test 13: Invalid - Flow diagram with wrong number of choices
+  printResult(
+    "Test 13: Flow diagram with 4 choices (should be 3)",
+    validateLessonStructure({
+      title: "Test",
+      content: "Test content",
+      info: "Test info",
+      question: "Test question?",
+      answer: [0, 1, 2],
+      choices: ["A", "B", "C", "D"], // Should be 3!
+      slots: ["First", "Second", "Third"],
+      flowConfig: {
+        nodes: [
+          { id: "n1", label: "Step 1", type: "start" },
+          { id: "n2", label: "Step 2", type: "process" },
+        ],
+        edges: [["n1", "n2"]],
+      },
+      questionType: QuestionType.FlowDiagram,
+    })
+  );
+
+  // Test 14: Invalid - Flow diagram with invalid answer indices
+  printResult(
+    "Test 14: Flow diagram with invalid answer indices",
+    validateLessonStructure({
+      title: "Test",
+      content: "Test content",
+      info: "Test info",
+      question: "Test question?",
+      answer: [0, 5, 1], // 5 is out of range!
+      choices: ["A", "B", "C"],
+      slots: ["First", "Second", "Third"],
+      flowConfig: {
+        nodes: [
+          { id: "n1", label: "Step 1", type: "start" },
+          { id: "n2", label: "Step 2", type: "process" },
+        ],
+        edges: [["n1", "n2"]],
+      },
+      questionType: QuestionType.FlowDiagram,
+    })
+  );
+
+  // Test 15: Invalid - Flow diagram with invalid node type
+  printResult(
+    "Test 15: Flow diagram with invalid node type",
+    validateLessonStructure({
+      title: "Test",
+      content: "Test content",
+      info: "Test info",
+      question: "Test question?",
+      answer: [0, 1, 2],
+      choices: ["A", "B", "C"],
+      slots: ["First", "Second", "Third"],
+      flowConfig: {
+        nodes: [
+          { id: "n1", label: "Step 1", type: "invalid" }, // Invalid type!
+          { id: "n2", label: "Step 2", type: "process" },
+        ],
+        edges: [["n1", "n2"]],
+      },
+      questionType: QuestionType.FlowDiagram,
+    })
+  );
+
+  // Test 16: Invalid - Flow diagram with empty nodes
+  printResult(
+    "Test 16: Flow diagram with empty nodes array",
+    validateLessonStructure({
+      title: "Test",
+      content: "Test content",
+      info: "Test info",
+      question: "Test question?",
+      answer: [0, 1, 2],
+      choices: ["A", "B", "C"],
+      slots: ["First", "Second", "Third"],
+      flowConfig: {
+        nodes: [], // Empty!
+        edges: [],
+      },
+      questionType: QuestionType.FlowDiagram,
+    })
+  );
+
+  // Test 17: Validate multiple lessons including flow diagram
   console.log("\n" + "=".repeat(60));
   printResult(
-    "Test 11: Validate multiple lessons",
+    "Test 17: Validate multiple lessons (including flow diagram)",
     validateLessonsStructure([
       {
         title: "Lesson 1",
@@ -202,6 +328,24 @@ function runTests() {
         answer: 5, // Out of range!
         choices: ["A", "B", "C"],
         questionType: QuestionType.MultipleChoice,
+      },
+      {
+        title: "Lesson 3 - Flow",
+        content: "Content 3",
+        info: "Info 3",
+        question: "Order these steps",
+        answer: [0, 1, 2],
+        choices: ["Step A", "Step B", "Step C"],
+        slots: ["First", "Second", "Third"],
+        flowConfig: {
+          nodes: [
+            { id: "a", label: "Step A", type: "start" },
+            { id: "b", label: "Step B", type: "process" },
+            { id: "c", label: "Step C", type: "output" },
+          ],
+          edges: [["a", "b"], ["b", "c"]],
+        },
+        questionType: QuestionType.FlowDiagram,
       },
     ])
   );

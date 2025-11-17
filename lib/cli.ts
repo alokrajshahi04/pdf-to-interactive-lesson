@@ -1,8 +1,10 @@
-import { readFile, writeFile, unlink } from "fs/promises";
+import { readFile, writeFile, unlink, mkdir } from "fs/promises";
 import { existsSync } from "fs";
+import { dirname, basename, join } from "path";
 import axios from "axios";
 import { ocr } from "./ocr";
 import { createModules, createCourse } from "./create-course";
+import { generateSlug } from "./utils/slug";
 
 /**
  * CLI for generating course modules and lessons from PDFs or markdown
@@ -22,10 +24,15 @@ import { createModules, createCourse } from "./create-course";
  *   --no-retry                 Disable automatic retry/fix of failed lessons
  *   --max-retries <num>        Maximum retry attempts (default: 3)
  *   --runs <num>               Number of times to run generation (for testing, default: 1)
- *   --output <path>            Save output to JSON file (default: lessons.json)
+ *   --output <path>            Save output to JSON file (default: data/{slug}-{timestamp}.json)
+ *   --save-text <path>         Save OCR'd text to file (for PDFs only)
+ *   --save-text-auto           Auto-save OCR'd text next to PDF as .md file
  *
  * Examples:
  *   pnpm tsx lib/cli.ts generate-course data/document.pdf
+ *   pnpm tsx lib/cli.ts generate-course data/document.pdf --save-text-auto
+ *   pnpm tsx lib/cli.ts generate-course data/document.pdf --save-text output/extracted.md
+ *   pnpm tsx lib/cli.ts generate-course output/extracted.md  (reuse saved text)
  *   pnpm tsx lib/cli.ts generate-course data/document.pdf --no-validate
  *   pnpm tsx lib/cli.ts generate-course data/document.pdf --no-retry
  *   pnpm tsx lib/cli.ts generate-course data/document.pdf --max-retries 5
@@ -33,7 +40,7 @@ import { createModules, createCourse } from "./create-course";
  *   pnpm tsx lib/cli.ts generate-modules https://example.com/doc.pdf
  *   pnpm tsx lib/cli.ts generate-course output/document.md --output course.json
  *
- * Note: Output is automatically saved to lessons.json (or specified path)
+ * Note: Output is automatically saved to data/{slug}-{timestamp}.json (or specified path)
  */
 
 interface CliArgs {
@@ -45,6 +52,8 @@ interface CliArgs {
   maxRetries: number;
   runs: number; // Number of times to run generation (for testing)
   output?: string;
+  saveText?: string; // Path to save OCR'd text
+  saveTextAuto: boolean; // Auto-save to output/{filename}.md
 }
 
 // Download file from URL to temp location
@@ -104,6 +113,8 @@ function parseArgs(): CliArgs {
   let maxRetries = 3; // Default: 3
   let runs = 1; // Default: 1
   let output: string | undefined;
+  let saveText: string | undefined;
+  let saveTextAuto = false; // Default: OFF
 
   // Parse flags
   for (let i = 2; i < args.length; i++) {
@@ -125,6 +136,11 @@ function parseArgs(): CliArgs {
     } else if (args[i] === "--output") {
       output = args[i + 1];
       i++; // Skip next arg
+    } else if (args[i] === "--save-text") {
+      saveText = args[i + 1];
+      i++; // Skip next arg
+    } else if (args[i] === "--save-text-auto") {
+      saveTextAuto = true;
     }
   }
 
@@ -137,6 +153,8 @@ function parseArgs(): CliArgs {
     maxRetries,
     runs,
     output,
+    saveText,
+    saveTextAuto,
   };
 }
 
@@ -157,16 +175,22 @@ Options:
   --no-retry                 Disable automatic retry/fix of failed lessons
   --max-retries <num>        Maximum retry attempts (default: 3)
   --runs <num>               Number of times to run generation (for testing, default: 1)
-  --output <path>            Save output to JSON file (default: lessons.json)
+  --output <path>            Save output to JSON file (default: data/{slug}-{timestamp}.json)
+  --save-text <path>         Save OCR'd text to file (for PDFs only)
+  --save-text-auto           Auto-save OCR'd text next to PDF as .md file
 
 Notes:
   - Validation and retry are ENABLED by default
   - Failed lessons are automatically retried up to 3 times
-  - Output is automatically saved to lessons.json (or specified path)
+  - Output is automatically saved to data/{slug}-{timestamp}.json (or specified path)
   - Use --runs for testing reliability and collecting error statistics
+  - Use --save-text-auto to cache OCR results next to the PDF and speed up future runs
 
 Examples:
   pnpm tsx lib/cli.ts generate-course data/document.pdf
+  pnpm tsx lib/cli.ts generate-course data/document.pdf --save-text-auto
+  pnpm tsx lib/cli.ts generate-course data/document.pdf --save-text output/extracted.md
+  pnpm tsx lib/cli.ts generate-course output/extracted.md  (reuse saved text)
   pnpm tsx lib/cli.ts generate-course data/document.pdf --no-validate
   pnpm tsx lib/cli.ts generate-course data/document.pdf --no-retry
   pnpm tsx lib/cli.ts generate-course data/document.pdf --max-retries 5
@@ -177,7 +201,10 @@ Examples:
 }
 
 // Extract text content from PDF or markdown
-async function extractContent(filePath: string): Promise<string> {
+async function extractContent(
+  filePath: string,
+  saveTextPath?: string
+): Promise<string> {
   if (filePath.endsWith(".pdf")) {
     console.log("🔍 Running OCR on PDF...");
     const startTime = Date.now();
@@ -192,17 +219,27 @@ async function extractContent(filePath: string): Promise<string> {
     console.log(`✅ OCR completed in ${elapsed}s`);
     console.log(`   Pages: ${result.pages.length}`);
     console.log(
-      `   Tokens: ${result.inputTokens.toLocaleString()} in / ${result.outputTokens.toLocaleString()} out\n`
+      `   Tokens: ${result.inputTokens.toLocaleString()} in / ${result.outputTokens.toLocaleString()} out`
     );
 
-    return result.pages.map((p) => p.content).join("\n\n");
-  } else if (filePath.endsWith(".md")) {
-    console.log("📖 Reading markdown file...");
+    const content = result.pages.map((p) => p.content).join("\n\n");
+
+    // Save text if requested
+    if (saveTextPath) {
+      await writeFile(saveTextPath, content, "utf-8");
+      console.log(`💾 Saved OCR'd text to: ${saveTextPath}\n`);
+    } else {
+      console.log("");
+    }
+
+    return content;
+  } else if (filePath.endsWith(".md") || filePath.endsWith(".txt")) {
+    console.log("📖 Reading text file...");
     const content = await readFile(filePath, "utf-8");
     console.log(`✅ Loaded ${content.length} characters\n`);
     return content;
   } else {
-    throw new Error("File must be .pdf or .md");
+    throw new Error("File must be .pdf, .md, or .txt");
   }
 }
 
@@ -235,8 +272,19 @@ async function main() {
       `   Content:   ${args.validateContent ? "✅ ENABLED" : "❌ DISABLED"}\n`
     );
 
+    // Determine save text path
+    let saveTextPath: string | undefined;
+    if (filePath.endsWith(".pdf")) {
+      if (args.saveText) {
+        saveTextPath = args.saveText;
+      } else if (args.saveTextAuto) {
+        // Auto-generate path: same directory as PDF with .md extension
+        saveTextPath = filePath.replace(".pdf", ".md");
+      }
+    }
+
     // Extract content
-    const content = await extractContent(filePath);
+    const content = await extractContent(filePath, saveTextPath);
 
     // Execute command (single or multiple runs)
     let result: any;
@@ -256,8 +304,20 @@ async function main() {
       }
     }
 
-    // Save to file if output path provided, or default to lessons.json
-    const outputPath = args.output || "lessons.json";
+    // Save to file if output path provided, or generate default path in data/
+    let outputPath = args.output;
+    if (!outputPath) {
+      // Generate slug from course title + timestamp
+      const courseTitle = result.title || "course";
+      const timestamp = Date.now().toString();
+      const slug = generateSlug(courseTitle, timestamp);
+      const isoTimestamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+      outputPath = join("data", `${slug}-${isoTimestamp}.json`);
+      
+      // Ensure data directory exists
+      await mkdir("data", { recursive: true });
+    }
+    
     await writeFile(outputPath, JSON.stringify(result, null, 2));
     console.log(`\n💾 Output saved to: ${outputPath}`);
 
@@ -429,7 +489,7 @@ async function runGenerateModules(content: string) {
  */
 async function runGenerateCourse(content: string, args: CliArgs) {
   console.log("🤖 Generating course modules...\n");
-  let startTime = Date.now();
+  const startTime = Date.now();
 
   // Call the business logic from create-course.ts
   const course = await createCourse({
