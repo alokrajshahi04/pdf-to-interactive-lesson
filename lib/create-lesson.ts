@@ -821,10 +821,10 @@ ${content}`,
       return null;
     }
 
-    // Validate answer indices are within valid range (0-2)
-    const invalidIndices = answer.filter(idx => idx < 0 || idx > 2);
+    // Validate answer indices are valid integers within valid range (0-2)
+    const invalidIndices = answer.filter(idx => !Number.isInteger(idx) || idx < 0 || idx > 2);
     if (invalidIndices.length > 0) {
-      console.error(`  ❌ Invalid answer indices: ${invalidIndices.join(", ")} (must be 0-2)`);
+      console.error(`  ❌ Invalid answer indices: ${invalidIndices.join(", ")} (must be integers 0-2)`);
       return null;
     }
 
