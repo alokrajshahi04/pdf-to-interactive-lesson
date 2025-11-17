@@ -308,33 +308,31 @@ export function GeneratingPageContent() {
         <div className="max-w-2xl w-full px-8 flex-1 flex flex-col items-center justify-center pb-64 relative z-10">
           <div className="flex flex-col items-center justify-center">
             {error ? (
-              <div className="w-full">
-                <div className="flex items-start gap-3 mb-6">
-                  <svg
-                    className="w-6 h-6 text-red-600 flex-shrink-0 mt-0.5"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                    />
-                  </svg>
-                  <div className="flex-1">
-                    <h2 className="text-red-800 font-semibold text-lg mb-2">Error</h2>
-                    <p className="text-red-700 text-sm leading-relaxed mb-4">{error}</p>
+              <div className="w-full max-w-xl">
+                <div className="bg-red-50 border border-red-200 rounded-2xl p-8 mb-8">
+                  <div className="flex items-start gap-4 mb-6">
+                    <div className="flex-shrink-0">
+                      <svg
+                        className="w-10 h-10 text-red-600"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                        />
+                      </svg>
+                    </div>
+                    <div className="flex-1 pt-2">
+                      <h2 className="text-red-900 font-bold text-2xl mb-3">Failed to generate course</h2>
+                      <p className="text-red-800 text-base leading-relaxed">{error}</p>
+                    </div>
                   </div>
                 </div>
-                <div className="flex gap-3">
-                  <Link
-                    href="/courses"
-                    className="px-6 py-3 bg-neutral-900 text-white rounded-full font-medium hover:bg-neutral-800 transition-colors"
-                  >
-                    Back to Courses
-                  </Link>
+                <div className="flex gap-3 justify-center">
                   <button
                     onClick={() => {
                       setError(null);
@@ -342,10 +340,16 @@ export function GeneratingPageContent() {
                       hasStarted.current = false;
                       router.push("/courses");
                     }}
-                    className="px-6 py-3 bg-neutral-100 text-neutral-700 rounded-full font-medium hover:bg-neutral-200 transition-colors"
+                    className="px-8 py-3 bg-neutral-900 text-white rounded-full font-medium hover:bg-neutral-800 transition-colors text-sm"
                   >
                     Try Again
                   </button>
+                  <Link
+                    href="/courses"
+                    className="px-8 py-3 bg-neutral-100 text-neutral-700 rounded-full font-medium hover:bg-neutral-200 transition-colors text-sm"
+                  >
+                    Back to Courses
+                  </Link>
                 </div>
               </div>
             ) : (

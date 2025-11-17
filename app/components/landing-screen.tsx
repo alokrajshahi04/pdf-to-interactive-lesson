@@ -296,7 +296,7 @@ function LandingScreen({
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
               onClick={() => !isProcessing && fileInputRef.current?.click()}
-              className={`relative border-2 border-dashed rounded-3xl p-16 transition-all backdrop-blur-sm min-h-[200px] flex items-center justify-center ${
+              className={`relative border-2 border-dashed rounded-3xl p-8 md:p-16 transition-all backdrop-blur-sm min-h-[200px] flex flex-col items-center justify-center ${
                 isDragging
                   ? "border-blue-500 bg-blue-50/80"
                   : isProcessing
@@ -359,8 +359,8 @@ function LandingScreen({
                   </label>
 
                   {error && (
-                    <div className="mt-4 p-4 bg-red-100 border border-red-300 rounded-lg">
-                      <p className="text-red-700 text-sm">{error}</p>
+                    <div className="w-full mt-6 p-4 md:p-5 bg-red-100 border border-red-300 rounded-xl">
+                      <p className="text-red-700 text-sm md:text-base leading-relaxed text-center">{error}</p>
                     </div>
                   )}
                 </>
