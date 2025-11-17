@@ -629,6 +629,18 @@ function validateFlowDiagram(lesson: any): ValidationError[] {
         }
       }
     });
+
+    // Validate all choice indices are used exactly once
+    if (lesson.choices && Array.isArray(lesson.choices) && lesson.answer.length === 3) {
+      const usedChoices = new Set(lesson.answer);
+      if (usedChoices.size !== 3) {
+        errors.push({
+          field: "answer",
+          severity: "error",
+          message: "Each choice must be used exactly once (found duplicates or missing choices)",
+        });
+      }
+    }
   }
 
   return errors;
