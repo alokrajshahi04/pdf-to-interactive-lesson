@@ -489,7 +489,7 @@ async function runGenerateModules(content: string) {
  */
 async function runGenerateCourse(content: string, args: CliArgs) {
   console.log("🤖 Generating course modules...\n");
-  let startTime = Date.now();
+  const startTime = Date.now();
 
   // Call the business logic from create-course.ts
   const course = await createCourse({

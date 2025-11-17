@@ -201,7 +201,7 @@ For flow-diagram questions, must have exactly 3 choices (node labels from the fl
       const parser = createXMLParser(["choice", "slot"]);
       const parsed = parser.parse(xmlText);
 
-      let fixedLesson = isFlowLesson ? parsed.flowLesson : parsed.lesson;
+      const fixedLesson = isFlowLesson ? parsed.flowLesson : parsed.lesson;
       console.log(`     ✅ Parsed fixed lesson: "${fixedLesson.title || 'Untitled'}"`);
 
       // Post-process: flatten choices and convert answer types

@@ -5,7 +5,7 @@
  */
 
 import { fixLesson } from "../lib/fix-lesson";
-import { QuestionType } from "../lib/types";
+import { FlowDiagramLesson, QuestionType } from "../lib/types";
 
 const API_KEY = process.env.TOGETHER_API_KEY;
 
@@ -89,7 +89,7 @@ when encoding each position, enabling parallel processing unlike RNNs.
     failure: failedFlowLesson,
     moduleTitle,
     content,
-    apiKey: API_KEY,
+    apiKey: API_KEY as string,
     maxRetries: 2
   });
 
@@ -103,11 +103,11 @@ when encoding each position, enabling parallel processing unlike RNNs.
     console.log(`Question Type: ${result.lesson.questionType}`);
     console.log(`Content: ${result.lesson.content}`);
     console.log(`Question: ${result.lesson.question}`);
-    console.log(`Choices: ${JSON.stringify(result.lesson.choices)}`);
-    console.log(`Slots: ${JSON.stringify(result.lesson.slots)}`);
-    console.log(`Answer: ${JSON.stringify(result.lesson.answer)}`);
-    console.log(`FlowConfig nodes: ${result.lesson.flowConfig?.nodes.length || 0}`);
-    console.log(`FlowConfig edges: ${result.lesson.flowConfig?.edges.length || 0}`);
+    console.log(`Choices: ${JSON.stringify((result.lesson as FlowDiagramLesson).choices)}`);
+    console.log(`Slots: ${JSON.stringify((result.lesson as FlowDiagramLesson).slots)}`);
+    console.log(`Answer: ${JSON.stringify((result.lesson as FlowDiagramLesson).answer)}`);
+    console.log(`FlowConfig nodes: ${(result.lesson as FlowDiagramLesson).flowConfig?.nodes.length || 0}`);
+    console.log(`FlowConfig edges: ${(result.lesson as FlowDiagramLesson).flowConfig?.edges.length || 0}`);
   } else if (result.failure) {
     console.log("\n❌ Failed to fix lesson:");
     console.log(`Reason: ${result.failure.reason}`);
