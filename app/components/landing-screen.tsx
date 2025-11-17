@@ -3,13 +3,15 @@
 import { useState, useEffect, useRef } from "react";
 import { upload } from "@vercel/blob/client";
 import { getApiKey } from "@/lib/api-key-storage";
-import { getStoredCourses } from "@/lib/storage";
+import { getStoredCourses, saveCourse } from "@/lib/storage";
 import { storePendingFile } from "@/lib/utils/indexed-db-storage";
 import { ApiKeyDialog } from "./api-key-dialog";
 import { Github, Twitter } from "lucide-react";
 import Link from "next/link";
 import { useImageFadeIn } from "../hooks/use-image-fade-in";
 import { Loader } from "@/components/ai-elements/loader";
+import type { Course } from "@/app/hooks/use-course-navigation";
+import demoCourse from "@/lib/demo/transformer-course.json";
 
 interface LandingScreenProps {
   onCourseGenerated: (courseData: any) => void;
@@ -128,6 +130,32 @@ function LandingScreen({
         setPendingFile(null);
         setError(null);
       }
+    }
+  };
+
+  const handleTryDemo = () => {
+    try {
+      setIsProcessing(true);
+      setError(null);
+      setProgress("Loading demo course...");
+      
+      // Save the demo course to localStorage
+      const courseId = saveCourse(demoCourse as Course);
+      
+      // Get the stored course to get its slug
+      const courses = getStoredCourses();
+      const storedCourse = courses.find((c) => c.id === courseId);
+      
+      if (storedCourse && storedCourse.slug) {
+        // Navigate to the course using its slug
+        window.location.href = `/course/${storedCourse.slug}`;
+      } else {
+        throw new Error("Failed to retrieve course details");
+      }
+    } catch (error) {
+      console.error("Failed to load demo:", error);
+      setError("Failed to load demo course. Please try again.");
+      setIsProcessing(false);
     }
   };
 
@@ -358,6 +386,31 @@ function LandingScreen({
                 </>
               )}
             </div>
+            
+            {/* Try Demo Button */}
+            {!isProcessing && (
+              <div className="mt-6 text-center">
+                <button
+                  onClick={handleTryDemo}
+                  className="px-6 py-2.5 bg-white text-neutral-700 rounded-full font-medium hover:bg-neutral-50 transition-colors border border-neutral-300 inline-flex items-center gap-2"
+                >
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M13 10V3L4 14h7v7l9-11h-7z"
+                    />
+                  </svg>
+                  Try Demo Course
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </main>
