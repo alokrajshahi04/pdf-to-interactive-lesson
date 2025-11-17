@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { upload } from "@vercel/blob/client";
 import { getApiKey } from "@/lib/api-key-storage";
 import { getStoredCourses } from "@/lib/storage";
+import { storePendingFile } from "@/lib/utils/indexed-db-storage";
 import { ApiKeyDialog } from "./api-key-dialog";
 import { Github, Twitter } from "lucide-react";
 import Link from "next/link";
@@ -70,38 +71,23 @@ function LandingScreen({
   };
 
   const processFileUpload = async (file: File, apiKey: string) => {
-    setIsProcessing(true);
-    setProgress("Uploading PDF...");
-
     // Check file size as a rough proxy for page count (most PDFs are ~50-200KB per page)
     const estimatedPages = Math.ceil(file.size / (100 * 1024)); // Rough estimate
     if (estimatedPages > 100) {
       setError(
         `This PDF appears to be very large (~${estimatedPages} pages). We currently only support PDFs up to 100 pages. Please upload a shorter document.`
       );
-      setIsProcessing(false);
       return;
     }
 
     try {
-      // Upload to Vercel Blob immediately instead of storing in sessionStorage
-      const blob = await upload(file.name, file, {
-        access: "public",
-        handleUploadUrl: "/api/upload-url",
-      });
-
-      // Store only the blob URL and filename in sessionStorage (much smaller than base64)
-      const fileData = {
-        url: blob.url,
-        name: file.name,
-      };
-      sessionStorage.setItem("pendingPdfUpload", JSON.stringify(fileData));
-      
-      // Redirect to generating page
+      // Store file in IndexedDB (avoids sessionStorage quota limits)
+      await storePendingFile(file);
+      // Redirect immediately to generating page
       window.location.href = "/generating";
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Failed to upload file. Please try again.";
-      setError(errorMessage);
+    } catch (error) {
+      console.error("Failed to store file:", error);
+      setError("Failed to process file. Please try again.");
       setIsProcessing(false);
     }
   };

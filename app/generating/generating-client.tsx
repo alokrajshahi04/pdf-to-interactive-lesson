@@ -7,6 +7,7 @@ import { getApiKey } from "@/lib/api-key-storage";
 import { saveCourse, updateCourseSlug } from "@/lib/storage";
 import { generateSlug, ensureUniqueSlug } from "@/lib/utils/slug";
 import { getStoredCourses } from "@/lib/storage";
+import { getPendingFile } from "@/lib/utils/indexed-db-storage";
 import type { Course } from "@/app/hooks/use-course-navigation";
 import { useCredits } from "../hooks/use-credits";
 import { ApiKeyDialog } from "../components/api-key-dialog";
@@ -32,52 +33,37 @@ export function GeneratingPageContent() {
   useEffect(() => {
     if (hasStarted.current) return;
 
-    // First check for file URL in sessionStorage (immediate redirect from upload)
-    const pendingFileData = sessionStorage.getItem("pendingPdfUpload");
-    if (pendingFileData) {
-      hasStarted.current = true;
-      sessionStorage.removeItem("pendingPdfUpload"); // Clear it immediately
-      
+    const initializeUpload = async () => {
+      // First check for file in IndexedDB (immediate redirect from upload)
       try {
-        const fileData = JSON.parse(pendingFileData);
-        // If it's the new format with URL, use it directly
-        if (fileData.url && fileData.name) {
-          handleGenerateFromUrl(fileData.url, fileData.name, true);
-          return;
-        }
-        // Legacy format: Convert base64 back to File (for backwards compatibility)
-        if (fileData.data) {
-          const byteCharacters = atob(fileData.data.split(",")[1]);
-          const byteNumbers = new Array(byteCharacters.length);
-          for (let i = 0; i < byteCharacters.length; i++) {
-            byteNumbers[i] = byteCharacters.charCodeAt(i);
-          }
-          const byteArray = new Uint8Array(byteNumbers);
-          const file = new File([byteArray], fileData.name, { type: fileData.type });
+        const file = await getPendingFile();
+        if (file) {
+          hasStarted.current = true;
           handleFileUpload(file);
           return;
         }
-        throw new Error("Invalid file data format");
       } catch (error) {
-        console.error("Failed to process pending file:", error);
-        setError("Failed to process file. Please try uploading again.");
+        console.error("Failed to retrieve pending file:", error);
+        setError("Failed to retrieve file. Please try uploading again.");
         setIsProcessing(false);
+        return;
       }
-      return;
-    }
 
-    // Fallback: Get file URL from query params if provided (for direct links)
-    const fileUrl = searchParams.get("url");
-    const fileName = searchParams.get("fileName");
+      // Fallback: Get file URL from query params if provided (for direct links)
+      const fileUrl = searchParams.get("url");
+      const fileName = searchParams.get("fileName");
 
-    if (fileUrl && fileName) {
-      hasStarted.current = true;
-      handleGenerateFromUrl(fileUrl, fileName);
-      return;
-    }
+      if (fileUrl && fileName) {
+        hasStarted.current = true;
+        handleGenerateFromUrl(fileUrl, fileName);
+        return;
+      }
 
-    // No file or URL provided, redirect back to courses
-    router.push("/courses");
+      // No file or URL provided, redirect back to courses
+      router.push("/courses");
+    };
+
+    initializeUpload();
   }, [searchParams, router]);
 
   const handleFileUpload = async (file: File) => {
@@ -243,26 +229,12 @@ export function GeneratingPageContent() {
     }
   };
 
-  const handleApiKeySaved = () => {
-    // Check if there's a pending file URL to process
-    const pendingFileData = sessionStorage.getItem("pendingPdfUpload");
-    if (pendingFileData && !hasStarted.current) {
+  const handleApiKeySaved = async () => {
+    // Check if there's a pending file to upload
+    if (!hasStarted.current) {
       try {
-        const fileData = JSON.parse(pendingFileData);
-        // If it's the new format with URL, use it directly
-        if (fileData.url && fileData.name) {
-          handleGenerateFromUrl(fileData.url, fileData.name, true);
-          return;
-        }
-        // Legacy format: Convert base64 back to File (for backwards compatibility)
-        if (fileData.data) {
-          const byteCharacters = atob(fileData.data.split(",")[1]);
-          const byteNumbers = new Array(byteCharacters.length);
-          for (let i = 0; i < byteCharacters.length; i++) {
-            byteNumbers[i] = byteCharacters.charCodeAt(i);
-          }
-          const byteArray = new Uint8Array(byteNumbers);
-          const file = new File([byteArray], fileData.name, { type: fileData.type });
+        const file = await getPendingFile();
+        if (file) {
           handleFileUpload(file);
         }
       } catch (error) {
