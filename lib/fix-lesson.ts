@@ -180,7 +180,12 @@ Note: Keep the existing flowConfig structure. Only fix the content, question, ch
       : originalLesson.questionType === QuestionType.DragDrop
       ? "0,1,2"
       : "Your answer here"
-  }</answer>
+  }</answer>${
+    originalLesson.questionType === QuestionType.MultipleChoice
+      ? `
+  <explanation>A brief explanation of why the correct answer is right (1-2 sentences)</explanation>`
+      : ""
+  }
 </lesson>`
 }
 

@@ -169,19 +169,24 @@ export function GeneratingPageContent() {
 
         for (const line of lines) {
           if (!line.trim()) continue;
+          
+          let event;
           try {
-            const event = JSON.parse(line);
-            if (event.type === "error") {
-              throw new Error(event.error);
-            } else if (event.type === "complete") {
-              courseData = event.data.course;
-              break;
-            } else if (event.message) {
-              setProgress(event.message);
-            }
+            event = JSON.parse(line);
           } catch (parseError) {
             // Skip invalid JSON lines
+            console.warn("Failed to parse SSE line:", line);
             continue;
+          }
+          
+          // Handle parsed event
+          if (event.type === "error") {
+            throw new Error(event.error || "Unknown error occurred during course generation");
+          } else if (event.type === "complete") {
+            courseData = event.data.course;
+            break;
+          } else if (event.message) {
+            setProgress(event.message);
           }
         }
         if (courseData) break;

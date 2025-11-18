@@ -25,10 +25,14 @@ interface OcrResult {
     page: number;
     content: string;
     contentLength: number;
+    success: boolean;
+    error?: string;
   }>;
   inputTokens: number;
   outputTokens: number;
   completionTime: number;
+  failedPages: number;
+  successfulPages: number;
 }
 
 /**
@@ -62,7 +66,7 @@ async function imageToMarkdown(
     systemPrompt,
     priorPage,
     maintainFormat = false,
-    retries = 3,
+    retries = 5, // Increased from 3 to 5 for better resilience with service interruptions
     pageContext = "page",
   } = options;
 
@@ -107,14 +111,20 @@ RULES:
     ],
   });
 
-  // Retry logic with exponential backoff
+  // Retry logic with exponential backoff + jitter
   let lastError: any;
   
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
-      // Add delay before retry (exponential backoff)
+      // Add delay before retry (exponential backoff with jitter)
       if (attempt > 0) {
-        const delayMs = Math.min(1000 * Math.pow(2, attempt - 1), 10000); // Max 10s
+        // Exponential backoff: 1s, 2s, 4s, 8s, 16s with max 20s
+        const baseDelay = 1000 * Math.pow(2, attempt - 1);
+        const maxDelay = 20000; // Increased from 10s to 20s
+        // Add jitter (±20%) to prevent thundering herd
+        const jitter = 0.8 + Math.random() * 0.4; // Random between 0.8 and 1.2
+        const delayMs = Math.min(Math.floor(baseDelay * jitter), maxDelay);
+        
         console.log(`   ⏳ [${pageContext}] Retry ${attempt}/${retries} after ${delayMs}ms...`);
         await sleep(delayMs);
       }
@@ -366,31 +376,44 @@ export async function ocr(
       const pageContext = `page ${pageNum}/${imageBuffers.length}`;
       console.log(`   📄 Processing ${pageContext}...`);
 
-      const result = await imageToMarkdown(imageBuffer, {
-        apiKey,
-        model,
-        maxTokens,
-        systemPrompt,
-        priorPage: maintainFormat ? priorPageContent : undefined,
-        maintainFormat,
-        pageContext,
-      });
+      try {
+        const result = await imageToMarkdown(imageBuffer, {
+          apiKey,
+          model,
+          maxTokens,
+          systemPrompt,
+          priorPage: maintainFormat ? priorPageContent : undefined,
+          maintainFormat,
+          pageContext,
+        });
 
-      // Update for next page if maintaining format
-      if (maintainFormat) {
-        priorPageContent = result.content;
+        // Update for next page if maintaining format
+        if (maintainFormat) {
+          priorPageContent = result.content;
+        }
+
+        totalInputTokens += result.inputTokens;
+        totalOutputTokens += result.outputTokens;
+
+        console.log(`   ✅ [${pageContext}] Completed (${result.content.length} chars)`);
+
+        return {
+          page: pageNum,
+          content: result.content,
+          contentLength: result.content.length,
+          success: true,
+        };
+      } catch (error: any) {
+        // Log the error but continue with other pages
+        console.error(`   ❌ [${pageContext}] Failed: ${error.message}`);
+        return {
+          page: pageNum,
+          content: `[Page ${pageNum} could not be processed due to API errors]`,
+          contentLength: 0,
+          success: false,
+          error: error.message,
+        };
       }
-
-      totalInputTokens += result.inputTokens;
-      totalOutputTokens += result.outputTokens;
-
-      console.log(`   ✅ [${pageContext}] Completed (${result.content.length} chars)`);
-
-      return {
-        page: pageNum,
-        content: result.content,
-        contentLength: result.content.length,
-      };
     },
     concurrency,
     startDelay,
@@ -405,16 +428,43 @@ export async function ocr(
 
   const completionTime = Date.now() - startTime;
 
-  // Send final completion progress update
-  onProgress?.("ocr-complete", `Extracted text from all ${imageBuffers.length} pages`, {
-    totalPages: imageBuffers.length,
-    completed: imageBuffers.length,
-  });
+  // Check for failed pages
+  const failedPages = pageResults.filter((p: any) => !p.success);
+  const successfulPages = pageResults.filter((p: any) => p.success);
+  
+  if (failedPages.length > 0) {
+    const failedPageNumbers = failedPages.map((p: any) => p.page).join(", ");
+    console.warn(`   ⚠️  ${failedPages.length}/${imageBuffers.length} page(s) failed to process: ${failedPageNumbers}`);
+    
+    // Send warning progress update
+    onProgress?.("ocr-complete", 
+      `Extracted text from ${successfulPages.length}/${imageBuffers.length} pages (${failedPages.length} page(s) failed due to API errors)`, 
+      {
+        totalPages: imageBuffers.length,
+        completed: successfulPages.length,
+        failed: failedPages.length,
+        failedPages: failedPageNumbers,
+      }
+    );
+    
+    // Only throw if ALL pages failed (complete failure)
+    if (failedPages.length === imageBuffers.length) {
+      throw new Error(`Failed to process any pages from PDF. All ${imageBuffers.length} pages failed due to API errors.`);
+    }
+  } else {
+    // All pages successful
+    onProgress?.("ocr-complete", `Extracted text from all ${imageBuffers.length} pages`, {
+      totalPages: imageBuffers.length,
+      completed: imageBuffers.length,
+    });
+  }
 
   return {
     pages: pageResults,
     inputTokens: totalInputTokens,
     outputTokens: totalOutputTokens,
     completionTime,
+    failedPages: failedPages.length,
+    successfulPages: successfulPages.length,
   };
 }

@@ -59,6 +59,7 @@ export interface MultipleChoiceLesson extends LessonBase {
   questionType: QuestionType.MultipleChoice;
   answer: number; // Index of the correct choice (0-based)
   choices: (string | number)[]; // Choices can be strings or numbers
+  explanation?: string; // Optional explanation of why the correct answer is right
 }
 
 export interface DragDropLesson extends LessonBase {

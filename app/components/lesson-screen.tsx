@@ -23,6 +23,7 @@ interface LessonData {
   slots?: string[];
   flowConfig?: FlowConfig;
   gradingResult?: GradingResult;
+  explanation?: string;
 }
 
 interface Lesson {
@@ -210,6 +211,20 @@ function LessonScreen({
                       <span className="text-neutral-800 flex-1">{choice}</span>
                     </button>
                   ))}
+                </div>
+              )}
+
+            {/* Multiple Choice Explanation */}
+            {lessonData.questionType === "multiple-choice" &&
+              showResult &&
+              lessonData.explanation && (
+                <div className="mt-4 p-5 bg-blue-50 border border-blue-200 rounded-xl">
+                  <p className="text-sm font-semibold text-neutral-700 mb-2">
+                    Explanation:
+                  </p>
+                  <p className="text-neutral-800 leading-relaxed">
+                    {lessonData.explanation}
+                  </p>
                 </div>
               )}
 

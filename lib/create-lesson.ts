@@ -1,4 +1,4 @@
-import { generateText } from "ai";
+import { generateText, APICallError, RetryError } from "ai";
 import {
   QuestionType,
   type Module,
@@ -104,6 +104,7 @@ Your response should ONLY contain the XML format following this structure:
       <choice>Third option</choice>
       <choice>Fourth option</choice>
     </choices>
+    <explanation>A brief explanation of why the correct answer is right (1-2 sentences)</explanation>
   </lesson>
 </module>
 
@@ -284,21 +285,59 @@ ${content}`,
 
           console.log(`  🔍 Validating lesson "${lesson.title}"...`);
           const lessonValidationStart = Date.now();
-          const validation = await validateLesson({
-            lesson,
-            moduleTitle: module.title,
-            content,
-            apiKey,
-          });
-          const lessonValidationTime = ((Date.now() - lessonValidationStart) / 1000).toFixed(2);
           
-          if (validation.isValid) {
-            console.log(`  ✅ Lesson "${lesson.title}" passed content validation (${lessonValidationTime}s)`);
-          } else {
-            console.log(`  ❌ Lesson "${lesson.title}" failed content validation (${lessonValidationTime}s)`);
-          }
+          try {
+            const validation = await validateLesson({
+              lesson,
+              moduleTitle: module.title,
+              content,
+              apiKey,
+            });
+            const lessonValidationTime = ((Date.now() - lessonValidationStart) / 1000).toFixed(2);
+            
+            if (validation.isValid) {
+              console.log(`  ✅ Lesson "${lesson.title}" passed content validation (${lessonValidationTime}s)`);
+            } else {
+              console.log(`  ❌ Lesson "${lesson.title}" failed content validation (${lessonValidationTime}s)`);
+            }
 
-          return { index: i, lesson, validation };
+            return { index: i, lesson, validation };
+          } catch (error: any) {
+            const lessonValidationTime = ((Date.now() - lessonValidationStart) / 1000).toFixed(2);
+            
+            // Handle AI SDK errors intelligently
+            if (RetryError.isInstance(error)) {
+              const lastError = error.lastError;
+              if (APICallError.isInstance(lastError) && lastError.isRetryable) {
+                // Temporary service issue (503, 429, etc.) - already exhausted retries
+                console.warn(`  ⚠️  Lesson "${lesson.title}" validation temporarily unavailable (${lessonValidationTime}s) - skipping validation`);
+                console.warn(`     Reason: ${lastError.message} (retries exhausted)`);
+                // Skip validation gracefully
+                return { index: i, lesson, validation: null };
+              }
+            }
+            
+            if (APICallError.isInstance(error)) {
+              if (error.isRetryable) {
+                // Retryable error without retry wrapper
+                console.warn(`  ⚠️  Lesson "${lesson.title}" validation temporarily failed (${lessonValidationTime}s) - skipping validation`);
+                console.warn(`     Reason: ${error.message} (retryable)`);
+                return { index: i, lesson, validation: null };
+              } else {
+                // Non-retryable error (config issue, invalid params, etc.)
+                console.error(`  ❌ Lesson "${lesson.title}" validation failed with non-retryable error (${lessonValidationTime}s)`);
+                console.error(`     Error: ${error.message}`);
+                console.error(`     This may indicate a configuration or API key issue`);
+                // Still skip validation but log more seriously
+                return { index: i, lesson, validation: null };
+              }
+            }
+            
+            // Unknown error type
+            console.warn(`  ⚠️  Lesson "${lesson.title}" validation error (${lessonValidationTime}s) - skipping validation`);
+            console.warn(`     Error: ${error.message || 'Unknown error'}`);
+            return { index: i, lesson, validation: null };
+          }
         }
       );
 
@@ -461,56 +500,72 @@ ${content}`,
         if (validateContent) {
           console.log(`  🔍 Validating flow lesson "${flowLesson.title}"...`);
           const flowValidationStart = Date.now();
-          const validation = await validateLesson({
-            lesson: flowLesson,
-            moduleTitle: module.title,
-            content,
-            apiKey,
-          });
-          const flowValidationTime = ((Date.now() - flowValidationStart) / 1000).toFixed(2);
+          
+          try {
+            const validation = await validateLesson({
+              lesson: flowLesson,
+              moduleTitle: module.title,
+              content,
+              apiKey,
+            });
+            const flowValidationTime = ((Date.now() - flowValidationStart) / 1000).toFixed(2);
 
-          if (validation.isValid) {
-            console.log(`  ✅ Flow lesson passed validation (${flowValidationTime}s)`);
-            lessonStructure.module.lessons.push(flowLesson);
-          } else {
-            console.log(`  ❌ Flow lesson failed validation (${flowValidationTime}s)`);
-            console.error(`     Reason: ${validation.explanation}`);
-            
-            // Build detailed failure information
-            const details: string[] = [validation.explanation];
-            if (validation.issues) {
-              Object.entries(validation.issues).forEach(([field, issue]) => {
-                console.error(`     - [${field}] ${issue}`);
-                details.push(`[${field}] ${issue}`);
-              });
-            }
-            
-            // Attempt to fix the flow lesson if retry is enabled
-            if (retryFailures) {
-              console.log(`\n🔧 Attempting to fix flow lesson "${flowLesson.title}"...`);
-              const fixResult = await fixLesson({
-                failure: {
-                  lesson: flowLesson,
-                  validationType: "content",
-                  reason: validation.explanation,
-                  details,
-                },
-                moduleTitle: module.title,
-                content,
-                apiKey,
-                maxRetries,
-              });
+            if (validation.isValid) {
+              console.log(`  ✅ Flow lesson passed validation (${flowValidationTime}s)`);
+              lessonStructure.module.lessons.push(flowLesson);
+            } else {
+              console.log(`  ❌ Flow lesson failed validation (${flowValidationTime}s)`);
+              console.error(`     Reason: ${validation.explanation}`);
+              
+              // Build detailed failure information
+              const details: string[] = [validation.explanation];
+              if (validation.issues) {
+                Object.entries(validation.issues).forEach(([field, issue]) => {
+                  console.error(`     - [${field}] ${issue}`);
+                  details.push(`[${field}] ${issue}`);
+                });
+              }
+              
+              // Attempt to fix the flow lesson if retry is enabled
+              if (retryFailures) {
+                console.log(`\n🔧 Attempting to fix flow lesson "${flowLesson.title}"...`);
+                const fixResult = await fixLesson({
+                  failure: {
+                    lesson: flowLesson,
+                    validationType: "content",
+                    reason: validation.explanation,
+                    details,
+                  },
+                  moduleTitle: module.title,
+                  content,
+                  apiKey,
+                  maxRetries,
+                });
 
-              if (fixResult.success && fixResult.lesson) {
-                console.log(`  ✅ Fixed flow lesson "${flowLesson.title}" after ${fixResult.attempts} attempt(s)`);
-                lessonStructure.module.lessons.push(fixResult.lesson);
+                if (fixResult.success && fixResult.lesson) {
+                  console.log(`  ✅ Fixed flow lesson "${flowLesson.title}" after ${fixResult.attempts} attempt(s)`);
+                  lessonStructure.module.lessons.push(fixResult.lesson);
+                } else {
+                  // Failed to fix
+                  const flowIndex = lessonStructure.module.lessons.length;
+                  failuresByIndex.set(flowIndex, {
+                    success: false,
+                    data: flowLesson,
+                    error: fixResult.failure || {
+                      validationType: "content",
+                      reason: validation.explanation,
+                      details,
+                    },
+                  });
+                  lessonStructure.module.lessons.push(flowLesson); // Add it anyway for tracking
+                }
               } else {
-                // Failed to fix
+                // No retry - mark as failed
                 const flowIndex = lessonStructure.module.lessons.length;
                 failuresByIndex.set(flowIndex, {
                   success: false,
                   data: flowLesson,
-                  error: fixResult.failure || {
+                  error: {
                     validationType: "content",
                     reason: validation.explanation,
                     details,
@@ -518,19 +573,39 @@ ${content}`,
                 });
                 lessonStructure.module.lessons.push(flowLesson); // Add it anyway for tracking
               }
+            }
+          } catch (error: any) {
+            const flowValidationTime = ((Date.now() - flowValidationStart) / 1000).toFixed(2);
+            
+            // Handle AI SDK errors intelligently
+            if (RetryError.isInstance(error)) {
+              const lastError = error.lastError;
+              if (APICallError.isInstance(lastError) && lastError.isRetryable) {
+                // Temporary service issue (503, 429, etc.) - already exhausted retries
+                console.warn(`  ⚠️  Flow lesson "${flowLesson.title}" validation temporarily unavailable (${flowValidationTime}s) - skipping validation`);
+                console.warn(`     Reason: ${lastError.message} (retries exhausted)`);
+                // Skip validation but add the lesson
+                lessonStructure.module.lessons.push(flowLesson);
+              }
+            } else if (APICallError.isInstance(error)) {
+              if (error.isRetryable) {
+                // Retryable error without retry wrapper
+                console.warn(`  ⚠️  Flow lesson "${flowLesson.title}" validation temporarily failed (${flowValidationTime}s) - skipping validation`);
+                console.warn(`     Reason: ${error.message} (retryable)`);
+                lessonStructure.module.lessons.push(flowLesson);
+              } else {
+                // Non-retryable error (config issue, invalid params, etc.)
+                console.error(`  ❌ Flow lesson "${flowLesson.title}" validation failed with non-retryable error (${flowValidationTime}s)`);
+                console.error(`     Error: ${error.message}`);
+                console.error(`     This may indicate a configuration or API key issue`);
+                // Still add lesson but log more seriously
+                lessonStructure.module.lessons.push(flowLesson);
+              }
             } else {
-              // No retry - mark as failed
-              const flowIndex = lessonStructure.module.lessons.length;
-              failuresByIndex.set(flowIndex, {
-                success: false,
-                data: flowLesson,
-                error: {
-                  validationType: "content",
-                  reason: validation.explanation,
-                  details,
-                },
-              });
-              lessonStructure.module.lessons.push(flowLesson); // Add it anyway for tracking
+              // Unknown error type
+              console.warn(`  ⚠️  Flow lesson "${flowLesson.title}" validation error (${flowValidationTime}s) - skipping validation`);
+              console.warn(`     Error: ${error.message || 'Unknown error'}`);
+              lessonStructure.module.lessons.push(flowLesson);
             }
           }
         } else {
