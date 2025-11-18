@@ -943,6 +943,7 @@ export async function validateLesson({
     answer: lesson.answer,
     ...(lesson.questionType === QuestionType.MultipleChoice && {
       choices: (lesson as MultipleChoiceLesson).choices,
+      explanation: (lesson as MultipleChoiceLesson).explanation,
     }),
     ...(lesson.questionType === QuestionType.FlowDiagram && {
       choices: (lesson as FlowDiagramLesson).choices,
@@ -968,10 +969,11 @@ Validation Criteria:
 2. QUESTION: Is the question clear, relevant, and properly tests understanding?
 3. ANSWER: Is the answer correct based on the source content?
 4. CHOICES (if multiple-choice): Are all choices plausible? Is the correct answer index accurate?
-5. CHOICES (if flow-diagram): Are the 3 choices actual steps from the flow? Do they test understanding of the sequence?
-6. SLOTS (if flow-diagram): Are there exactly 3 slots (First, Second, Third)?
-7. ANSWER (if flow-diagram): Does the answer array correctly map the sequence of the 3 chosen steps?
-8. INFO: Does the highlighted info fact come from the lesson content?
+5. EXPLANATION (if multiple-choice): Does the explanation clearly explain why the correct answer is right?
+6. CHOICES (if flow-diagram): Are the 3 choices actual steps from the flow? Do they test understanding of the sequence?
+7. SLOTS (if flow-diagram): Are there exactly 3 slots (First, Second, Third)?
+8. ANSWER (if flow-diagram): Does the answer array correctly map the sequence of the 3 chosen steps?
+9. INFO: Does the highlighted info fact come from the lesson content?
 
 Respond ONLY with valid JSON in this exact format:
 {
@@ -982,6 +984,7 @@ Respond ONLY with valid JSON in this exact format:
     "question": "Issue with question (if any)",
     "answer": "Issue with answer (if any)",
     "choices": "Issue with choices (if any)",
+    "explanation": "Issue with explanation (if any, for multiple-choice only)",
     "slots": "Issue with slots (if any)"
   }
 }
