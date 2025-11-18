@@ -116,6 +116,9 @@ export function FlowDiagram({ config, className }: FlowDiagramProps) {
         nodesDraggable={false}
         nodesConnectable={false}
         elementsSelectable={false}
+        proOptions={{
+          hideAttribution: true,
+        }}
       >
         <Background 
           color="#aaa"
