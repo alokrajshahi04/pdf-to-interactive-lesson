@@ -72,13 +72,6 @@ export function GeneratingPageContent() {
     setProgress("Uploading PDF to storage...");
 
     try {
-      const apiKey = getApiKey();
-      if (!apiKey) {
-        setError("API key not configured. Please add your Together AI API key in settings.");
-        setIsProcessing(false);
-        return;
-      }
-
       // Check file size as a rough proxy for page count
       const estimatedPages = Math.ceil(file.size / (100 * 1024));
       if (estimatedPages > 100) {
@@ -103,7 +96,7 @@ export function GeneratingPageContent() {
         displayError = "This PDF is too large. We currently support PDFs up to 100 pages. Please split your document into smaller sections or upload a shorter version.";
       } else if (errorMessage.includes("credits")) {
         displayError = errorMessage;
-      } else if (errorMessage.includes("API key")) {
+      } else if (errorMessage.includes("API key") || errorMessage.includes("free course")) {
         displayError = errorMessage;
       }
       
@@ -121,20 +114,19 @@ export function GeneratingPageContent() {
 
     try {
       const apiKey = getApiKey();
-      if (!apiKey) {
-        setError("API key not configured. Please add your Together AI API key in settings.");
-        setIsProcessing(false);
-        return;
-      }
-
+      
       const formData = new FormData();
       formData.append("url", url);
 
+      // Prepare headers - only include API key if user has provided one
+      const headers: Record<string, string> = {};
+      if (apiKey) {
+        headers["X-Together-API-Key"] = apiKey;
+      }
+
       const response = await fetch("/api/generate-course", {
         method: "POST",
-        headers: {
-          "X-Together-API-Key": apiKey,
-        },
+        headers,
         body: formData,
       });
 

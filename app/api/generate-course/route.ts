@@ -1,9 +1,10 @@
 import { NextRequest } from "next/server";
 import { generateCourseFromPdf } from "../../../lib/generate-course-from-pdf";
 import {
-  courseCountManager,
+  checkRateLimit,
+  incrementRateLimit,
   getClientIdentifier,
-} from "@/lib/utils/credits";
+} from "@/lib/utils/rate-limiter";
 
 // Force Node.js runtime (not Edge) for native modules like sharp
 export const runtime = "nodejs";
@@ -59,10 +60,16 @@ export async function POST(request: NextRequest) {
   // Start processing in the background
   (async () => {
     try {
-      // Get API key from headers
+      // Get API key from headers (optional - user can provide their own for unlimited)
       const apiKey = request.headers.get("X-Together-API-Key");
-      if (!apiKey) {
-        sendError("Together AI API key is required. Please add it in the app settings.");
+      
+      // Check rate limit (bypassed if user has API key)
+      const rateLimitCheck = await checkRateLimit(clientId, !!apiKey);
+      
+      if (!rateLimitCheck.allowed && !apiKey) {
+        sendError(
+          "You've used your free course. Please add your Together AI API key to generate unlimited courses."
+        );
         return;
       }
 
@@ -74,17 +81,20 @@ export async function POST(request: NextRequest) {
       const result = await generateCourseFromPdf({
         file: file || undefined,
         url: url || undefined,
-        apiKey,
+        apiKey: apiKey || "",
         onProgress: sendProgress,
       });
 
-      // Increment course count on successful course generation
-      const newCourseCount = courseCountManager.incrementCourseCount(clientId);
+      // Increment rate limit only if user didn't provide their own API key
+      let coursesCreated = rateLimitCheck.coursesCreated;
+      if (!apiKey) {
+        coursesCreated = await incrementRateLimit(clientId);
+      }
 
       // Send final result with course count info
       sendComplete({
         ...result,
-        coursesCreated: newCourseCount,
+        coursesCreated,
       });
     } catch (error) {
       console.error("❌ Error generating course:", error);

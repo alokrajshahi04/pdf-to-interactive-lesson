@@ -47,7 +47,7 @@ export interface ProgressCallback {
 export interface GenerateCourseOptions {
   file?: File;
   url?: string;
-  apiKey: string;
+  apiKey?: string;
   onProgress?: ProgressCallback;
 }
 
@@ -79,11 +79,14 @@ export interface GenerateCourseResult {
 export async function generateCourseFromPdf(
   options: GenerateCourseOptions
 ): Promise<GenerateCourseResult> {
-  const { file, url, apiKey, onProgress } = options;
+  const { file, url, onProgress } = options;
   let tempFilePath: string | null = null;
   let isTemp = false;
 
   try {
+    // Use provided API key or fall back to environment variable
+    const apiKey = options.apiKey || process.env.TOGETHER_API_KEY || "";
+    
     // Check for API key
     if (!apiKey) {
       throw new Error("Together AI API key is required. Please add your API key in the app settings.");

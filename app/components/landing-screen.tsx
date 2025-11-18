@@ -102,15 +102,27 @@ function LandingScreen({
 
     // Check for API key
     const apiKey = getApiKey();
+    
+    // Check rate limit status (only if no API key)
     if (!apiKey) {
-      setError("Please add your Together AI API key first.");
-      setPendingFile(file); // Store the file to upload after API key is saved
-      setIsApiKeyDialogOpen(true);
-      return;
+      try {
+        const response = await fetch("/api/rate-limit-status");
+        const rateLimitStatus = await response.json();
+        
+        if (rateLimitStatus.hasReachedLimit) {
+          setError("You've created your free course! Add your Together AI API key to generate unlimited courses.");
+          setPendingFile(file); // Store the file to upload after API key is saved
+          setIsApiKeyDialogOpen(true);
+          return;
+        }
+      } catch (error) {
+        console.error("Failed to check rate limit:", error);
+        // Continue with upload on error to be permissive
+      }
     }
 
     // Process the file upload
-    await processFileUpload(file, apiKey);
+    await processFileUpload(file, apiKey || "");
   };
 
   const handleApiKeySaved = () => {

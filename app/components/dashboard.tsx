@@ -128,12 +128,25 @@ function Dashboard({ onSelectCourse, onCourseGenerated }: DashboardProps) {
       return;
     }
 
-    // Check for API key before redirecting
-      const apiKey = getApiKey();
-      if (!apiKey) {
-        setError("API key not configured. Please add your Together AI API key in settings.");
-        return;
+    // Check for API key
+    const apiKey = getApiKey();
+    
+    // Check rate limit status (only if no API key)
+    if (!apiKey) {
+      try {
+        const response = await fetch("/api/rate-limit-status");
+        const rateLimitStatus = await response.json();
+        
+        if (rateLimitStatus.hasReachedLimit) {
+          setError("You've created your free course! Add your Together AI API key to generate unlimited courses.");
+          setIsApiKeyDialogOpen(true);
+          return;
+        }
+      } catch (error) {
+        console.error("Failed to check rate limit:", error);
+        // Continue with upload on error to be permissive
       }
+    }
 
     // Store file in sessionStorage and redirect immediately
     // Convert file to base64 for storage
