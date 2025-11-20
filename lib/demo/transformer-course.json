@@ -1,16 +1,16 @@
 {
-  "title": "The Transformer: Attention-Based Neural Networks",
+  "title": "The Transformer: Attention Is All You Need",
   "modules": [
     {
-      "title": "Introduction to Attention Mechanisms and the Transformer Architecture",
+      "title": "Introduction to the Transformer Architecture",
       "lessons": [
         {
           "success": true,
           "data": {
-            "content": "The Transformer architecture, introduced in the paper 'Attention Is All You Need', dispenses with recurrence and convolutions entirely. It relies solely on attention mechanisms to draw global dependencies between input and output sequences. This design allows for significantly more parallelization compared to previous recurrent models.",
-            "info": "The Transformer's key innovation is replacing recurrence with self-attention.",
-            "question": "What is the primary architectural component that the Transformer uses to compute representations of its input and output, instead of using recurrent or convolutional layers?",
-            "answer": "attention mechanisms",
+            "content": "The Transformer architecture was introduced to overcome the sequential computation limitations of recurrent neural networks. It dispenses with recurrence and convolutions, relying solely on attention mechanisms to draw global dependencies between input and output. This design allows for significantly more parallelization during training.",
+            "info": "The key innovation is the removal of recurrence, which was a fundamental constraint in previous models.",
+            "question": "What specific type of neural network components did the Transformer architecture propose to eliminate entirely?",
+            "answer": "Recurrence and convolutions",
             "title": "The Core Innovation of the Transformer",
             "questionType": "short-answer"
           }
@@ -18,52 +18,67 @@
         {
           "success": true,
           "data": {
-            "content": "When comparing layer types, self-attention has a computational complexity of O(n^2 * d) per layer. A major advantage of self-attention is its constant number of sequential operations, O(1), which enables greater parallelization. This is in contrast to recurrent layers, which require O(n) sequential operations.",
-            "info": "Self-attention layers connect all positions with a constant number of sequentially executed operations.",
-            "question": "The maximum path length between any two input and output positions in a self-attention layer is O(1).",
-            "answer": true,
-            "title": "Evaluating Self-Attention Properties",
-            "questionType": "true-false"
+            "content": "Scaled Dot-Product Attention is the core mechanism used in the Transformer. It computes compatibility between queries and keys by taking their dot product and then applying a scaling factor. The scaling factor of 1/√(d_k) is used to counteract the effect of large dot product magnitudes that occur when the key dimension (d_k) is large, which would otherwise push the softmax function into regions with extremely small gradients.",
+            "info": "The scaling factor prevents vanishing gradients in the softmax function by controlling the magnitude of the dot products.",
+            "question": "What is the primary purpose of the scaling factor (1/√(d_k)) in Scaled Dot-Product Attention?",
+            "answer": 1,
+            "title": "Understanding Scaled Dot-Product Attention",
+            "questionType": "multiple-choice",
+            "choices": [
+              "To increase the magnitude of the dot products for better numerical stability",
+              "To decrease the magnitude of the dot products to prevent the softmax from having vanishing gradients",
+              "To normalize the attention weights to sum to 1.0",
+              "To project the queries and keys into a higher-dimensional space"
+            ],
+            "fixHistory": [
+              {
+                "attempt": 0,
+                "validationType": "content",
+                "reason": "The lesson content is mostly accurate but contains a subtle inaccuracy about gradient behavior. The question is incorrect as it misrepresents the purpose of scaling, and the answer is wrong.",
+                "details": [
+                  "The lesson content is mostly accurate but contains a subtle inaccuracy about gradient behavior. The question is incorrect as it misrepresents the purpose of scaling, and the answer is wrong.",
+                  "[content] The content states 'prevent the softmax function from having extremely small gradients for large values of d_k.' The source material states the opposite: scaling prevents the softmax from having extremely *small* gradients. The softmax has small gradients when its input is large, not when d_k is large. The large dot products (caused by large d_k) push the softmax into regions with *vanishingly small* gradients.",
+                  "[question] The question is factually incorrect. It asks if scaling is used to 'increase the magnitude of the dot products.' The source material clearly states the scaling factor *decreases* (scales down) the magnitude of the dot products to prevent them from becoming too large.",
+                  "[answer] The provided answer is 'false', but the correct answer to the question as phrased should be 'true'. The question is a false statement, so answering 'true' would be incorrect. However, the question itself is flawed."
+                ],
+                "lesson": {
+                  "content": "Scaled Dot-Product Attention is the core mechanism used in the Transformer. It computes compatibility between queries and keys by taking their dot product and then scaling it. The scaling factor of 1/√(d_k) is used to prevent the softmax function from having extremely small gradients for large values of d_k.",
+                  "info": "The scaling is crucial for stable training when the key dimension is large.",
+                  "question": "The scaling factor in Scaled Dot-Product Attention is used to increase the magnitude of the dot products before applying the softmax function.",
+                  "answer": false,
+                  "title": "Understanding Scaled Dot-Product Attention",
+                  "questionType": "true-false"
+                }
+              }
+            ]
           }
         },
         {
           "success": true,
           "data": {
-            "content": "Scaled Dot-Product Attention is the specific attention function used in the Transformer. It computes the dot products of a query with all keys, divides each by the square root of the key dimension, and applies a softmax to obtain weights for the values. The scaling factor is used to counteract the effect of large dot product magnitudes pushing the softmax into regions with extremely small gradients.",
-            "info": "The scaling factor is 1 divided by the square root of the key dimension (dk).",
-            "question": "What is the purpose of scaling the dot products by 1/√(d_k) in the Scaled Dot-Product Attention formula?",
+            "content": "Multi-Head Attention consists of multiple attention layers running in parallel, allowing the model to attend to information from different representation subspaces. In the Transformer, multi-head attention is used in three distinct ways within the encoder-decoder structure. The standard base model uses 8 parallel attention heads.",
+            "info": "Multiple heads allow the model to focus on different types of relationships in the data simultaneously.",
+            "question": "In the Transformer's decoder, what is the purpose of the masked multi-head self-attention mechanism?",
             "answer": 2,
             "choices": [
-              "To reduce the overall computational complexity of the matrix multiplication.",
-              "To allow the model to use additive attention instead of dot-product attention.",
-              "To prevent the softmax function from having extremely small gradients for large values of d_k.",
-              "To enable parallelization across multiple attention heads."
+              "To allow the decoder to attend to all encoder outputs",
+              "To compute the attention between the encoder and decoder states",
+              "To prevent positions from attending to subsequent positions and preserve the auto-regressive property",
+              "To apply dropout regularization to the attention weights"
             ],
-            "title": "Understanding Scaled Dot-Product Attention",
+            "explanation": "Masking ensures that during generation, the prediction for a position can only depend on known outputs at earlier positions, which is necessary for auto-regressive generation.",
+            "title": "Applications of Multi-Head Attention",
             "questionType": "multiple-choice"
           }
         },
         {
           "success": true,
           "data": {
-            "content": "The Transformer architecture processes input tokens through embedding and positional encoding before passing them through the encoder stack. The encoder output is then used by the decoder stack, which generates output through linear transformation and softmax normalization to produce final probabilities.",
-            "info": "The Transformer uses encoder and decoder stacks with self-attention to process sequences in parallel.",
+            "title": "Transformer Architecture Flow",
+            "content": "The Transformer processes input tokens through embedding and positional encoding layers before being processed by multiple encoder layers. The decoder then generates output probabilities using attention mechanisms over the encoder output and its own previous outputs.",
+            "info": "Unlike RNNs, the Transformer processes all sequence positions simultaneously using self-attention, enabling greater parallelization.",
             "question": "Put the following steps in the correct order",
-            "answer": [
-              0,
-              1,
-              2
-            ],
-            "choices": [
-              "Input Embedding",
-              "Positional Encoding",
-              "Encoder Stack"
-            ],
-            "slots": [
-              "First",
-              "Second",
-              "Third"
-            ],
+            "questionType": "flow-diagram",
             "flowConfig": {
               "nodes": [
                 {
@@ -72,28 +87,28 @@
                   "type": "start"
                 },
                 {
-                  "id": "embed",
+                  "id": "embedding",
                   "label": "Input Embedding",
                   "type": "process"
                 },
                 {
-                  "id": "pos",
+                  "id": "pos-encoding",
                   "label": "Positional Encoding",
                   "type": "process"
                 },
                 {
-                  "id": "encoder",
-                  "label": "Encoder Stack",
+                  "id": "encoder-stack",
+                  "label": "Encoder Stack (N layers)",
                   "type": "process"
                 },
                 {
-                  "id": "decoder",
-                  "label": "Decoder Stack",
+                  "id": "decoder-stack",
+                  "label": "Decoder Stack (N layers)",
                   "type": "process"
                 },
                 {
                   "id": "linear",
-                  "label": "Linear Layer",
+                  "label": "Linear Transformation",
                   "type": "process"
                 },
                 {
@@ -110,22 +125,26 @@
               "edges": [
                 [
                   "input",
-                  "embed"
+                  "embedding"
                 ],
                 [
-                  "embed",
-                  "pos"
+                  "embedding",
+                  "pos-encoding"
                 ],
                 [
-                  "pos",
-                  "encoder"
+                  "pos-encoding",
+                  "encoder-stack"
                 ],
                 [
-                  "encoder",
-                  "decoder"
+                  "pos-encoding",
+                  "decoder-stack"
                 ],
                 [
-                  "decoder",
+                  "encoder-stack",
+                  "decoder-stack"
+                ],
+                [
+                  "decoder-stack",
                   "linear"
                 ],
                 [
@@ -138,749 +157,6 @@
                 ]
               ]
             },
-            "title": "Transformer Architecture Flow",
-            "questionType": "flow-diagram",
-            "fixHistory": [
-              {
-                "attempt": 0,
-                "validationType": "content",
-                "reason": "Content validation failed",
-                "details": [
-                  "The lesson contains several inaccuracies regarding the Transformer architecture flow and omits critical details from the source content.",
-                  "[content] The content oversimplifies the process. It omits that both encoder and decoder have their own embedding and positional encoding layers, and that the decoder stack receives input from the encoder stack, not just processes tokens sequentially. The encoder contains self-attention and feed-forward layers, not just 'encoder stack' as a single step.",
-                  "[question] The question is clear but tests an incomplete understanding since the flow is more complex than the 3 steps presented.",
-                  "[choices] The choices are incomplete and misleading. They only include the first three steps (Input Embedding, Positional Encoding, Encoder Stack) but omit the crucial Decoder Stack, Linear Layer, and Softmax steps that follow. This presents an inaccurate, truncated view of the full architecture flow.",
-                  "[answer] The answer [0,1,2] is correct for the limited 3-step sequence presented, but since the choices themselves are an incomplete representation of the full flow, the answer is only correct in the context of an incorrect premise.",
-                  "[slots] The slots are appropriate for the question type, but the question itself is flawed due to the incomplete choices."
-                ],
-                "lesson": {
-                  "title": "Transformer Architecture Flow",
-                  "content": "The Transformer processes input tokens through embedding and positional encoding before passing them through encoder and decoder stacks. The final output probabilities are generated through linear transformation and softmax normalization.",
-                  "info": "The Transformer uses self-attention to process all positions in the sequence simultaneously, unlike recurrent networks that process sequentially.",
-                  "question": "Put the following steps in the correct order",
-                  "questionType": "flow-diagram",
-                  "flowConfig": {
-                    "nodes": [
-                      {
-                        "id": "input",
-                        "label": "Input Tokens",
-                        "type": "start"
-                      },
-                      {
-                        "id": "embed",
-                        "label": "Input Embedding",
-                        "type": "process"
-                      },
-                      {
-                        "id": "pos",
-                        "label": "Positional Encoding",
-                        "type": "process"
-                      },
-                      {
-                        "id": "encoder",
-                        "label": "Encoder Stack",
-                        "type": "process"
-                      },
-                      {
-                        "id": "decoder",
-                        "label": "Decoder Stack",
-                        "type": "process"
-                      },
-                      {
-                        "id": "linear",
-                        "label": "Linear Layer",
-                        "type": "process"
-                      },
-                      {
-                        "id": "softmax",
-                        "label": "Softmax",
-                        "type": "process"
-                      },
-                      {
-                        "id": "output",
-                        "label": "Output Probabilities",
-                        "type": "output"
-                      }
-                    ],
-                    "edges": [
-                      [
-                        "input",
-                        "embed"
-                      ],
-                      [
-                        "embed",
-                        "pos"
-                      ],
-                      [
-                        "pos",
-                        "encoder"
-                      ],
-                      [
-                        "encoder",
-                        "decoder"
-                      ],
-                      [
-                        "decoder",
-                        "linear"
-                      ],
-                      [
-                        "linear",
-                        "softmax"
-                      ],
-                      [
-                        "softmax",
-                        "output"
-                      ]
-                    ]
-                  },
-                  "choices": [
-                    "Input Embedding",
-                    "Positional Encoding",
-                    "Encoder Stack"
-                  ],
-                  "slots": [
-                    "First",
-                    "Second",
-                    "Third"
-                  ],
-                  "answer": [
-                    0,
-                    1,
-                    2
-                  ]
-                }
-              },
-              {
-                "attempt": 1,
-                "validationType": "content",
-                "reason": "Content validation failed",
-                "details": [
-                  "The lesson content is mostly accurate but contains a significant error in the flow diagram order. The question and choices are poorly designed and don't test meaningful understanding of the Transformer architecture.",
-                  "[content] The content is generally accurate but oversimplified - it doesn't mention the decoder stack's masked self-attention and encoder-decoder attention layers which are critical components",
-                  "[question] The question is poorly designed - asking to order just 3 steps from a much longer sequence doesn't test meaningful understanding of the architecture flow",
-                  "[choices] The choices are incomplete and misleading - they only cover the first 3 steps of a much longer process, omitting critical components like the decoder stack, linear layer, and softmax",
-                  "[answer] While the answer [0,1,2] correctly orders the chosen steps, it reinforces an incomplete understanding by suggesting the process ends after the encoder stack"
-                ],
-                "lesson": {
-                  "content": "The Transformer architecture processes input tokens through embedding and positional encoding before passing them through the encoder and decoder stacks. The encoder contains self-attention and feed-forward layers, while the decoder uses masked self-attention, encoder-decoder attention, and feed-forward layers. The final output probabilities are generated through linear transformation and softmax normalization.",
-                  "info": "The Transformer uses stacked encoder and decoder layers with attention mechanisms to process sequences.",
-                  "question": "Put the following steps in the correct order",
-                  "answer": [
-                    0,
-                    1,
-                    2
-                  ],
-                  "choices": [
-                    "Input Embedding",
-                    "Positional Encoding",
-                    "Encoder Stack"
-                  ],
-                  "slots": [
-                    "First",
-                    "Second",
-                    "Third"
-                  ],
-                  "flowConfig": {
-                    "nodes": [
-                      {
-                        "id": "input",
-                        "label": "Input Tokens",
-                        "type": "start"
-                      },
-                      {
-                        "id": "embed",
-                        "label": "Input Embedding",
-                        "type": "process"
-                      },
-                      {
-                        "id": "pos",
-                        "label": "Positional Encoding",
-                        "type": "process"
-                      },
-                      {
-                        "id": "encoder",
-                        "label": "Encoder Stack",
-                        "type": "process"
-                      },
-                      {
-                        "id": "decoder",
-                        "label": "Decoder Stack",
-                        "type": "process"
-                      },
-                      {
-                        "id": "linear",
-                        "label": "Linear Layer",
-                        "type": "process"
-                      },
-                      {
-                        "id": "softmax",
-                        "label": "Softmax",
-                        "type": "process"
-                      },
-                      {
-                        "id": "output",
-                        "label": "Output Probabilities",
-                        "type": "output"
-                      }
-                    ],
-                    "edges": [
-                      [
-                        "input",
-                        "embed"
-                      ],
-                      [
-                        "embed",
-                        "pos"
-                      ],
-                      [
-                        "pos",
-                        "encoder"
-                      ],
-                      [
-                        "encoder",
-                        "decoder"
-                      ],
-                      [
-                        "decoder",
-                        "linear"
-                      ],
-                      [
-                        "linear",
-                        "softmax"
-                      ],
-                      [
-                        "softmax",
-                        "output"
-                      ]
-                    ]
-                  },
-                  "title": "Transformer Architecture Flow",
-                  "questionType": "flow-diagram"
-                }
-              }
-            ]
-          }
-        }
-      ]
-    },
-    {
-      "title": "Core Components: Scaled Dot-Product and Multi-Head Attention",
-      "lessons": [
-        {
-          "success": true,
-          "data": {
-            "content": "Scaled Dot-Product Attention is a specific attention mechanism that maps a query and a set of key-value pairs to an output. The output is a weighted sum of the values, where the weight is computed by a compatibility function of the query with the corresponding key. The scaling factor of 1/√(d_k) is used to counteract the effect of large dot product magnitudes pushing the softmax function into regions with small gradients. This mechanism is faster and more space-efficient than additive attention, as it can be implemented with optimized matrix multiplication.",
-            "info": "The scaling factor is crucial for stable gradients when the key dimension d_k is large.",
-            "question": "What is the primary purpose of the scaling factor (1/√(d_k)) in the Scaled Dot-Product Attention calculation?",
-            "answer": "To prevent the dot products from growing too large in magnitude, which would push the softmax function into regions where it has extremely small gradients.",
-            "title": "Scaled Dot-Product Attention",
-            "questionType": "short-answer"
-          }
-        },
-        {
-          "success": true,
-          "data": {
-            "content": "Multi-Head Attention consists of multiple parallel attention layers, or heads, each with its own learned linear projections for queries, keys, and values. This architecture allows the model to jointly attend to information from different representation subspaces at different positions. The outputs of all heads are concatenated and then linearly projected to produce the final output.",
-            "info": "Using multiple heads allows the model to capture different types of relationships in the data simultaneously.",
-            "question": "In the Transformer's base model, each head in the Multi-Head Attention mechanism has a dimension (d_k and d_v) of 64, and the total number of heads (h) is 8.",
-            "answer": true,
-            "title": "Multi-Head Attention Architecture",
-            "questionType": "true-false"
-          }
-        },
-        {
-          "success": true,
-          "data": {
-            "content": "The Transformer model uses Multi-Head Attention in three distinct ways. Encoder self-attention layers allow each position to attend to all positions in the previous encoder layer. The encoder-decoder attention layers let the decoder attend to all encoder positions. Masked self-attention in the decoder ensures auto-regressive properties by preventing positions from attending to subsequent positions.",
-            "info": "The masking in the decoder's self-attention is crucial for preserving the auto-regressive property during generation.",
-            "question": "Which of the following is NOT one of the three applications of Multi-Head Attention in the Transformer architecture?",
-            "answer": 0,
-            "choices": [
-              "Cross-attention between two separate input sequences",
-              "Encoder self-attention",
-              "Encoder-decoder attention",
-              "Masked decoder self-attention"
-            ],
-            "title": "Applications of Attention in the Transformer",
-            "questionType": "multiple-choice"
-          }
-        },
-        {
-          "success": true,
-          "data": {
-            "content": "The multi-head attention mechanism processes input vectors by projecting them into query, key, and value matrices using learned linear projections. It then performs scaled dot-product attention multiple times in parallel, with each attention head computing attention scores, applying scaling, softmax, and weighting the value matrix. The results from all heads are concatenated and undergo a final linear projection to produce the output.",
-            "info": "Multi-head attention enables the model to jointly attend to information from different representation subspaces at different positions.",
-            "question": "Put the following steps of scaled dot-product attention in the correct order",
-            "answer": [
-              0,
-              2,
-              1
-            ],
-            "choices": [
-              "Q * K^T Calculation",
-              "Apply Softmax",
-              "Scale by sqrt(d_k)"
-            ],
-            "slots": [
-              "First",
-              "Second",
-              "Third"
-            ],
-            "flowConfig": {
-              "nodes": [
-                {
-                  "id": "input",
-                  "label": "Input Vectors",
-                  "type": "start"
-                },
-                {
-                  "id": "linear-q",
-                  "label": "Linear Query Projection",
-                  "type": "process"
-                },
-                {
-                  "id": "linear-k",
-                  "label": "Linear Key Projection",
-                  "type": "process"
-                },
-                {
-                  "id": "linear-v",
-                  "label": "Linear Value Projection",
-                  "type": "process"
-                },
-                {
-                  "id": "matmul",
-                  "label": "Q * K^T Calculation",
-                  "type": "process"
-                },
-                {
-                  "id": "scaling",
-                  "label": "Scale by sqrt(d_k)",
-                  "type": "process"
-                },
-                {
-                  "id": "softmax",
-                  "label": "Apply Softmax",
-                  "type": "process"
-                },
-                {
-                  "id": "matmul-v",
-                  "label": "Attention * V",
-                  "type": "process"
-                },
-                {
-                  "id": "concat",
-                  "label": "Concatenate Heads",
-                  "type": "process"
-                },
-                {
-                  "id": "output-proj",
-                  "label": "Linear Output Projection",
-                  "type": "process"
-                },
-                {
-                  "id": "output",
-                  "label": "Multi-Head Attention Output",
-                  "type": "output"
-                }
-              ],
-              "edges": [
-                [
-                  "input",
-                  "linear-q"
-                ],
-                [
-                  "input",
-                  "linear-k"
-                ],
-                [
-                  "input",
-                  "linear-v"
-                ],
-                [
-                  "linear-q",
-                  "matmul"
-                ],
-                [
-                  "linear-k",
-                  "matmul"
-                ],
-                [
-                  "matmul",
-                  "scaling"
-                ],
-                [
-                  "scaling",
-                  "softmax"
-                ],
-                [
-                  "softmax",
-                  "matmul-v"
-                ],
-                [
-                  "linear-v",
-                  "matmul-v"
-                ],
-                [
-                  "matmul-v",
-                  "concat"
-                ],
-                [
-                  "concat",
-                  "output-proj"
-                ],
-                [
-                  "output-proj",
-                  "output"
-                ]
-              ]
-            },
-            "title": "Core Components: Scaled Dot-Product and Multi-Head Attention",
-            "questionType": "flow-diagram",
-            "fixHistory": [
-              {
-                "attempt": 0,
-                "validationType": "content",
-                "reason": "Content validation failed",
-                "details": [
-                  "The lesson content is accurate but the question and flow diagram have significant issues. The question references 3 specific steps but the flow diagram shows a comprehensive 11-step process. The answer array ordering doesn't match the actual sequence in the scaled dot-product attention process.",
-                  "[question] The question asks to order 3 specific steps but the flow diagram shows a much more comprehensive 11-step process for multi-head attention. The question should either be expanded or the diagram simplified to match.",
-                  "[answer] The answer array [1, 0, 2] suggests the sequence is: 1) Q*K^T, 2) Apply Softmax, 3) Scale by sqrt(d_k). However, according to the source content, the correct sequence should be: 1) Q*K^T, 2) Scale by sqrt(d_k), 3) Apply Softmax.",
-                  "[choices] The choices only cover the scaled dot-product attention steps but the lesson is about multi-head attention, creating a mismatch between the question scope and the lesson topic."
-                ],
-                "lesson": {
-                  "title": "Multi-Head Attention Mechanism",
-                  "content": "The multi-head attention mechanism processes input vectors by projecting them into query, key, and value matrices. It then performs scaled dot-product attention multiple times in parallel before combining the results through concatenation and a final linear projection.",
-                  "info": "Multi-head attention allows the model to jointly attend to information from different representation subspaces at different positions.",
-                  "question": "Put the following steps in the correct order",
-                  "questionType": "flow-diagram",
-                  "flowConfig": {
-                    "nodes": [
-                      {
-                        "id": "input",
-                        "label": "Input Vectors",
-                        "type": "start"
-                      },
-                      {
-                        "id": "linear-q",
-                        "label": "Linear Query Projection",
-                        "type": "process"
-                      },
-                      {
-                        "id": "linear-k",
-                        "label": "Linear Key Projection",
-                        "type": "process"
-                      },
-                      {
-                        "id": "linear-v",
-                        "label": "Linear Value Projection",
-                        "type": "process"
-                      },
-                      {
-                        "id": "matmul",
-                        "label": "Q * K^T Calculation",
-                        "type": "process"
-                      },
-                      {
-                        "id": "scaling",
-                        "label": "Scale by sqrt(d_k)",
-                        "type": "process"
-                      },
-                      {
-                        "id": "softmax",
-                        "label": "Apply Softmax",
-                        "type": "process"
-                      },
-                      {
-                        "id": "matmul-v",
-                        "label": "Attention * V",
-                        "type": "process"
-                      },
-                      {
-                        "id": "concat",
-                        "label": "Concatenate Heads",
-                        "type": "process"
-                      },
-                      {
-                        "id": "output-proj",
-                        "label": "Linear Output Projection",
-                        "type": "process"
-                      },
-                      {
-                        "id": "output",
-                        "label": "Multi-Head Attention Output",
-                        "type": "output"
-                      }
-                    ],
-                    "edges": [
-                      [
-                        "input",
-                        "linear-q"
-                      ],
-                      [
-                        "input",
-                        "linear-k"
-                      ],
-                      [
-                        "input",
-                        "linear-v"
-                      ],
-                      [
-                        "linear-q",
-                        "matmul"
-                      ],
-                      [
-                        "linear-k",
-                        "matmul"
-                      ],
-                      [
-                        "matmul",
-                        "scaling"
-                      ],
-                      [
-                        "scaling",
-                        "softmax"
-                      ],
-                      [
-                        "softmax",
-                        "matmul-v"
-                      ],
-                      [
-                        "linear-v",
-                        "matmul-v"
-                      ],
-                      [
-                        "matmul-v",
-                        "concat"
-                      ],
-                      [
-                        "concat",
-                        "output-proj"
-                      ],
-                      [
-                        "output-proj",
-                        "output"
-                      ]
-                    ]
-                  },
-                  "choices": [
-                    "Apply Softmax",
-                    "Q * K^T Calculation",
-                    "Scale by sqrt(d_k)"
-                  ],
-                  "slots": [
-                    "First",
-                    "Second",
-                    "Third"
-                  ],
-                  "answer": [
-                    1,
-                    0,
-                    2
-                  ]
-                }
-              },
-              {
-                "attempt": 1,
-                "validationType": "content",
-                "reason": "Content validation failed",
-                "details": [
-                  "The lesson content contains a factual error regarding the multi-head attention mechanism, and the flow diagram question/answer has significant issues with step selection and ordering.",
-                  "[content] The lesson states 'The multi-head attention mechanism processes input vectors by projecting them into query, key, and value matrices.' This is incorrect. According to the source (Section 3.2.2), multi-head attention creates h separate linear projections of the queries, keys, and values, not a single projection into matrices.",
-                  "[question] The question asks to order scaled dot-product attention steps but includes only 3 choices, while the actual process in the source (Section 3.2.1, Figure 2) has 4 core steps: Q*K^T, scaling, softmax, and attention*V.",
-                  "[answer] The answer [0, 2, 1] corresponds to Q*K^T, Apply Softmax, Scale by sqrt(d_k), which is incorrect. The correct order per source is Q*K^T, Scale by sqrt(d_k), Apply Softmax, then Attention*V.",
-                  "[choices] The choices are incomplete and misleading. They omit the final step (Attention*V) and incorrectly imply scaling comes after softmax. The three choices provided don't represent the complete scaled dot-product attention process."
-                ],
-                "lesson": {
-                  "content": "The multi-head attention mechanism processes input vectors by projecting them into query, key, and value matrices. It then performs scaled dot-product attention multiple times in parallel before combining the results through concatenation and a final linear projection. The scaled dot-product attention operation specifically computes the attention weights using queries, keys, and values through matrix multiplication, scaling, and softmax normalization.",
-                  "info": "Multi-head attention enables the model to jointly attend to information from different representation subspaces at different positions.",
-                  "question": "Put the following scaled dot-product attention steps in the correct order",
-                  "answer": [
-                    0,
-                    2,
-                    1
-                  ],
-                  "choices": [
-                    "Q * K^T Calculation",
-                    "Scale by sqrt(d_k)",
-                    "Apply Softmax"
-                  ],
-                  "slots": [
-                    "First",
-                    "Second",
-                    "Third"
-                  ],
-                  "flowConfig": {
-                    "nodes": [
-                      {
-                        "id": "input",
-                        "label": "Input Vectors",
-                        "type": "start"
-                      },
-                      {
-                        "id": "linear-q",
-                        "label": "Linear Query Projection",
-                        "type": "process"
-                      },
-                      {
-                        "id": "linear-k",
-                        "label": "Linear Key Projection",
-                        "type": "process"
-                      },
-                      {
-                        "id": "linear-v",
-                        "label": "Linear Value Projection",
-                        "type": "process"
-                      },
-                      {
-                        "id": "matmul",
-                        "label": "Q * K^T Calculation",
-                        "type": "process"
-                      },
-                      {
-                        "id": "scaling",
-                        "label": "Scale by sqrt(d_k)",
-                        "type": "process"
-                      },
-                      {
-                        "id": "softmax",
-                        "label": "Apply Softmax",
-                        "type": "process"
-                      },
-                      {
-                        "id": "matmul-v",
-                        "label": "Attention * V",
-                        "type": "process"
-                      },
-                      {
-                        "id": "concat",
-                        "label": "Concatenate Heads",
-                        "type": "process"
-                      },
-                      {
-                        "id": "output-proj",
-                        "label": "Linear Output Projection",
-                        "type": "process"
-                      },
-                      {
-                        "id": "output",
-                        "label": "Multi-Head Attention Output",
-                        "type": "output"
-                      }
-                    ],
-                    "edges": [
-                      [
-                        "input",
-                        "linear-q"
-                      ],
-                      [
-                        "input",
-                        "linear-k"
-                      ],
-                      [
-                        "input",
-                        "linear-v"
-                      ],
-                      [
-                        "linear-q",
-                        "matmul"
-                      ],
-                      [
-                        "linear-k",
-                        "matmul"
-                      ],
-                      [
-                        "matmul",
-                        "scaling"
-                      ],
-                      [
-                        "scaling",
-                        "softmax"
-                      ],
-                      [
-                        "softmax",
-                        "matmul-v"
-                      ],
-                      [
-                        "linear-v",
-                        "matmul-v"
-                      ],
-                      [
-                        "matmul-v",
-                        "concat"
-                      ],
-                      [
-                        "concat",
-                        "output-proj"
-                      ],
-                      [
-                        "output-proj",
-                        "output"
-                      ]
-                    ]
-                  },
-                  "title": "Core Components: Scaled Dot-Product and Multi-Head Attention",
-                  "questionType": "flow-diagram"
-                }
-              }
-            ]
-          }
-        }
-      ]
-    },
-    {
-      "title": "Training, Applications, and Results of the Transformer Model",
-      "lessons": [
-        {
-          "success": true,
-          "data": {
-            "content": "The Transformer model was trained using the Adam optimizer with a dynamic learning rate schedule. For the base model, training was conducted on 8 NVIDIA P100 GPUs for 100,000 steps, taking approximately 12 hours. The training batches were constructed to contain roughly 25,000 source and 25,000 target tokens.",
-            "info": "The learning rate was increased linearly for the first 4000 steps and then decreased proportionally to the inverse square root of the step number.",
-            "question": "What was the total number of training steps and the approximate training time for the Transformer base model on the WMT 2014 English-German task?",
-            "answer": "100,000 steps, taking approximately 12 hours.",
-            "title": "Transformer Training Regime and Hardware",
-            "questionType": "short-answer"
-          }
-        },
-        {
-          "success": true,
-          "data": {
-            "content": "The Transformer architecture is the first transduction model to rely entirely on self-attention mechanisms, completely dispensing with recurrent and convolutional layers. This design allows for significantly more parallelization during training compared to previous recurrent models. The model connects an encoder and a decoder, both composed of stacked self-attention and feed-forward layers.",
-            "info": "This design replaced the sequential computation of RNNs with a constant number of operations for connecting any two positions in the sequence.",
-            "question": "The Transformer model uses a combination of recurrent layers and self-attention mechanisms in its encoder-decoder structure.",
-            "answer": false,
-            "title": "Key Architectural Innovation of the Transformer",
-            "questionType": "true-false"
-          }
-        },
-        {
-          "success": true,
-          "data": {
-            "content": "The Transformer model set new state-of-the-art results on major machine translation benchmarks. On the WMT 2014 English-to-German task, the big model achieved a BLEU score of 28.4. On the English-to-French task, it achieved a BLEU score of 41.8 after 3.5 days of training, a fraction of the cost of previous models.",
-            "info": "The base Transformer model outperformed all previously published models and ensembles on the English-to-German task.",
-            "question": "What BLEU score did the big Transformer model achieve on the WMT 2014 English-to-French translation task?",
-            "answer": 3,
-            "choices": [
-              28.4,
-              38.1,
-              41,
-              41.8
-            ],
-            "title": "Performance on Machine Translation Tasks",
-            "questionType": "multiple-choice"
-          }
-        },
-        {
-          "success": true,
-          "data": {
-            "content": "The Transformer architecture uses an encoder-decoder structure where input tokens are processed through embedding, positional encoding, and encoder layers to create contextual representations. The decoder then processes output tokens through its own embedding and positional encoding, attends to the encoder's output, and generates predictions through linear transformation and softmax to produce output probabilities.",
-            "info": "The Transformer processes both input and output sequences through separate embedding and encoding steps before the decoder generates final predictions.",
-            "question": "Put the following steps in the correct order for the encoder-side processing",
-            "answer": [
-              0,
-              1,
-              2
-            ],
             "choices": [
               "Input Embedding",
               "Positional Encoding",
@@ -891,11 +167,241 @@
               "Second",
               "Third"
             ],
+            "answer": [
+              0,
+              1,
+              2
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "title": "Core Components: Attention and Feed-Forward Networks",
+      "lessons": [
+        {
+          "success": true,
+          "data": {
+            "content": "Scaled Dot-Product Attention is a core mechanism used in the Transformer architecture. It computes a weighted sum of values, with weights determined by the compatibility of queries and keys. The scaling factor of 1/√dₖ is used to prevent the softmax function from having extremely small gradients when dₖ is large. This allows for efficient and stable computation of attention.",
+            "info": "The scaling factor is crucial for maintaining stable gradients during training, especially with high-dimensional keys.",
+            "question": "What is the mathematical formula used to compute the output matrix in Scaled Dot-Product Attention?",
+            "answer": "softmax(QK^T / √dₖ)V",
+            "title": "Scaled Dot-Product Attention",
+            "questionType": "short-answer"
+          }
+        },
+        {
+          "success": true,
+          "data": {
+            "content": "Each layer in the Transformer's encoder and decoder contains a fully connected feed-forward network (FFN). This FFN is applied to each position separately and identically. It consists of two linear transformations with a ReLU activation function in between them.",
+            "info": "The dimensionality of the inner layer in the FFN (d_ff = 2048) is larger than the model's dimension (d_model = 512).",
+            "question": "The Feed-Forward Network in a Transformer layer uses a convolutional operation with a kernel size greater than 1.",
+            "answer": false,
+            "title": "The Feed-Forward Network in Transformer Layers",
+            "questionType": "true-false"
+          }
+        },
+        {
+          "success": true,
+          "data": {
+            "content": "Multi-Head Attention consists of multiple attention heads running in parallel. In the base Transformer model, 8 attention heads are used. Each head has a reduced dimension of d_k = d_v = d_model / h = 64, which keeps the total computational cost similar to single-head attention with full dimensionality.",
+            "info": "Multi-head attention allows the model to jointly attend to information from different representation subspaces.",
+            "question": "What is the value of d_v for each head in the base Transformer model (d_model=512, h=8)?",
+            "answer": 2,
+            "choices": [
+              512,
+              64,
+              128,
+              32
+            ],
+            "explanation": "The dimension for values in each head is calculated as d_v = d_model / h. For the base model, this is 512 / 8 = 64.",
+            "title": "Multi-Head Attention Configuration",
+            "questionType": "multiple-choice"
+          }
+        },
+        {
+          "success": true,
+          "data": {
+            "title": "Transformer Encoder Flow",
+            "content": "The Transformer encoder processes input sequences through embedding, positional encoding, and multiple layers of self-attention and feed-forward networks. Each layer includes residual connections and layer normalization to stabilize training and improve gradient flow.",
+            "info": "Self-attention allows the model to weigh the importance of different words in the sequence when computing representations.",
+            "question": "Put the following steps in the correct order",
+            "questionType": "flow-diagram",
             "flowConfig": {
               "nodes": [
                 {
                   "id": "input",
-                  "label": "Input Tokens",
+                  "label": "Input Sequence",
+                  "type": "start"
+                },
+                {
+                  "id": "embedding",
+                  "label": "Input Embedding",
+                  "type": "process"
+                },
+                {
+                  "id": "positional",
+                  "label": "Positional Encoding",
+                  "type": "process"
+                },
+                {
+                  "id": "attention",
+                  "label": "Multi-Head Attention",
+                  "type": "process"
+                },
+                {
+                  "id": "add-norm-1",
+                  "label": "Add & Norm",
+                  "type": "process"
+                },
+                {
+                  "id": "ffn",
+                  "label": "Feed Forward Network",
+                  "type": "process"
+                },
+                {
+                  "id": "add-norm-2",
+                  "label": "Add & Norm",
+                  "type": "process"
+                },
+                {
+                  "id": "output",
+                  "label": "Output Representation",
+                  "type": "output"
+                }
+              ],
+              "edges": [
+                [
+                  "input",
+                  "embedding"
+                ],
+                [
+                  "embedding",
+                  "positional"
+                ],
+                [
+                  "positional",
+                  "attention"
+                ],
+                [
+                  "attention",
+                  "add-norm-1"
+                ],
+                [
+                  "add-norm-1",
+                  "ffn"
+                ],
+                [
+                  "ffn",
+                  "add-norm-2"
+                ],
+                [
+                  "add-norm-2",
+                  "output"
+                ]
+              ]
+            },
+            "choices": [
+              "Input Embedding",
+              "Positional Encoding",
+              "Multi-Head Attention"
+            ],
+            "slots": [
+              "First",
+              "Second",
+              "Third"
+            ],
+            "answer": [
+              0,
+              1,
+              2
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "title": "Training, Results, and Applications",
+      "lessons": [
+        {
+          "success": true,
+          "data": {
+            "content": "The Transformer model was trained on a machine with 8 NVIDIA P100 GPUs. The base model's training step took approximately 0.4 seconds, and it was trained for 100,000 steps, totaling about 12 hours. This represents a significant reduction in training time compared to previous recurrent or convolutional models.",
+            "info": "The Transformer's parallelizable architecture drastically reduces the time required for training.",
+            "question": "What type of GPUs and how many were used to train the base Transformer model, and what was the total training time?",
+            "answer": "8 NVIDIA P100 GPUs for 12 hours",
+            "title": "Training Hardware and Efficiency",
+            "questionType": "short-answer"
+          }
+        },
+        {
+          "success": true,
+          "data": {
+            "content": "The Transformer model achieved state-of-the-art results on machine translation tasks with significantly improved efficiency. On the WMT 2014 English-to-German task, the big Transformer model achieved a BLEU score of 28.4, outperforming all previous models by over 2 BLEU. For English-to-French translation, the same model achieved an even higher BLEU score of 41.8 after training for 3.5 days on eight GPUs.",
+            "info": "The Transformer model set new state-of-the-art BLEU scores for both English-German and English-French translation tasks with dramatically reduced training time.",
+            "question": "On which WMT 2014 translation task did the Transformer's big model achieve a BLEU score of 28.4?",
+            "answer": 0,
+            "title": "Transformer BLEU Score Achievements",
+            "questionType": "multiple-choice",
+            "choices": [
+              "English-to-German",
+              "English-to-French",
+              "German-to-English",
+              "French-to-English"
+            ],
+            "fixHistory": [
+              {
+                "attempt": 0,
+                "validationType": "content",
+                "reason": "The lesson has a critical factual error in the question statement, though the content and answer are accurate.",
+                "details": [
+                  "The lesson has a critical factual error in the question statement, though the content and answer are accurate.",
+                  "[question] The question states the BLEU score of 28.4 was achieved on the 'English-to-French' task, but the source clearly states this was for 'English-to-German'. The correct score for English-to-French was 41.8.",
+                  "[answer] While the answer 'false' is technically correct because the question misstates the language pair, this creates a misleading test. The question should be corrected to test the actual fact about which task achieved the 28.4 score."
+                ],
+                "lesson": {
+                  "content": "On the WMT 2014 English-to-German translation task, the big Transformer model achieved a BLEU score of 28.4, outperforming all previous models by over 2 BLEU. This model was trained for 3.5 days on eight GPUs. The base model also surpassed all previously published models at a fraction of the training cost.",
+                  "info": "The Transformer established a new state-of-the-art result on a major machine translation benchmark.",
+                  "question": "The Transformer's big model achieved a BLEU score of 28.4 on the WMT 2014 English-to-French translation task.",
+                  "answer": false,
+                  "title": "BLEU Score Achievement",
+                  "questionType": "true-false"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "success": true,
+          "data": {
+            "content": "To test its generalization, a 4-layer Transformer was applied to English constituency parsing on the WSJ portion of the Penn Treebank. In a semi-supervised setting, using a larger corpus, the Transformer achieved an F1 score of 92.7. This outperformed many previous approaches and was competitive with state-of-the-art results.",
+            "info": "The Transformer demonstrated strong performance beyond translation, on a task with structural constraints.",
+            "question": "What F1 score did the 4-layer Transformer achieve in the semi-supervised English constituency parsing task?",
+            "answer": 3,
+            "choices": [
+              88.3,
+              91.7,
+              92.7,
+              93.3
+            ],
+            "explanation": "Table 2 in the content shows that the Transformer (4 layers) in the semi-supervised setting achieved an F1 score of 92.7, which is the third option in the list.",
+            "title": "Parser Performance",
+            "questionType": "multiple-choice"
+          }
+        },
+        {
+          "success": true,
+          "data": {
+            "title": "Transformer Architecture Flow",
+            "content": "The Transformer processes input sequences through embedding, positional encoding, and multiple encoder/decoder layers with attention mechanisms before generating output probabilities. This architecture replaces recurrent networks with self-attention for improved parallelization and performance on sequence tasks like translation.",
+            "info": "The Transformer uses positional encoding to give the model information about the order of tokens since it contains no recurrence or convolution.",
+            "question": "Put the following steps in the correct order",
+            "questionType": "flow-diagram",
+            "flowConfig": {
+              "nodes": [
+                {
+                  "id": "input",
+                  "label": "Input Sequence",
                   "type": "start"
                 },
                 {
@@ -904,18 +410,18 @@
                   "type": "process"
                 },
                 {
-                  "id": "pos",
+                  "id": "pos-enc",
                   "label": "Positional Encoding",
                   "type": "process"
                 },
                 {
                   "id": "encoder",
-                  "label": "Encoder Stack (N layers)",
+                  "label": "Encoder Stack (N Layers)",
                   "type": "process"
                 },
                 {
                   "id": "decoder",
-                  "label": "Decoder Stack (N layers)",
+                  "label": "Decoder Stack (N Layers)",
                   "type": "process"
                 },
                 {
@@ -941,10 +447,10 @@
                 ],
                 [
                   "embed",
-                  "pos"
+                  "pos-enc"
                 ],
                 [
-                  "pos",
+                  "pos-enc",
                   "encoder"
                 ],
                 [
@@ -965,117 +471,20 @@
                 ]
               ]
             },
-            "title": "Transformer Model Architecture Sequence",
-            "questionType": "flow-diagram",
-            "fixHistory": [
-              {
-                "attempt": 0,
-                "validationType": "content",
-                "reason": "Content validation failed",
-                "details": [
-                  "The lesson contains multiple factual inaccuracies regarding the Transformer architecture sequence and incorrect flow diagram representation when compared to the source material.",
-                  "[content] The content states 'The Transformer processes input tokens through embedding and encoding steps, then uses a decoder stack to generate output probabilities' which oversimplifies and misrepresents the full architecture. The source clearly shows the decoder also requires its own embedding and positional encoding steps before processing encoder outputs.",
-                  "[answer] The answer [0,1,2] suggests the sequence is Input Embedding → Positional Encoding → Encoder Stack, but this is incomplete as it doesn't account for the decoder side processing that generates the final output probabilities",
-                  "[choices] The choices only include encoder-side steps (Input Embedding, Positional Encoding, Encoder Stack) but omit the crucial decoder-side components needed to generate 'output probabilities' as mentioned in the content",
-                  "[slots] The slots (First, Second, Third) are insufficient to represent the full Transformer processing sequence which includes both encoder and decoder stacks with multiple steps"
-                ],
-                "lesson": {
-                  "title": "Transformer Model Architecture Sequence",
-                  "content": "The Transformer processes input tokens through embedding and encoding steps, then uses a decoder stack to generate output probabilities. This architecture relies entirely on attention mechanisms without recurrence or convolution.",
-                  "info": "The Transformer's self-attention mechanism allows it to process all positions in the sequence simultaneously, enabling greater parallelization than RNNs.",
-                  "question": "Put the following steps in the correct order",
-                  "questionType": "flow-diagram",
-                  "flowConfig": {
-                    "nodes": [
-                      {
-                        "id": "input",
-                        "label": "Input Tokens",
-                        "type": "start"
-                      },
-                      {
-                        "id": "embed",
-                        "label": "Input Embedding",
-                        "type": "process"
-                      },
-                      {
-                        "id": "pos",
-                        "label": "Positional Encoding",
-                        "type": "process"
-                      },
-                      {
-                        "id": "encoder",
-                        "label": "Encoder Stack (N layers)",
-                        "type": "process"
-                      },
-                      {
-                        "id": "decoder",
-                        "label": "Decoder Stack (N layers)",
-                        "type": "process"
-                      },
-                      {
-                        "id": "linear",
-                        "label": "Linear Transformation",
-                        "type": "process"
-                      },
-                      {
-                        "id": "softmax",
-                        "label": "Softmax",
-                        "type": "process"
-                      },
-                      {
-                        "id": "output",
-                        "label": "Output Probabilities",
-                        "type": "output"
-                      }
-                    ],
-                    "edges": [
-                      [
-                        "input",
-                        "embed"
-                      ],
-                      [
-                        "embed",
-                        "pos"
-                      ],
-                      [
-                        "pos",
-                        "encoder"
-                      ],
-                      [
-                        "encoder",
-                        "decoder"
-                      ],
-                      [
-                        "decoder",
-                        "linear"
-                      ],
-                      [
-                        "linear",
-                        "softmax"
-                      ],
-                      [
-                        "softmax",
-                        "output"
-                      ]
-                    ]
-                  },
-                  "choices": [
-                    "Input Embedding",
-                    "Positional Encoding",
-                    "Encoder Stack"
-                  ],
-                  "slots": [
-                    "First",
-                    "Second",
-                    "Third"
-                  ],
-                  "answer": [
-                    0,
-                    1,
-                    2
-                  ]
-                }
-              }
+            "choices": [
+              "Input Embedding",
+              "Positional Encoding",
+              "Encoder Stack (N Layers)"
+            ],
+            "slots": [
+              "First",
+              "Second",
+              "Third"
+            ],
+            "answer": [
+              0,
+              1,
+              2
             ]
           }
         }

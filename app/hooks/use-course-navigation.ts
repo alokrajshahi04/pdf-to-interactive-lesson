@@ -22,6 +22,7 @@ interface LessonData {
   slots?: string[];
   flowConfig?: FlowConfig;
   gradingResult?: GradingResult;
+  explanation?: string;
 }
 
 interface Lesson {
