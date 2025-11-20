@@ -24,13 +24,6 @@ export default async function Image({
   fontArray.set(fontBuffer)
   const fontData = fontArray.buffer
 
-  // Load SVGs
-  const leftSvg = await readFile(join(process.cwd(), 'public/landing-left.svg'))
-  const rightSvg = await readFile(join(process.cwd(), 'public/landing-right.svg'))
-  
-  const leftSvgSrc = `data:image/svg+xml;base64,${leftSvg.toString('base64')}`
-  const rightSvgSrc = `data:image/svg+xml;base64,${rightSvg.toString('base64')}`
-
   // Since course data is stored client-side only (localStorage),
   // we'll use a default design with the slug
   // The actual course title will be set dynamically by the client component
@@ -56,28 +49,6 @@ export default async function Image({
           position: 'relative',
         }}
       >
-        {/* Background Elements */}
-        <img
-          src={leftSvgSrc}
-          style={{
-            position: 'absolute',
-            left: 0,
-            bottom: 0,
-            height: '500px',
-            opacity: 0.6,
-          }}
-        />
-        <img
-          src={rightSvgSrc}
-          style={{
-            position: 'absolute',
-            right: 0,
-            top: 0,
-            height: '500px',
-            opacity: 0.6,
-          }}
-        />
-
         <div
           style={{
             display: 'flex',
