@@ -6,11 +6,10 @@ import { ModuleCompleteScreen } from "@/app/components/module-complete-screen";
 import { LessonScreen } from "@/app/components/lesson-screen";
 import { Header } from "@/app/components/header";
 import { Footer } from "@/app/components/footer";
-import { getCourseBySlug, updateCourseProgress, updateCourseData } from "@/lib/storage";
-import type { StoredCourse } from "@/lib/storage";
 import type { Course, Step } from "@/app/hooks/use-course-navigation";
 import { useCourseNavigation } from "@/app/hooks/use-course-navigation";
 import { debugLog } from "@/lib/utils/debug";
+import { getCourseProgress, updateCourseProgress } from "@/lib/course-progress";
 
 export default function LessonPage() {
   const params = useParams();
@@ -21,8 +20,12 @@ export default function LessonPage() {
   const stepParam = (searchParams.get("step") || "module-intro") as Step;
   const lessonIndexParam = parseInt(searchParams.get("lesson") || "0", 10);
 
-  const [storedCourse, setStoredCourse] = useState<StoredCourse | null>(null);
   const [course, setCourse] = useState<Course | null>(null);
+  const [savedProgress, setSavedProgress] = useState<{
+    currentModuleIndex: number;
+    currentLessonIndex: number;
+    completedModules: number[];
+  } | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const hasAnimatedPage = useRef(false);
@@ -40,18 +43,41 @@ export default function LessonPage() {
     }
   }, [moduleIndexParam]);
 
-  // Load course from storage
+  // Load course and progress from database
   useEffect(() => {
-    const stored = getCourseBySlug(slug);
-    if (!stored) {
-      setError("Course not found");
-      setLoading(false);
-      return;
-    }
+    const fetchCourseAndProgress = async () => {
+      try {
+        setLoading(true);
+        
+        // Fetch course data
+        const courseResponse = await fetch(`/api/courses/${slug}`);
+        if (!courseResponse.ok) {
+          setError("Course not found");
+          setLoading(false);
+          return;
+        }
+        const courseData = await courseResponse.json();
+        setCourse(courseData.course);
 
-    setStoredCourse(stored);
-    setCourse(stored.course);
-    setLoading(false);
+        // Load user's progress from localStorage
+        const progress = getCourseProgress(slug);
+        if (progress) {
+          setSavedProgress({
+            currentModuleIndex: progress.currentModuleIndex,
+            currentLessonIndex: progress.currentLessonIndex,
+            completedModules: progress.completedModules || [],
+          });
+        }
+
+        setLoading(false);
+      } catch (err) {
+        console.error("Error fetching course:", err);
+        setError("Failed to load course");
+        setLoading(false);
+      }
+    };
+
+    fetchCourseAndProgress();
   }, [slug]);
 
   // Navigation callback to update URL
@@ -87,8 +113,15 @@ export default function LessonPage() {
     initialModuleIndex: isNaN(moduleIndexParam) ? 0 : moduleIndexParam,
     initialLessonIndex: isNaN(lessonIndexParam) ? 0 : lessonIndexParam,
     initialStep: stepParam,
-    initialCompletedModules: storedCourse?.progress.completedModules,
+    initialCompletedModules: savedProgress?.completedModules || [],
     onNavigate: handleNavigate,
+    onModuleComplete: (completedIndex: number, allCompleted: number[]) => {
+      // Immediately save when a module completes
+      console.log('[MODULE COMPLETE CALLBACK] Saving immediately:', allCompleted);
+      updateCourseProgress(slug, {
+        completedModules: allCompleted,
+      });
+    },
   });
 
   // Update page title dynamically when course and module are loaded
@@ -128,42 +161,30 @@ export default function LessonPage() {
     }
   }, [slug, moduleIndexParam, lessonIndexParam, stepParam, course, navigation.currentLesson]);
 
-  // Save progress whenever it changes
+  // Save progress to localStorage whenever it changes (debounced)
   useEffect(() => {
-    if (!storedCourse || !navigation || !course) return;
+    if (!course || !navigation) return;
 
-    const { moduleIndex, lessonIndex, completedModules, step } = navigation;
-    const totalModules = course.modules.length;
-    const totalLessons = course.modules.reduce(
-      (sum, mod) => sum + mod.lessons.filter((l) => l.success).length,
-      0
-    );
-    const completedLessons =
-      course.modules
-        .slice(0, moduleIndex)
-        .reduce(
-          (sum, mod) => sum + mod.lessons.filter((l) => l.success).length,
-          0
-        ) + (step === "answer" ? 1 : 0);
+    const timeoutId = setTimeout(() => {
+      console.log('[SAVE TRIGGER] Saving progress:', {
+        moduleIndex: navigation.moduleIndex,
+        lessonIndex: navigation.lessonIndex,
+        completedModules: navigation.completedModules,
+      });
+      updateCourseProgress(slug, {
+        currentModuleIndex: navigation.moduleIndex,
+        currentLessonIndex: navigation.lessonIndex,
+        completedModules: navigation.completedModules,
+      });
+    }, 500); // Debounce to avoid too many writes
 
-    updateCourseProgress(storedCourse.id, {
-      currentModuleIndex: moduleIndex,
-      currentLessonIndex: lessonIndex,
-      completedModules,
-      totalModules,
-      totalLessons,
-      completedLessons,
-    });
-
-    // Also update course data to persist grading results
-    updateCourseData(storedCourse.id, course);
+    return () => clearTimeout(timeoutId);
   }, [
-    storedCourse?.id,
+    slug,
+    course,
     navigation?.moduleIndex,
     navigation?.lessonIndex,
-    navigation?.completedModules,
-    navigation?.step,
-    course,
+    JSON.stringify(navigation?.completedModules), // Use JSON.stringify for array comparison
   ]);
 
   // Handle navigation
@@ -172,7 +193,7 @@ export default function LessonPage() {
   };
 
   if (loading) {
-    return null;
+    return <div className="min-h-screen bg-white" />;
   }
 
   if (error || !course) {

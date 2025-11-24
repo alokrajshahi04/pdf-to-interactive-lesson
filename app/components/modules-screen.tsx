@@ -3,37 +3,13 @@
 import { useState } from "react";
 import { Header } from "./header";
 import { Footer } from "./footer";
-import type { FlowConfig } from "@/lib/types";
-
-interface LessonData {
-  content: string;
-  info: string;
-  question: string;
-  answer: string | boolean | number | number[];
-  title: string;
-  questionType: string;
-  choices?: string[];
-  slots?: string[];
-  flowConfig?: FlowConfig;
-}
-
-interface Lesson {
-  success: boolean;
-  data: LessonData;
-}
-
-interface Module {
-  title: string;
-  lessons: Lesson[];
-}
-
-interface Course {
-  title: string;
-  modules: Module[];
-}
+import { ShareCourseDialog } from "./share-course-dialog";
+import { Share2 } from "lucide-react";
+import type { Course } from "@/app/hooks/use-course-navigation";
 
 interface ModulesScreenProps {
   course: Course;
+  courseSlug: string;
   onStartModule: (moduleIndex: number) => void;
   onJumpToLesson?: (moduleIndex: number, lessonIndex: number) => void;
   completedModules: number[];
@@ -42,12 +18,14 @@ interface ModulesScreenProps {
 
 function ModulesScreen({
   course,
+  courseSlug,
   onStartModule,
   onJumpToLesson,
   completedModules,
   currentModuleIndex,
 }: ModulesScreenProps) {
   const [copied, setCopied] = useState(false);
+  const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
   const totalModules = course.modules.length;
   const totalLessons = course.modules.reduce(
     (sum, mod) => sum + mod.lessons.filter((l) => l.success).length,
@@ -64,9 +42,30 @@ function ModulesScreen({
     }
   };
 
+  // Calculate module progress for header
+  const moduleProgressData = course.modules.map((_, idx) => ({
+    progress: completedModules.includes(idx) ? 100 : (currentModuleIndex === idx ? 50 : 0),
+  }));
+
   return (
     <div className="min-h-screen bg-white flex flex-col">
-      <Header showNavLinks={true} courseTitle={course.title} />
+      <Header 
+        showNavLinks={true} 
+        courseTitle={course.title}
+        course={course}
+        currentModuleIndex={currentModuleIndex}
+        moduleProgress={moduleProgressData}
+        completedModules={completedModules}
+        onModuleSelect={(moduleIndex) => onStartModule(moduleIndex)}
+      />
+
+      {/* Share Dialog */}
+      <ShareCourseDialog
+        open={isShareDialogOpen}
+        onOpenChange={setIsShareDialogOpen}
+        courseTitle={course.title}
+        courseSlug={courseSlug}
+      />
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-6 py-16 flex-grow">
@@ -103,6 +102,14 @@ function ModulesScreen({
                   />
                 </svg>
               </button>
+              
+              <button
+                onClick={() => setIsShareDialogOpen(true)}
+                className="w-full max-w-sm py-4 border-2 border-neutral-900 text-neutral-900 font-semibold rounded-2xl hover:bg-neutral-50 transition-all flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <Share2 className="w-5 h-5" />
+                Share Course
+              </button>
             </div>
           </div>
 
@@ -112,7 +119,8 @@ function ModulesScreen({
               const successfulLessons = module.lessons.filter((l) => l.success);
               const isCompleted = completedModules.includes(index);
               const isCurrent = currentModuleIndex === index;
-              const isLocked = index > currentModuleIndex;
+              // Module is unlocked if: it's the first module, OR the previous module is completed
+              const isLocked = index > 0 && !completedModules.includes(index - 1);
 
               return (
                 <button

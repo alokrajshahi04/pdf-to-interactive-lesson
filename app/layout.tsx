@@ -59,9 +59,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" className="light">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} ${fustat.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} ${fustat.variable} antialiased bg-white`}
       >
         <CreditsProviderWrapper>{children}</CreditsProviderWrapper>
       </body>

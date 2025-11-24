@@ -1,9 +1,11 @@
 "use client";
 
+import { useState } from "react";
 import { Check, Minus, ChevronDown } from "lucide-react";
 import Link from "next/link";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
+import { ApiKeyDialog } from "./api-key-dialog";
 import type { Course } from "../hooks/use-course-navigation";
 import { useImageFadeIn } from "../hooks/use-image-fade-in";
 
@@ -11,17 +13,22 @@ interface HeaderProps {
   showProgressBar?: boolean;
   moduleProgress?: Array<{ progress: number }>;
   showNavLinks?: boolean; // Show home/courses links
+  showCoursesLink?: boolean; // Show courses link (for home page when courses exist)
   courseTitle?: string; // Course title to display in header
   course?: Course; // Course data for tooltips
   onModuleSelect?: (moduleIndex: number) => void; // Callback when a module is selected
   currentModuleIndex?: number; // Current module index to highlight
+  completedModules?: number[]; // Array of completed module indices for lock logic
 }
 
-function Header({ showProgressBar, moduleProgress, showNavLinks, courseTitle, course, onModuleSelect, currentModuleIndex }: HeaderProps) {
+function Header({ showProgressBar, moduleProgress, showNavLinks, showCoursesLink, courseTitle, course, onModuleSelect, currentModuleIndex, completedModules }: HeaderProps) {
   const logoFadeIn = useImageFadeIn("/logo.svg");
+  const [showApiKeyDialog, setShowApiKeyDialog] = useState(false);
 
   return (
     <div className="sticky top-0 z-50 bg-white border-b border-neutral-200">
+      <ApiKeyDialog open={showApiKeyDialog} onOpenChange={setShowApiKeyDialog} />
+      
       <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between gap-2 min-w-0">
         <div className="flex items-center gap-2 flex-shrink-0">
           <Link href="/">
@@ -53,21 +60,35 @@ function Header({ showProgressBar, moduleProgress, showNavLinks, courseTitle, co
                     const isCurrent = currentModuleIndex === idx;
                     const modProgress = moduleProgress?.[idx];
                     const isCompleted = modProgress?.progress === 100;
+                    // Module is locked if: it's not the first module AND the previous module is NOT completed
+                    const isLocked = idx > 0 && !(completedModules || []).includes(idx - 1);
                     
                     return (
                       <button
                         key={idx}
                         onClick={() => {
-                          onModuleSelect?.(idx);
+                          if (!isLocked) {
+                            onModuleSelect?.(idx);
+                          }
                         }}
+                        disabled={isLocked}
                         className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
                           isCurrent
                             ? "bg-neutral-100 text-neutral-900 font-medium"
+                            : isLocked
+                            ? "text-neutral-400 cursor-not-allowed opacity-50"
                             : "text-neutral-600 hover:bg-neutral-50"
                         }`}
                       >
                         <div className="flex items-center justify-between">
-                          <span>Module {idx + 1}: {module.title}</span>
+                          <span className="flex items-center gap-2">
+                            {isLocked && (
+                              <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+                              </svg>
+                            )}
+                            Module {idx + 1}: {module.title}
+                          </span>
                           {isCompleted && (
                             <Check className="w-4 h-4 text-green-600" />
                           )}
@@ -80,6 +101,27 @@ function Header({ showProgressBar, moduleProgress, showNavLinks, courseTitle, co
             </Popover>
           </div>
         ) : null}
+        
+        {/* Right Side Actions */}
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {showCoursesLink && (
+            <Link
+              href="/courses"
+              className="text-sm font-medium text-neutral-600 hover:text-neutral-900 transition-colors px-3 py-1.5"
+            >
+              Courses
+            </Link>
+          )}
+          <button 
+            onClick={() => setShowApiKeyDialog(true)}
+            className="flex items-center justify-center w-10 h-10 bg-neutral-50 border border-neutral-200 rounded-full text-neutral-700 hover:text-neutral-900 transition-colors cursor-pointer"
+            aria-label="API Key"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+            </svg>
+          </button>
+        </div>
       </div>
       {/* Progress bar */}
       {showProgressBar && moduleProgress && (

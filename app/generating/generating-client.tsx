@@ -4,10 +4,8 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { upload } from "@vercel/blob/client";
 import { getApiKey } from "@/lib/api-key-storage";
-import { saveCourse, updateCourseSlug } from "@/lib/storage";
-import { generateSlug, ensureUniqueSlug } from "@/lib/utils/slug";
-import { getStoredCourses } from "@/lib/storage";
 import { getPendingFile } from "@/lib/utils/indexed-db-storage";
+import { getOrCreateUserId } from "@/lib/utils/session";
 import type { Course } from "@/app/hooks/use-course-navigation";
 import { useCredits } from "../hooks/use-credits";
 import { ApiKeyDialog } from "../components/api-key-dialog";
@@ -188,26 +186,34 @@ export function GeneratingPageContent() {
         throw new Error("Failed to generate course");
       }
 
-      setProgress("Course generated successfully!");
+      setProgress("Course generated successfully! Saving to database...");
 
-      // Save course and navigate to it
-      const courseId = saveCourse(courseData);
-      const courses = getStoredCourses();
-      const course = courses.find((c) => c.id === courseId);
+      // Save course to database for sharing
+      try {
+        const userId = getOrCreateUserId();
+        const saveResponse = await fetch("/api/courses", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-User-ID": userId,
+          },
+          body: JSON.stringify({ course: courseData }),
+        });
 
-      if (course) {
-        // Ensure slug exists
-        if (!course.slug) {
-          const baseSlug = generateSlug(course.course.title, course.id);
-          const existingSlugs = courses
-            .map((c) => c.slug)
-            .filter(Boolean) as string[];
-          const slug = ensureUniqueSlug(baseSlug, existingSlugs);
-          updateCourseSlug(courseId, slug);
-          router.push(`/course/${slug}`);
-        } else {
-          router.push(`/course/${course.slug}`);
+        if (!saveResponse.ok) {
+          const errorData = await saveResponse.json();
+          throw new Error(errorData.error || "Failed to save course");
         }
+
+        const savedCourse = await saveResponse.json();
+        setProgress("Course saved! Redirecting...");
+        
+        // Navigate to the course using the slug from the database
+        router.push(`/course/${savedCourse.slug}`);
+      } catch (saveError) {
+        console.error("Error saving course to database:", saveError);
+        // For now, show error - in production you might want to save locally as fallback
+        throw new Error("Failed to save course to database. Please try again.");
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Failed to process PDF. Please try again.";

@@ -1,10 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ModulesScreen } from "@/app/components/modules-screen";
-import { getCourseBySlug } from "@/lib/storage";
-import type { StoredCourse } from "@/lib/storage";
+import { getCourseProgress } from "@/lib/course-progress";
 import type { Course } from "@/app/hooks/use-course-navigation";
 
 export default function CoursePage() {
@@ -17,22 +16,79 @@ export default function CoursePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const stored = getCourseBySlug(slug);
-    if (!stored) {
-      setError("Course not found");
-      setLoading(false);
-      return;
+  // Separate function to refresh progress from localStorage
+  const refreshProgress = useCallback(() => {
+    const progress = getCourseProgress(slug);
+    console.log('[MODULES SCREEN] Refreshing progress:', progress);
+    if (progress) {
+      setCompletedModules(progress.completedModules || []);
+      setCurrentModuleIndex(progress.currentModuleIndex || 0);
+    } else {
+      setCompletedModules([]);
+      setCurrentModuleIndex(0);
     }
-
-    setCourse(stored.course);
-    setCompletedModules(stored.progress.completedModules);
-    setCurrentModuleIndex(stored.progress.currentModuleIndex);
-    setLoading(false);
-    
-    // Update page title dynamically
-    document.title = `${stored.course.title} | PDF to Interactive Lesson Generator`;
   }, [slug]);
+
+  useEffect(() => {
+    const fetchCourseAndProgress = async () => {
+      try {
+        setLoading(true);
+        
+        // Fetch course from database
+        const courseResponse = await fetch(`/api/courses/${slug}`);
+        
+        if (!courseResponse.ok) {
+          if (courseResponse.status === 404) {
+            setError("Course not found");
+          } else {
+            setError("Failed to load course");
+          }
+          setLoading(false);
+          return;
+        }
+
+        const courseData = await courseResponse.json();
+        setCourse(courseData.course);
+        
+        // Load user's progress from localStorage
+        refreshProgress();
+        
+        setLoading(false);
+        
+        // Update page title dynamically
+        document.title = `${courseData.course.title} | PDF to Interactive Lesson Generator`;
+      } catch (err) {
+        console.error("Error fetching course:", err);
+        setError("Failed to load course. Please check your connection.");
+        setLoading(false);
+      }
+    };
+
+    fetchCourseAndProgress();
+  }, [slug, refreshProgress]);
+
+  // Refresh progress when page becomes visible (user navigates back)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        console.log('[MODULES SCREEN] Page visible, refreshing progress');
+        refreshProgress();
+      }
+    };
+
+    const handleFocus = () => {
+      console.log('[MODULES SCREEN] Window focused, refreshing progress');
+      refreshProgress();
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [refreshProgress]);
 
   const handleStartModule = (moduleIndex: number) => {
     router.push(`/course/${slug}/module/${moduleIndex}`);
@@ -44,7 +100,7 @@ export default function CoursePage() {
   };
 
   if (loading) {
-    return null;
+    return <div className="min-h-screen bg-white" />;
   }
 
   if (error || !course) {
@@ -67,6 +123,7 @@ export default function CoursePage() {
   return (
     <ModulesScreen
       course={course}
+      courseSlug={slug}
       onStartModule={handleStartModule}
       onJumpToLesson={handleJumpToLesson}
       completedModules={completedModules}

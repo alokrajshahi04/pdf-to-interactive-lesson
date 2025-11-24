@@ -63,6 +63,7 @@ interface UseCourseNavigationOptions {
     lessonIndex: number;
     step: Step;
   }) => void;
+  onModuleComplete?: (completedIndex: number, allCompleted: number[]) => void;
 }
 
 export function useCourseNavigation(
@@ -483,15 +484,27 @@ export function useCourseNavigation(
           step: newStep,
         });
       } else {
-        // Module complete - mark as completed
-        if (!completedModules.includes(moduleIndex)) {
-          setCompletedModules([...completedModules, moduleIndex]);
-        }
+        // Module complete - mark as completed and advance currentModuleIndex
+        const updatedCompleted = completedModules.includes(moduleIndex)
+          ? completedModules
+          : [...completedModules, moduleIndex];
+        
+        console.log('[MODULE COMPLETE] Module:', moduleIndex, '| Previous completed:', completedModules, '| Updated completed:', updatedCompleted);
+        setCompletedModules(updatedCompleted);
+        
+        // Immediately notify parent to save progress
+        options?.onModuleComplete?.(moduleIndex, updatedCompleted);
+        
         const newStep = "module-complete";
         setStep(newStep);
         setUserAnswer(null);
         setShowResult(false);
         setGradingError(null);
+        
+        // Advance to next module index (so it unlocks on modules screen)
+        const nextModuleIndex = moduleIndex + 1;
+        setModuleIndex(nextModuleIndex);
+        
         options?.onNavigate?.({
           moduleIndex,
           lessonIndex,

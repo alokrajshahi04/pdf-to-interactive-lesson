@@ -10,8 +10,10 @@ An AI-powered tool that converts PDFs and markdown documents into structured, in
   - Fast deterministic structure validation (schema, types, required fields)
   - LLM-based content validation (factual accuracy, question quality)
 - 🔧 **Automatic Retry**: Failed lessons are automatically fixed and re-validated (default: 3 attempts)
-- 📊 **Multiple Question Types**: short-answer, true-false, and multiple-choice
+- 📊 **Multiple Question Types**: short-answer, true-false, multiple-choice, drag-drop, and flow-diagram
 - 📝 **JSON Output**: Generates structured JSON files for easy integration
+- 🔗 **Course Sharing**: Share courses via links with automatic database storage (powered by Neon PostgreSQL)
+- ⚡ **JSON Upload**: Skip PDF processing - upload pre-generated course JSON files directly for instant course creation
 
 ## Quick Start
 
@@ -22,6 +24,9 @@ pnpm setup
 # Copy environment variables and add your API keys
 cp .env.example .env.local
 
+# Set up database (required for sharing)
+pnpm db:push
+
 # Start both servers
 pnpm dev
 # - Next.js: http://localhost:3000
@@ -31,6 +36,51 @@ pnpm dev
 Or run individually:
 - `pnpm dev:next` - Just Next.js
 - `pnpm dev:api` - Just Flask API
+
+### Instant Course Upload
+
+Already have a course JSON file? Skip the PDF processing entirely:
+
+1. Go to http://localhost:3000
+2. Click "Upload a PDF or JSON" or drag-and-drop your `.json` file
+3. Course is instantly saved to database and ready to share
+
+This is perfect for:
+- Re-uploading previously generated courses
+- Migrating courses between environments
+- Sharing course JSON files with team members
+- Testing and development
+
+#### Expected JSON Format
+
+The JSON file should follow this structure:
+
+```json
+{
+  "title": "Course Title",
+  "modules": [
+    {
+      "title": "Module Title",
+      "lessons": [
+        {
+          "success": true,
+          "data": {
+            "title": "Lesson Title",
+            "content": "Lesson content...",
+            "info": "Key takeaway...",
+            "question": "Question text?",
+            "questionType": "multiple-choice",
+            "choices": ["A", "B", "C", "D"],
+            "answer": 1
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+See `lib/demo/transformer-course.json` for a complete example.
 
 ## Usage
 
@@ -378,12 +428,79 @@ cp .env.example .env.local
 - Get this from Vercel Dashboard → Storage → Blob → Connect
 - Not required for CLI usage
 
+**`DATABASE_URL`** - Neon PostgreSQL database connection string
+- Required for course sharing functionality
+- Get this from [Neon](https://neon.tech/) after creating a project
+- Format: `postgresql://user:password@host/database?sslmode=require`
+- See [Neon Database Setup](#neon-database-setup) below for detailed instructions
+
 ### Optional Variables
 
 **`RAILWAY_API_URL`** - Railway API URL for PDF conversion
 - If not set, uses local PDF.js (may have issues with some PDFs)
 - Deploy the Flask API from `/api` to Railway and set this URL
 - Example: `https://your-app.railway.app`
+
+## Neon Database Setup
+
+This application uses Neon PostgreSQL for storing and sharing courses.
+
+### Step 1: Create a Neon Project
+
+1. Go to [Neon](https://neon.tech/) and sign up for a free account
+2. Create a new project
+3. Copy the connection string from the dashboard
+
+### Step 2: Configure Environment Variables
+
+Add the connection string to your `.env.local`:
+
+```bash
+DATABASE_URL="postgresql://user:password@host/database?sslmode=require"
+```
+
+### Step 3: Run Database Migrations
+
+Push the schema to your Neon database:
+
+```bash
+pnpm db:push
+```
+
+This will create the `courses` table with the following schema:
+- `id` (UUID) - Unique course identifier
+- `slug` (text) - URL-friendly course identifier
+- `title` (text) - Course title
+- `course_data` (jsonb) - Complete course content
+- `is_public` (boolean) - Visibility flag
+- `created_at` (timestamp) - Creation timestamp
+- `updated_at` (timestamp) - Last update timestamp
+
+### Step 4: Verify Connection
+
+Check that your database is connected:
+
+```bash
+curl http://localhost:3000/api/health
+```
+
+You should see a response indicating the database is connected.
+
+### Database Commands
+
+```bash
+# Push schema changes to database (recommended for development)
+pnpm db:push
+
+# Generate migrations from schema
+pnpm db:generate
+
+# Apply migrations
+pnpm db:migrate
+
+# Open Drizzle Studio (database GUI)
+pnpm db:studio
+```
 
 ## Notes
 

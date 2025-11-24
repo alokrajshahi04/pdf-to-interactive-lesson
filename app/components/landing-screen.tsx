@@ -3,8 +3,8 @@
 import { useState, useEffect, useRef } from "react";
 import { upload } from "@vercel/blob/client";
 import { getApiKey } from "@/lib/api-key-storage";
-import { getStoredCourses, saveCourse } from "@/lib/storage";
 import { storePendingFile } from "@/lib/utils/indexed-db-storage";
+import { getOrCreateUserId } from "@/lib/utils/session";
 import { ApiKeyDialog } from "./api-key-dialog";
 import { Github, Twitter } from "lucide-react";
 import Link from "next/link";
@@ -30,9 +30,16 @@ function LandingScreen({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    const checkCourses = () => {
-      const courses = getStoredCourses();
-      setHasCourses(courses.length > 0);
+    const checkCourses = async () => {
+      try {
+        const response = await fetch('/api/courses');
+        if (response.ok) {
+          const data = await response.json();
+          setHasCourses(data.courses.length > 0);
+        }
+      } catch (error) {
+        console.error('Failed to fetch courses:', error);
+      }
     };
     
     // Check on mount
@@ -61,14 +68,71 @@ function LandingScreen({
     setIsDragging(false);
     const files = e.dataTransfer.files;
     if (files.length > 0) {
-      handleFileUpload(files[0]);
+      const file = files[0];
+      if (file.name.endsWith(".json")) {
+        handleJsonUpload(file);
+      } else {
+        handleFileUpload(file);
+      }
     }
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files && files.length > 0) {
-      handleFileUpload(files[0]);
+      const file = files[0];
+      if (file.name.endsWith(".json")) {
+        handleJsonUpload(file);
+      } else {
+        handleFileUpload(file);
+      }
+    }
+  };
+
+  const handleJsonUpload = async (file: File) => {
+    setIsProcessing(true);
+    setError(null);
+    setProgress("Reading JSON file...");
+
+    try {
+      // Read the JSON file
+      const text = await file.text();
+      const courseData = JSON.parse(text);
+
+      // Basic validation
+      if (!courseData.title || !courseData.modules || !Array.isArray(courseData.modules)) {
+        throw new Error("Invalid course JSON format. Must have 'title' and 'modules' array.");
+      }
+
+      setProgress("Saving course to database...");
+
+      // Save to database
+      const userId = getOrCreateUserId();
+      const response = await fetch("/api/courses", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-User-ID": userId,
+        },
+        body: JSON.stringify({ course: courseData }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to save course");
+      }
+
+      const savedCourse = await response.json();
+      setProgress("Course saved! Redirecting...");
+
+      // Redirect to the course
+      setTimeout(() => {
+        window.location.href = `/course/${savedCourse.slug}`;
+      }, 500);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "Failed to process JSON file";
+      setError(errorMessage);
+      setIsProcessing(false);
     }
   };
 
@@ -353,7 +417,7 @@ function LandingScreen({
                     type="file"
                     id="file-upload"
                     className="hidden"
-                    accept=".pdf"
+                    accept=".pdf,.json,application/json"
                     onChange={handleFileSelect}
                     disabled={isProcessing}
                   />
@@ -387,6 +451,9 @@ function LandingScreen({
                     </button>
                     <p className="text-sm text-neutral-500">
                       Or drag-and-drop here
+                    </p>
+                    <p className="text-xs text-neutral-400 mt-2">
+                      JSON upload available for debugging purposes
                     </p>
                   </label>
 

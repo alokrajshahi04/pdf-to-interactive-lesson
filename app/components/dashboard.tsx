@@ -3,12 +3,8 @@
 import { useState, useEffect, useRef } from "react";
 import { upload } from "@vercel/blob/client";
 import { getApiKey } from "@/lib/api-key-storage";
-import {
-  getStoredCourses,
-  deleteCourse,
-  getCompletionPercentage,
-  type StoredCourse,
-} from "@/lib/storage";
+import { getOrCreateUserId } from "@/lib/utils/session";
+import { getCourseProgress } from "@/lib/course-progress";
 import type { Course } from "@/app/hooks/use-course-navigation";
 import { ApiKeyDialog } from "./api-key-dialog";
 import Link from "next/link";
@@ -20,60 +16,21 @@ interface DashboardProps {
   onCourseGenerated?: (course: Course) => void;
 }
 
-interface QuestionTypeCount {
-  "multiple-choice": number;
-  "true-false": number;
-  "short-answer": number;
-  "drag-drop": number;
-  "flow-diagram": number;
-}
 
-function getQuestionTypeCounts(course: Course): QuestionTypeCount {
-  const counts: QuestionTypeCount = {
-    "multiple-choice": 0,
-    "true-false": 0,
-    "short-answer": 0,
-    "drag-drop": 0,
-    "flow-diagram": 0,
-  };
-
-  course.modules.forEach((module) => {
-    module.lessons.forEach((lesson) => {
-      if (lesson.success && lesson.data.questionType) {
-        counts[lesson.data.questionType]++;
-      }
-    });
-  });
-
-  return counts;
-}
-
-function formatQuestionTypeCounts(counts: QuestionTypeCount): string {
-  const parts: string[] = [];
-  
-  if (counts["multiple-choice"] > 0) {
-    parts.push(`${counts["multiple-choice"]} multiple choice`);
-  }
-  if (counts["true-false"] > 0) {
-    parts.push(`${counts["true-false"]} true/false`);
-  }
-  if (counts["short-answer"] > 0) {
-    parts.push(`${counts["short-answer"]} short answer`);
-  }
-  if (counts["drag-drop"] > 0) {
-    parts.push(`${counts["drag-drop"]} drag-drop`);
-  }
-  if (counts["flow-diagram"] > 0) {
-    parts.push(`${counts["flow-diagram"]} flow diagram`);
-  }
-
-  return parts.join(", ");
+interface DatabaseCourse {
+  id: string;
+  slug: string;
+  title: string;
+  courseData: Course;
+  createdAt: string;
+  updatedAt: string;
 }
 
 function Dashboard({ onSelectCourse, onCourseGenerated }: DashboardProps) {
-  const [courses, setCourses] = useState<StoredCourse[]>([]);
+  const [courses, setCourses] = useState<DatabaseCourse[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isLoadingCourses, setIsLoadingCourses] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState("");
   const [isApiKeyDialogOpen, setIsApiKeyDialogOpen] = useState(false);
@@ -82,14 +39,44 @@ function Dashboard({ onSelectCourse, onCourseGenerated }: DashboardProps) {
   const footerFadeIn = useImageFadeIn("/landing-footer-powered-by.svg");
 
   useEffect(() => {
-    setCourses(getStoredCourses());
+    const fetchCourses = async () => {
+      try {
+        setIsLoadingCourses(true);
+        const response = await fetch("/api/courses");
+        if (!response.ok) {
+          throw new Error("Failed to load courses");
+        }
+        const data = await response.json();
+        setCourses(data.courses || []);
+      } catch (error) {
+        console.error("Error fetching courses:", error);
+        // Don't show error in UI, just leave courses empty
+      } finally {
+        setIsLoadingCourses(false);
+      }
+    };
+
+    fetchCourses();
   }, []);
 
-  const handleDelete = (courseId: string, e: React.MouseEvent) => {
+  const handleDelete = async (courseSlug: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (confirm("Delete this course?")) {
-      deleteCourse(courseId);
-      setCourses(getStoredCourses());
+    if (confirm("Delete this course? This action cannot be undone.")) {
+      try {
+        const response = await fetch(`/api/courses/${courseSlug}`, {
+          method: "DELETE",
+        });
+        
+        if (response.ok) {
+          // Remove from local state
+          setCourses(courses.filter(c => c.slug !== courseSlug));
+        } else {
+          alert("Failed to delete course. Please try again.");
+        }
+      } catch (error) {
+        console.error("Error deleting course:", error);
+        alert("Failed to delete course. Please try again.");
+      }
     }
   };
 
@@ -106,15 +93,70 @@ function Dashboard({ onSelectCourse, onCourseGenerated }: DashboardProps) {
     e.preventDefault();
     setIsDragging(false);
     const file = e.dataTransfer.files[0];
-    if (file && file.type === "application/pdf") {
-      await handleFileUpload(file);
+    if (file) {
+      if (file.type === "application/pdf") {
+        await handleFileUpload(file);
+      } else if (file.type === "application/json" || file.name.endsWith(".json")) {
+        await handleJsonUpload(file);
+      }
     }
   };
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file && file.type === "application/pdf") {
-      await handleFileUpload(file);
+    if (file) {
+      if (file.type === "application/pdf") {
+        await handleFileUpload(file);
+      } else if (file.type === "application/json" || file.name.endsWith(".json")) {
+        await handleJsonUpload(file);
+      }
+    }
+  };
+
+  const handleJsonUpload = async (file: File) => {
+    setIsProcessing(true);
+    setError(null);
+    setProgress("Reading JSON file...");
+
+    try {
+      // Read the JSON file
+      const text = await file.text();
+      const courseData = JSON.parse(text);
+
+      // Basic validation
+      if (!courseData.title || !courseData.modules || !Array.isArray(courseData.modules)) {
+        throw new Error("Invalid course JSON format. Must have 'title' and 'modules' array.");
+      }
+
+      setProgress("Saving course to database...");
+
+      // Save to database
+      const userId = getOrCreateUserId();
+      const response = await fetch("/api/courses", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-User-ID": userId,
+        },
+        body: JSON.stringify({ course: courseData }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to save course");
+      }
+
+      const savedCourse = await response.json();
+      setProgress("Course saved! Redirecting...");
+
+      // Redirect to the course
+      setTimeout(() => {
+        window.location.href = `/course/${savedCourse.slug}`;
+      }, 500);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "Failed to process JSON file";
+      setError(errorMessage);
+      setIsProcessing(false);
     }
   };
 
@@ -255,7 +297,7 @@ function Dashboard({ onSelectCourse, onCourseGenerated }: DashboardProps) {
               <input
                 ref={fileInputRef}
                 type="file"
-                accept="application/pdf"
+                accept="application/pdf,application/json,.json"
                 onChange={handleFileSelect}
                 className="hidden"
                 id="pdf-upload"
@@ -279,6 +321,9 @@ function Dashboard({ onSelectCourse, onCourseGenerated }: DashboardProps) {
               </label>
               <p className="text-sm text-neutral-500">
                 Or drag-and-drop here
+              </p>
+              <p className="text-xs text-neutral-400 mt-2">
+                JSON upload available for debugging purposes
               </p>
             </>
           )}
@@ -310,7 +355,13 @@ function Dashboard({ onSelectCourse, onCourseGenerated }: DashboardProps) {
         {/* Mobile: Course list section with separator and bg */}
         <div className="lg:hidden border-t-[0.5px] border-neutral-200 pt-12 mt-6 bg-neutral-100 -mx-8 -mb-8 px-8 pb-12">
           <div className="max-w-7xl mx-auto">
-            {courses.length === 0 ? (
+            {isLoadingCourses ? (
+              <div className="text-center py-10">
+                <p className="text-neutral-500 text-sm">
+                  Loading courses...
+                </p>
+              </div>
+            ) : courses.length === 0 ? (
               <div className="text-center py-10">
                 <p className="text-neutral-500 text-sm">
                   No courses yet. Upload a PDF to get started!
@@ -318,47 +369,24 @@ function Dashboard({ onSelectCourse, onCourseGenerated }: DashboardProps) {
               </div>
             ) : (
               <div className="grid grid-cols-1 gap-4">
-              {courses.map((stored) => {
-                const completion = getCompletionPercentage(stored);
-                const isComplete = completion === 100;
-                const { currentModuleIndex, totalModules } = stored.progress;
-                const questionCounts = getQuestionTypeCounts(stored.course);
-                const questionCountsText = formatQuestionTypeCounts(questionCounts);
-
+              {courses.map((course) => {
+                const progress = getCourseProgress(course.slug);
+                const totalModules = course.courseData?.modules?.length || 0;
+                const completedModules = progress?.completedModules?.length || 0;
+                const progressPercent = totalModules > 0 ? Math.round((completedModules / totalModules) * 100) : 0;
+                
+                // Debug: Check localStorage vs course slug
+                console.log('[Mobile] Course slug:', course.slug, '| Progress found:', !!progress, '| Completed:', completedModules, '/', totalModules, '| courseData:', !!course.courseData);
+                
                 return (
                   <div
-                    key={stored.id}
-                    onClick={() => onSelectCourse(stored.id)}
-                    className="relative p-6 rounded-2xl border-[0.5px] text-left transition-all cursor-pointer"
-                    style={
-                      isComplete
-                        ? {
-                            backgroundColor: "#D8FFDC",
-                            borderColor: "#00780E",
-                          }
-                        : {
-                            backgroundColor: "#ffffff",
-                            borderColor: "#d1d5db",
-                          }
-                    }
-                    onMouseEnter={(e) => {
-                      if (!isComplete) {
-                        e.currentTarget.style.backgroundColor = "#f9fafb";
-                      } else {
-                        e.currentTarget.style.backgroundColor = "#c8f5d0";
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      if (!isComplete) {
-                        e.currentTarget.style.backgroundColor = "#ffffff";
-                      } else {
-                        e.currentTarget.style.backgroundColor = "#D8FFDC";
-                      }
-                    }}
+                    key={course.id}
+                    onClick={() => window.location.href = `/course/${course.slug}`}
+                    className="relative p-6 rounded-2xl border-[0.5px] bg-white border-neutral-300 text-left transition-all cursor-pointer hover:bg-neutral-50"
                   >
                     {/* Delete Button */}
                     <button
-                      onClick={(e) => handleDelete(stored.id, e)}
+                      onClick={(e) => handleDelete(course.slug, e)}
                       className="absolute top-4 right-4 p-2 text-neutral-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors z-10"
                       title="Delete course"
                     >
@@ -379,39 +407,26 @@ function Dashboard({ onSelectCourse, onCourseGenerated }: DashboardProps) {
 
                     {/* Course Title */}
                     <h3 className="text-xl font-bold text-neutral-900 mb-2 pr-8">
-                      {stored.course.title}
+                      {course.title}
                     </h3>
 
-                    {/* Progress */}
-                    <p className="text-sm text-neutral-600 mb-1">
-                      {isComplete ? (
-                        <span className="text-green-600 font-medium">
-                          100% Complete
-                        </span>
-                      ) : (
-                        <>
-                          <span className="font-medium">
-                            {completion}% Complete
-                          </span>
-                          {" - "}
-                          <span className="text-neutral-500">
-                            [Module {currentModuleIndex + 1}/{totalModules}]
-                          </span>
-                        </>
-                      )}
-                    </p>
-
-                    {/* Question Types */}
-                    {questionCountsText && (
-                      <p className="text-xs text-neutral-500 mt-2">
-                        {questionCountsText}
-                      </p>
-                    )}
+                    {/* Progress Bar - Always show */}
+                    <div className="mb-3">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-xs text-neutral-600">{completedModules} of {totalModules} modules</span>
+                          <span className={`text-xs font-semibold ${progressPercent > 0 ? 'text-green-600' : 'text-neutral-400'}`}>{progressPercent}%</span>
+                        </div>
+                        <div className="h-2 bg-neutral-100 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-green-600 transition-all duration-300"
+                            style={{ width: `${progressPercent}%` }}
+                          />
+                        </div>
+                      </div>
 
                     {/* Timestamp */}
                     <p className="text-xs text-neutral-400 mt-3">
-                      Last accessed:{" "}
-                      {new Date(stored.lastAccessedAt).toLocaleDateString()}
+                      Created: {new Date(course.createdAt).toLocaleDateString()}
                     </p>
                   </div>
                 );
@@ -427,7 +442,13 @@ function Dashboard({ onSelectCourse, onCourseGenerated }: DashboardProps) {
       <main className="flex-1 lg:p-12 bg-white lg:bg-white">
         {/* Desktop: Course list */}
         <div className="hidden lg:block max-w-7xl mx-auto">
-          {courses.length === 0 ? (
+          {isLoadingCourses ? (
+            <div className="text-center py-20">
+              <p className="text-neutral-500 text-lg">
+                Loading courses...
+              </p>
+            </div>
+          ) : courses.length === 0 ? (
             <div className="text-center py-20">
               <p className="text-neutral-500 text-lg">
                 No courses yet. Upload a PDF to get started!
@@ -435,47 +456,24 @@ function Dashboard({ onSelectCourse, onCourseGenerated }: DashboardProps) {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {courses.map((stored) => {
-                const completion = getCompletionPercentage(stored);
-                const isComplete = completion === 100;
-                const { currentModuleIndex, totalModules } = stored.progress;
-                const questionCounts = getQuestionTypeCounts(stored.course);
-                const questionCountsText = formatQuestionTypeCounts(questionCounts);
-
+              {courses.map((course) => {
+                const progress = getCourseProgress(course.slug);
+                const totalModules = course.courseData?.modules?.length || 0;
+                const completedModules = progress?.completedModules?.length || 0;
+                const progressPercent = totalModules > 0 ? Math.round((completedModules / totalModules) * 100) : 0;
+                
+                // Debug: Check localStorage vs course slug
+                console.log('[Desktop] Course slug:', course.slug, '| Progress found:', !!progress, '| Completed:', completedModules, '/', totalModules, '| courseData:', !!course.courseData);
+                
                 return (
                   <div
-                    key={stored.id}
-                    onClick={() => onSelectCourse(stored.id)}
-                    className="relative p-6 rounded-2xl border-[0.5px] text-left transition-all cursor-pointer"
-                    style={
-                      isComplete
-                        ? {
-                            backgroundColor: "#D8FFDC",
-                            borderColor: "#00780E",
-                          }
-                        : {
-                            backgroundColor: "#ffffff",
-                            borderColor: "#d1d5db",
-                          }
-                    }
-                    onMouseEnter={(e) => {
-                      if (!isComplete) {
-                        e.currentTarget.style.backgroundColor = "#f9fafb";
-                      } else {
-                        e.currentTarget.style.backgroundColor = "#c8f5d0";
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      if (!isComplete) {
-                        e.currentTarget.style.backgroundColor = "#ffffff";
-                      } else {
-                        e.currentTarget.style.backgroundColor = "#D8FFDC";
-                      }
-                    }}
+                    key={course.id}
+                    onClick={() => window.location.href = `/course/${course.slug}`}
+                    className="relative p-6 rounded-2xl border-[0.5px] bg-white border-neutral-300 text-left transition-all cursor-pointer hover:bg-neutral-50"
                   >
                     {/* Delete Button */}
                     <button
-                      onClick={(e) => handleDelete(stored.id, e)}
+                      onClick={(e) => handleDelete(course.slug, e)}
                       className="absolute top-4 right-4 p-2 text-neutral-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors z-10"
                       title="Delete course"
                     >
@@ -496,39 +494,26 @@ function Dashboard({ onSelectCourse, onCourseGenerated }: DashboardProps) {
 
                     {/* Course Title */}
                     <h3 className="text-xl font-bold text-neutral-900 mb-2 pr-8">
-                      {stored.course.title}
+                      {course.title}
                     </h3>
 
-                    {/* Progress */}
-                    <p className="text-sm text-neutral-600 mb-1">
-                      {isComplete ? (
-                        <span className="text-green-600 font-medium">
-                          100% Complete
-                        </span>
-                      ) : (
-                        <>
-                          <span className="font-medium">
-                            {completion}% Complete
-                          </span>
-                          {" - "}
-                          <span className="text-neutral-500">
-                            [Module {currentModuleIndex + 1}/{totalModules}]
-                          </span>
-                        </>
-                      )}
-                    </p>
-
-                    {/* Question Types */}
-                    {questionCountsText && (
-                      <p className="text-xs text-neutral-500 mt-2">
-                        {questionCountsText}
-                      </p>
-                    )}
+                    {/* Progress Bar - Always show */}
+                    <div className="mb-3">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-xs text-neutral-600">{completedModules} of {totalModules} modules</span>
+                          <span className={`text-xs font-semibold ${progressPercent > 0 ? 'text-green-600' : 'text-neutral-400'}`}>{progressPercent}%</span>
+                        </div>
+                        <div className="h-2 bg-neutral-100 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-green-600 transition-all duration-300"
+                            style={{ width: `${progressPercent}%` }}
+                          />
+                        </div>
+                      </div>
 
                     {/* Timestamp */}
                     <p className="text-xs text-neutral-400 mt-3">
-                      Last accessed:{" "}
-                      {new Date(stored.lastAccessedAt).toLocaleDateString()}
+                      Created: {new Date(course.createdAt).toLocaleDateString()}
                     </p>
                   </div>
                 );
