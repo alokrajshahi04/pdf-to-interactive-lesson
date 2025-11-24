@@ -36,20 +36,11 @@ export const metadata: Metadata = {
     description: "Convert PDFs into interactive course lessons with AI-powered content generation",
     type: "website",
     siteName: "PDF to Interactive Lesson Generator",
-    images: [
-      {
-        url: "/logo.svg",
-        width: 1200,
-        height: 630,
-        alt: "PDF to Interactive Lesson Generator",
-      },
-    ],
   },
   twitter: {
     card: "summary_large_image",
     title: "PDF to Interactive Lesson Generator",
     description: "Convert PDFs into interactive course lessons with AI-powered content generation",
-    images: ["/logo.svg"],
   },
   robots: {
     index: true,
