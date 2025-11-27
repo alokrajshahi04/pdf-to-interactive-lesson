@@ -324,16 +324,13 @@ export async function ocr(
   
   // Use Railway API if available, otherwise fall back to local pdfjs
   if (process.env.RAILWAY_API_URL) {
-    console.log(`   Using Railway API for PDF conversion (${process.env.RAILWAY_API_URL})...`);
     try {
       imageBuffers = await convertPdfToImages(fileBuffer);
-      console.log(`   ✅ Converted ${imageBuffers.length} pages via Railway`);
     } catch (error) {
       console.error("   ❌ Railway API failed:", error);
       throw error;
     }
   } else {
-    console.log("   Using local PDF.js for PDF conversion...");
     const arrayBuffer = fileBuffer.buffer.slice(
       fileBuffer.byteOffset,
       fileBuffer.byteOffset + fileBuffer.byteLength
@@ -359,7 +356,6 @@ export async function ocr(
     );
   }
 
-  console.log(`   Converting ${imageBuffers.length} pages to markdown...`);
   onProgress?.("ocr-start", `Extracting text from ${imageBuffers.length} pages...`, {
     totalPages: imageBuffers.length,
   });
@@ -374,7 +370,6 @@ export async function ocr(
     async (imageBuffer, index) => {
       const pageNum = index + 1;
       const pageContext = `page ${pageNum}/${imageBuffers.length}`;
-      console.log(`   📄 Processing ${pageContext}...`);
 
       try {
         const result = await imageToMarkdown(imageBuffer, {
@@ -394,8 +389,6 @@ export async function ocr(
 
         totalInputTokens += result.inputTokens;
         totalOutputTokens += result.outputTokens;
-
-        console.log(`   ✅ [${pageContext}] Completed (${result.content.length} chars)`);
 
         return {
           page: pageNum,

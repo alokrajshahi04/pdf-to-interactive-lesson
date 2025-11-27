@@ -34,9 +34,7 @@ export function getAllProgress(): Record<string, CourseProgress> {
  */
 export function getCourseProgress(slug: string): CourseProgress | null {
   const allProgress = getAllProgress();
-  const progress = allProgress[slug] || null;
-  console.log('[PROGRESS GET] Slug:', slug, '| Found:', !!progress, '| Completed:', progress?.completedModules);
-  return progress;
+  return allProgress[slug] || null;
 }
 
 /**
@@ -52,7 +50,6 @@ export function saveCourseProgress(progress: CourseProgress): void {
       lastAccessedAt: new Date().toISOString(),
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(allProgress));
-    console.log('[PROGRESS SAVE] Slug:', progress.slug, '| Completed:', progress.completedModules, '| Saved to localStorage');
   } catch (error) {
     console.error('Failed to save progress to localStorage:', error);
   }

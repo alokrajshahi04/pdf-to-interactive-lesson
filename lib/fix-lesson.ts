@@ -58,23 +58,9 @@ export async function fixLesson({
   });
 
   const lessonTitle = originalLesson.title || "Untitled Lesson";
-  console.log(
-    `  🔧 Attempting to fix lesson "${lessonTitle}" (max ${maxRetries} retries)...`
-  );
-  console.log(`     Validation type: ${failure.validationType}`);
-  console.log(`     Reason: ${failure.reason}`);
-  if (failure.details && failure.details.length > 0) {
-    console.log(`     Issues:`);
-    failure.details.forEach((detail) => {
-      console.log(`       - ${detail}`);
-    });
-  }
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    const attemptStartTime = Date.now();
     try {
-      console.log(`     📝 Fix attempt ${attempt}/${maxRetries}...`);
-      
       // Ask LLM to fix the lesson
       const result = await generateText({
         model: together(DEFAULT_MODEL),
@@ -196,9 +182,6 @@ For drag-drop questions, must have exactly 3 choices and 3 slots, answer format 
 For flow-diagram questions, must have exactly 3 choices (node labels from the flow), 3 slots (First, Second, Third), and answer format is "0,1,2" (comma-separated indices).`,
       });
 
-      const generationTime = ((Date.now() - attemptStartTime) / 1000).toFixed(2);
-      console.log(`     ✅ LLM response received (${generationTime}s), parsing...`);
-
       // Extract and parse the XML (handle both lesson and flowLesson tags)
       const isFlowLesson = originalLesson.questionType === QuestionType.FlowDiagram;
       const xmlTag = isFlowLesson ? "flowLesson" : "lesson";
@@ -207,7 +190,6 @@ For flow-diagram questions, must have exactly 3 choices (node labels from the fl
       const parsed = parser.parse(xmlText);
 
       const fixedLesson = isFlowLesson ? parsed.flowLesson : parsed.lesson;
-      console.log(`     ✅ Parsed fixed lesson: "${fixedLesson.title || 'Untitled'}"`);
 
       // Post-process: flatten choices and convert answer types
       // Handle both nested structure (choices.choice[]) and flat structure (choice[])
@@ -259,33 +241,29 @@ For flow-diagram questions, must have exactly 3 choices (node labels from the fl
 
           // Truncate to exactly 3 items if needed
           if (fixedLesson.choices && fixedLesson.choices.length > 3) {
-            console.log(`     ⚠️  Truncating choices from ${fixedLesson.choices.length} to 3`);
             fixedLesson.choices = fixedLesson.choices.slice(0, 3);
           }
           if (fixedLesson.slots && fixedLesson.slots.length > 3) {
-            console.log(`     ⚠️  Truncating slots from ${fixedLesson.slots.length} to 3`);
             fixedLesson.slots = fixedLesson.slots.slice(0, 3);
           }
           if (fixedLesson.answer && fixedLesson.answer.length > 3) {
-            console.log(`     ⚠️  Truncating answer from ${fixedLesson.answer.length} to 3`);
             fixedLesson.answer = fixedLesson.answer.slice(0, 3);
           }
         }
       }
 
       // Run structure validation
-      console.log(`     🔍 Validating fixed lesson structure...`);
       const structureValidation = validateLessonsStructure([fixedLesson]);
       const structureErrors = structureValidation.errors.filter(
         (e) => e.severity === "error"
       );
 
       if (structureErrors.length > 0) {
-        console.log(
+        console.error(
           `     ❌ Attempt ${attempt}/${maxRetries}: Structure validation failed`
         );
         structureErrors.forEach((error) => {
-          console.log(`        - [${error.field}] ${error.message}`);
+          console.error(`        - [${error.field}] ${error.message}`);
         });
 
         // Add to history
@@ -315,7 +293,6 @@ For flow-diagram questions, must have exactly 3 choices (node labels from the fl
       }
 
       // Run content validation
-      console.log(`     🔍 Validating fixed lesson content...`);
       const contentValidation = await validateLesson({
         lesson: fixedLesson as Lesson,
         moduleTitle,
@@ -324,13 +301,13 @@ For flow-diagram questions, must have exactly 3 choices (node labels from the fl
       });
 
       if (!contentValidation.isValid) {
-        console.log(
+        console.error(
           `     ❌ Attempt ${attempt}/${maxRetries}: Content validation failed`
         );
-        console.log(`        Reason: ${contentValidation.explanation}`);
+        console.error(`        Reason: ${contentValidation.explanation}`);
         if (contentValidation.issues) {
           Object.entries(contentValidation.issues).forEach(([field, issue]) => {
-            console.log(`        - [${field}] ${issue}`);
+            console.error(`        - [${field}] ${issue}`);
           });
         }
 
@@ -368,9 +345,6 @@ For flow-diagram questions, must have exactly 3 choices (node labels from the fl
       }
 
       // Success!
-      const totalFixTime = ((Date.now() - attemptStartTime) / 1000).toFixed(2);
-      console.log(`     ✅ Successfully fixed lesson on attempt ${attempt} (${totalFixTime}s total)`);
-
       // Attach fix history to the lesson
       const lessonWithHistory = fixedLesson as Lesson;
       lessonWithHistory.fixHistory = fixHistory;
@@ -381,9 +355,8 @@ For flow-diagram questions, must have exactly 3 choices (node labels from the fl
         attempts: attempt,
       };
     } catch (error) {
-      const errorTime = ((Date.now() - attemptStartTime) / 1000).toFixed(2);
       console.error(
-        `     ❌ Attempt ${attempt}/${maxRetries}: Error during fix (${errorTime}s):`,
+        `     ❌ Attempt ${attempt}/${maxRetries}: Error during fix:`,
         error instanceof Error ? error.message : String(error)
       );
 

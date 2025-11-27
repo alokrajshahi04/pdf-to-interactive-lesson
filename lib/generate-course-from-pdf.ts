@@ -102,7 +102,6 @@ export async function generateCourseFromPdf(
     // Handle URL
     if (url) {
       onProgress?.("download", "Downloading PDF from URL...");
-      console.log(`📄 Processing URL: ${url}`);
 
       // Download to /tmp (serverless-compatible)
       const response = await axios({
@@ -115,12 +114,10 @@ export async function generateCourseFromPdf(
       tempFilePath = `/tmp/download-${Date.now()}.pdf`;
       await writeFile(tempFilePath, buffer);
       isTemp = true;
-      console.log(`✅ Downloaded to ${tempFilePath}`);
     }
     // Handle file upload
     else if (file) {
       onProgress?.("upload", `Processing uploaded file: ${file.name}`);
-      console.log(`📄 Processing uploaded file: ${file.name}`);
 
       // Save to /tmp for processing
       // Using /tmp makes it serverless-compatible (Vercel, Netlify, etc.)
@@ -130,7 +127,6 @@ export async function generateCourseFromPdf(
       tempFilePath = `/tmp/upload-${timestamp}.pdf`;
       await writeFile(tempFilePath, buffer);
       isTemp = true;
-      console.log(`✅ Saved to temp: ${tempFilePath}`);
     }
 
     if (!tempFilePath) {
@@ -139,7 +135,6 @@ export async function generateCourseFromPdf(
 
     // Check PDF page count before processing
     onProgress?.("checking", "Checking PDF page count...");
-    console.log("📊 Checking PDF page count...");
     const pdfBuffer = readFileSync(tempFilePath);
     const pdfInfo = await getPdfInfo(pdfBuffer);
     
@@ -154,10 +149,7 @@ export async function generateCourseFromPdf(
       );
     }
 
-    console.log(`✅ PDF has ${pdfInfo.pageCount} pages (within limit)`);
-
     // Extract content from PDF
-    console.log("🔍 Extracting content...");
     const ocrStartTime = Date.now();
 
     let result;
@@ -183,9 +175,6 @@ export async function generateCourseFromPdf(
     });
 
     // Generate course
-    console.log("\n" + "=".repeat(60));
-    console.log("🤖 GENERATING COURSE FROM CONTENT");
-    console.log("=".repeat(60));
     const courseStartTime = Date.now();
 
     const course = await createCourse({
@@ -199,39 +188,26 @@ export async function generateCourseFromPdf(
     });
 
     const courseElapsed = ((Date.now() - courseStartTime) / 1000).toFixed(2);
-    console.log(`\n⏱️  Total course generation time: ${courseElapsed}s`);
 
     // Calculate lesson statistics
     const lessonStats = calculateLessonStats(course);
 
     onProgress?.(
       "course-complete",
-      `Generated ${course.modules.length} modules with ${lessonStats.total} lessons`
+      `Generated ${course.modules.length} modules with ${lessonStats.total} lessons`,
+      {
+        modules: course.modules.length,
+        totalLessons: lessonStats.total,
+        successfulLessons: lessonStats.successful,
+        failedLessons: lessonStats.failed,
+        fixedLessons: lessonStats.fixed,
+        fixAttempts: lessonStats.fixAttempts,
+      }
     );
-
-    // Log summary with clean formatting
-    console.log("\n" + "=".repeat(60));
-    console.log("📊 COURSE GENERATION SUMMARY");
-    console.log("=".repeat(60));
-    console.log(`⏱️  Total Time: ${((Date.now() - ocrStartTime + Date.now() - courseStartTime) / 1000).toFixed(2)}s`);
-    console.log(`   ├─ OCR: ${ocrElapsed}s (${result.pages.length} pages, ${result.inputTokens.toLocaleString()} tokens)`);
-    console.log(`   └─ Course: ${courseElapsed}s`);
-    console.log("");
-    console.log("📚 Content:");
-    console.log(`   ├─ Modules: ${course.modules.length}`);
-    console.log(`   └─ Lessons: ${lessonStats.total}`);
-    console.log("");
-    console.log("✅ Lesson Results:");
-    console.log(`   ├─ Successful: ${lessonStats.successful} (${Math.round((lessonStats.successful / lessonStats.total) * 100)}%)`);
-    console.log(`   ├─ Fixed: ${lessonStats.fixed} (required retries)`);
-    console.log(`   ├─ Failed: ${lessonStats.failed}`);
-    console.log(`   └─ Fix Attempts: ${lessonStats.fixAttempts} total`);
-    console.log("=".repeat(60) + "\n");
 
     // Cleanup temp file
     if (isTemp && tempFilePath && existsSync(tempFilePath)) {
       await unlink(tempFilePath);
-      console.log("🧹 Cleaned up temporary file");
     }
 
     // Calculate total time
