@@ -8,20 +8,47 @@ import ora from "ora";
 import { ocr } from "../lib/ocr";
 import { createModules, createCourse } from "../lib/create-course";
 import { generateSlug } from "../lib/utils/slug";
-import { AVAILABLE_MODELS, DEFAULT_MODEL } from "../lib/utils/together";
+import { AVAILABLE_MODELS, DEFAULT_MODEL, getModelPricing } from "../lib/utils/together";
 
 const VERSION = "1.0.0";
 
-// Store original console methods
+function calculateCost(
+  inputTokens: number,
+  outputTokens: number,
+  model: string
+): { cost: number; hasPricing: boolean } {
+  const pricing = getModelPricing(model);
+  if (!pricing) {
+    return { cost: 0, hasPricing: false };
+  }
+  const inputCost = (inputTokens / 1_000_000) * pricing.input;
+  const outputCost = (outputTokens / 1_000_000) * pricing.output;
+  return { cost: inputCost + outputCost, hasPricing: true };
+}
+
+// Store original console methods before overriding
 const originalConsole = {
   log: console.log.bind(console),
   warn: console.warn.bind(console),
   error: console.error.bind(console),
 };
 
+// Use original for our own output
+const log = originalConsole.log;
+
 // Suppress library noise by default (re-enabled with --verbose)
 let verboseMode = false;
-const suppressPatterns = [/^  ❌/, /^     /, /^  ⚠️/, /^\s+Reason:/, /^\s+- \[/, /^\s+Details:/];
+const suppressPatterns = [
+  /^  ❌/, 
+  /^     /, 
+  /^  ⚠️/, 
+  /^\s+Reason:/, 
+  /^\s+- \[/, 
+  /^\s+Details:/,
+  /Cannot polyfill.*Path2D/,
+  /rendering may be broken/,
+  /^Warning:/,
+];
 
 function shouldSuppress(args: any[]): boolean {
   if (verboseMode) return false;
@@ -30,6 +57,9 @@ function shouldSuppress(args: any[]): boolean {
   return suppressPatterns.some((p) => p.test(msg));
 }
 
+console.log = (...args: any[]) => {
+  if (!shouldSuppress(args)) originalConsole.log(...args);
+};
 console.warn = (...args: any[]) => {
   if (!shouldSuppress(args)) originalConsole.warn(...args);
 };
@@ -77,6 +107,7 @@ function printHelp() {
 ${bold("COMMANDS")}
   ${yellow("generate")} ${dim("<file>")}     Generate a complete course from PDF/markdown
   ${yellow("modules")} ${dim("<file>")}      Generate only course structure (no lessons)
+  ${yellow("benchmark")} ${dim("<file>")}    Compare all models on speed, accuracy, and cost
   ${yellow("help")}               Show this help message
   ${yellow("version")}            Show version number
 
@@ -121,6 +152,9 @@ ${bold("EXAMPLES")}
 
   ${dim("# Only generate course structure")}
   ${cyan("course modules")} data/document.pdf
+
+  ${dim("# Benchmark all models (5 runs each)")}
+  ${cyan("course benchmark")} data/document.md --runs 5
 
 ${bold("ENVIRONMENT")}
   ${cyan("TOGETHER_API_KEY")}  Required. Your Together AI API key.
@@ -178,8 +212,14 @@ function parseArgs(): CliArgs {
     process.exit(0);
   }
 
+  // Handle --test-chart for quick chart testing
+  if (args.includes("--test-chart")) {
+    testBenchmarkChart();
+    process.exit(0);
+  }
+
   const command = args[0];
-  const validCommands = ["generate", "modules", "gen", "mod"];
+  const validCommands = ["generate", "modules", "gen", "mod", "benchmark", "bench"];
 
   if (!validCommands.includes(command)) {
     console.error(`\n${red("✗")} Unknown command: ${command}\n`);
@@ -188,9 +228,12 @@ function parseArgs(): CliArgs {
   }
 
   // Normalize aliases
-  const normalizedCommand = command === "gen" ? "generate" : command === "mod" ? "modules" : command;
+  const normalizedCommand = command === "gen" ? "generate" 
+    : command === "mod" ? "modules" 
+    : command === "bench" ? "benchmark"
+    : command;
 
-  // File is required for generate/modules
+  // File is required for generate/modules/benchmark
   const file = args[1];
   if (!file || file.startsWith("--")) {
     console.error(`\n${red("✗")} Missing file argument\n`);
@@ -458,6 +501,187 @@ async function runMultipleTimes(content: string, args: CliArgs) {
   return { ...lastResult, testStats: stats };
 }
 
+interface BenchmarkResult {
+  model: string;
+  alias: string;
+  runs: number;
+  avgTime: number;
+  avgAccuracy: number; // First-pass success rate (no fixes needed)
+  avgCost: number;
+  times: number[];
+  accuracies: number[];
+  costs: number[];
+}
+
+async function runBenchmark(content: string, args: CliArgs) {
+  const runs = args.runs || 5;
+  const models = Object.entries(AVAILABLE_MODELS);
+  
+  console.log(`\n${bold("🏁 Model Benchmark")}`);
+  console.log(`${dim("Running each model")} ${cyan(runs.toString())} ${dim("times")}`);
+  console.log(`${dim("Models:")} ${models.map(([alias]) => alias).join(", ")}\n`);
+  console.log("═".repeat(60));
+
+  const results: BenchmarkResult[] = [];
+
+  for (const [alias, modelName] of models) {
+    console.log(`\n${yellow("▶")} Testing ${bold(alias)} ${dim(`(${modelName})`)}`);
+    
+    const times: number[] = [];
+    const accuracies: number[] = [];
+    const costs: number[] = [];
+
+    for (let run = 1; run <= runs; run++) {
+      const spinner = ora(`  Run ${run}/${runs}`).start();
+      const runStart = Date.now();
+
+      try {
+        const result = await createCourse({
+          content,
+          apiKey: process.env.TOGETHER_API_KEY || "",
+          model: modelName,
+          validateStructure: true,
+          validateContent: true,
+          retryFailures: true,
+          maxRetries: 3,
+        });
+
+        const runTime = (Date.now() - runStart) / 1000;
+        times.push(runTime);
+
+        // Calculate first-pass accuracy (lessons without fixHistory)
+        let totalLessons = 0;
+        let firstPassSuccess = 0;
+        for (const module of result.modules) {
+          for (const lesson of module.lessons) {
+            totalLessons++;
+            if (lesson.success && !lesson.data?.fixHistory) {
+              firstPassSuccess++;
+            }
+          }
+        }
+        const accuracy = totalLessons > 0 ? (firstPassSuccess / totalLessons) * 100 : 0;
+        accuracies.push(accuracy);
+
+        // Calculate cost
+        const { cost } = calculateCost(
+          result.tokenUsage?.inputTokens || 0,
+          result.tokenUsage?.outputTokens || 0,
+          modelName
+        );
+        costs.push(cost);
+
+        spinner.succeed(`  Run ${run}: ${accuracy.toFixed(0)}% accuracy, ${runTime.toFixed(1)}s, $${cost.toFixed(4)}`);
+      } catch (error) {
+        const runTime = (Date.now() - runStart) / 1000;
+        times.push(runTime);
+        accuracies.push(0);
+        costs.push(0);
+        spinner.fail(`  Run ${run}: Failed - ${error instanceof Error ? error.message.slice(0, 50) : 'Unknown error'}`);
+      }
+    }
+
+    const avgTime = times.reduce((a, b) => a + b, 0) / times.length;
+    const avgAccuracy = accuracies.reduce((a, b) => a + b, 0) / accuracies.length;
+    const avgCost = costs.reduce((a, b) => a + b, 0) / costs.length;
+
+    results.push({
+      model: modelName,
+      alias,
+      runs,
+      avgTime,
+      avgAccuracy,
+      avgCost,
+      times,
+      accuracies,
+      costs,
+    });
+
+    console.log(`  ${dim("Avg:")} ${avgAccuracy.toFixed(1)}% accuracy, ${avgTime.toFixed(1)}s, $${avgCost.toFixed(4)}`);
+  }
+
+  // Display results
+  displayBenchmarkResults(results);
+}
+
+function displayBenchmarkResults(results: BenchmarkResult[]) {
+  console.log("\n" + "═".repeat(60));
+  console.log(`\n${bold("📊 Benchmark Results")}\n`);
+
+  // Sort by accuracy (descending) for ranking
+  const sorted = [...results].sort((a, b) => b.avgAccuracy - a.avgAccuracy);
+
+  // Summary Table
+  console.log("┌" + "─".repeat(18) + "┬" + "─".repeat(10) + "┬" + "─".repeat(12) + "┬" + "─".repeat(10) + "┐");
+  console.log("│ " + bold("Model".padEnd(16)) + " │ " + bold("Speed".padEnd(8)) + " │ " + bold("Accuracy".padEnd(10)) + " │ " + bold("Cost".padEnd(8)) + " │");
+  console.log("├" + "─".repeat(18) + "┼" + "─".repeat(10) + "┼" + "─".repeat(12) + "┼" + "─".repeat(10) + "┤");
+  
+  for (const r of sorted) {
+    const speedStr = `${r.avgTime.toFixed(1)}s`.padEnd(8);
+    const accuracyStr = `${r.avgAccuracy.toFixed(1)}%`.padEnd(10);
+    const costStr = `$${r.avgCost.toFixed(4)}`.padEnd(8);
+    console.log(`│ ${r.alias.padEnd(16)} │ ${speedStr} │ ${accuracyStr} │ ${costStr} │`);
+  }
+  
+  console.log("└" + "─".repeat(18) + "┴" + "─".repeat(10) + "┴" + "─".repeat(12) + "┴" + "─".repeat(10) + "┘");
+
+  // Bar charts for each metric
+  const maxCost = Math.max(...results.map(r => r.avgCost));
+  const maxTime = Math.max(...results.map(r => r.avgTime));
+  const barWidth = 30;
+  
+  // Accuracy bars (higher is better)
+  console.log(`\n${bold("Accuracy")} ${dim("(higher is better)")}`);
+  for (const r of sorted) {
+    const barLen = Math.round((r.avgAccuracy / 100) * barWidth);
+    const bar = "█".repeat(barLen) + "░".repeat(barWidth - barLen);
+    const color = r.avgAccuracy >= 90 ? green : r.avgAccuracy >= 70 ? yellow : red;
+    console.log(`  ${r.alias.padEnd(16)} ${color(bar)} ${r.avgAccuracy.toFixed(1)}%`);
+  }
+
+  // Cost bars (lower is better) - sorted by cost ascending
+  const byCost = [...results].sort((a, b) => a.avgCost - b.avgCost);
+  console.log(`\n${bold("Cost")} ${dim("(lower is better)")}`);
+  for (const r of byCost) {
+    const barLen = maxCost > 0 ? Math.round((r.avgCost / maxCost) * barWidth) : 0;
+    const bar = "█".repeat(barLen) + "░".repeat(barWidth - barLen);
+    const color = r.avgCost <= maxCost * 0.4 ? green : r.avgCost <= maxCost * 0.7 ? yellow : red;
+    console.log(`  ${r.alias.padEnd(16)} ${color(bar)} $${r.avgCost.toFixed(4)}`);
+  }
+
+  // Speed bars (lower is better) - sorted by time ascending
+  const bySpeed = [...results].sort((a, b) => a.avgTime - b.avgTime);
+  console.log(`\n${bold("Speed")} ${dim("(lower is better)")}`);
+  for (const r of bySpeed) {
+    const barLen = maxTime > 0 ? Math.round((r.avgTime / maxTime) * barWidth) : 0;
+    const bar = "█".repeat(barLen) + "░".repeat(barWidth - barLen);
+    const color = r.avgTime <= maxTime * 0.4 ? green : r.avgTime <= maxTime * 0.7 ? yellow : red;
+    console.log(`  ${r.alias.padEnd(16)} ${color(bar)} ${r.avgTime.toFixed(1)}s`);
+  }
+
+  // Winner summary
+  console.log(`\n${bold("🏆 Best in Category")}`);
+  const bestAccuracy = sorted[0];
+  const bestCost = byCost[0];
+  const bestSpeed = bySpeed[0];
+  console.log(`  ${green("Accuracy:")} ${bestAccuracy.alias} (${bestAccuracy.avgAccuracy.toFixed(1)}%)`);
+  console.log(`  ${green("Cost:")} ${bestCost.alias} ($${bestCost.avgCost.toFixed(4)})`);
+  console.log(`  ${green("Speed:")} ${bestSpeed.alias} (${bestSpeed.avgTime.toFixed(1)}s)`);
+}
+
+// Test the chart rendering with mock data
+function testBenchmarkChart() {
+  const mockResults: BenchmarkResult[] = [
+    { model: "openai/gpt-oss-120b", alias: "gpt-oss-120b", runs: 5, avgTime: 73.7, avgAccuracy: 91.7, avgCost: 0.0194, times: [], accuracies: [], costs: [] },
+    { model: "deepseek-ai/DeepSeek-V3.1", alias: "deepseek-3.1", runs: 5, avgTime: 379.3, avgAccuracy: 66.7, avgCost: 0.0653, times: [], accuracies: [], costs: [] },
+    { model: "zai-org/GLM-4.6", alias: "glm-4.6", runs: 5, avgTime: 58.6, avgAccuracy: 88.9, avgCost: 0.0829, times: [], accuracies: [], costs: [] },
+    { model: "moonshotai/Kimi-K2-Thinking", alias: "kimi-k2-thinking", runs: 5, avgTime: 62.6, avgAccuracy: 0, avgCost: 0, times: [], accuracies: [], costs: [] },
+  ];
+  
+  console.log(`\n${bold("🧪 Test Mode: Displaying chart with mock data")}\n`);
+  displayBenchmarkResults(mockResults);
+}
+
 function displayModules(courseStructure: any) {
   console.log("\n" + dim("─".repeat(50)));
   console.log(`${bold("Course")}: ${courseStructure.course.title}\n`);
@@ -579,7 +803,15 @@ async function main() {
     // Execute command
     let result: any;
 
-    if (args.runs > 1) {
+    if (args.command === "benchmark") {
+      await runBenchmark(content, args);
+      // Benchmark doesn't save output
+      if (isTemp) {
+        await unlink(filePath);
+      }
+      console.log("");
+      return;
+    } else if (args.runs > 1) {
       result = await runMultipleTimes(content, args);
     } else if (args.command === "modules") {
       result = await runGenerateModules(content, args);

@@ -30,6 +30,11 @@ export interface CreateCourseInput {
 export interface CourseOutput {
   title: string;
   modules: ModuleWithLessons[];
+  tokenUsage?: {
+    inputTokens: number;
+    outputTokens: number;
+    totalTokens: number;
+  };
 }
 
 /**

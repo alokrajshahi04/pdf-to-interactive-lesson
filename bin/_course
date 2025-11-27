@@ -12,6 +12,8 @@ _course() {
     'gen:Generate a complete course (alias)'
     'modules:Generate only course structure (no lessons)'
     'mod:Generate only modules (alias)'
+    'benchmark:Compare all models on speed, accuracy, and cost'
+    'bench:Benchmark models (alias)'
     'help:Show help message'
     'version:Show version number'
   )
@@ -27,7 +29,7 @@ _course() {
       ;;
     file)
       case $words[2] in
-        generate|gen|modules|mod)
+        generate|gen|modules|mod|benchmark|bench)
           _files -g "*.{pdf,md,txt}"
           ;;
       esac
