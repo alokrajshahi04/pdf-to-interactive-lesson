@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { upload } from "@vercel/blob/client";
 import { getApiKey } from "@/lib/api-key-storage";
 import { getOrCreateUserId } from "@/lib/utils/session";
 import { getCourseProgress } from "@/lib/course-progress";
@@ -10,11 +9,6 @@ import { ApiKeyDialog } from "./api-key-dialog";
 import Link from "next/link";
 import { Github, Twitter } from "lucide-react";
 import { useImageFadeIn } from "../hooks/use-image-fade-in";
-
-interface DashboardProps {
-  onSelectCourse: (courseId: string) => void;
-  onCourseGenerated?: (course: Course) => void;
-}
 
 
 interface DatabaseCourse {
@@ -26,7 +20,7 @@ interface DatabaseCourse {
   updatedAt: string;
 }
 
-function Dashboard({ onSelectCourse, onCourseGenerated }: DashboardProps) {
+function Dashboard() {
   const [courses, setCourses] = useState<DatabaseCourse[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);

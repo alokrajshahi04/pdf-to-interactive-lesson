@@ -23,7 +23,7 @@ function createStreamResponse() {
     },
   });
 
-  const sendProgress = (type: string, message: string, data?: any) => {
+  const sendProgress = (type: string, message: string, data?: Record<string, unknown>) => {
     const progressEvent = {
       type,
       message,
@@ -33,7 +33,7 @@ function createStreamResponse() {
     controller.enqueue(encoder.encode(JSON.stringify(progressEvent) + "\n"));
   };
 
-  const sendComplete = (data: any) => {
+  const sendComplete = (data: Record<string, unknown>) => {
     controller.enqueue(
       encoder.encode(JSON.stringify({ type: "complete", data }) + "\n")
     );

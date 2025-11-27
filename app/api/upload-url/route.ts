@@ -8,7 +8,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     const jsonResponse = await handleUpload({
       body,
       request,
-      onBeforeGenerateToken: async (pathname) => {
+      onBeforeGenerateToken: async () => {
         // Optional: Add validation or authentication here
         // For now, we'll allow all PDF uploads
         return {

@@ -21,7 +21,7 @@ interface HeaderProps {
   completedModules?: number[]; // Array of completed module indices for lock logic
 }
 
-function Header({ showProgressBar, moduleProgress, showNavLinks, showCoursesLink, courseTitle, course, onModuleSelect, currentModuleIndex, completedModules }: HeaderProps) {
+function Header({ showProgressBar, moduleProgress, showCoursesLink, courseTitle, course, onModuleSelect, currentModuleIndex, completedModules }: HeaderProps) {
   const logoFadeIn = useImageFadeIn("/logo.svg");
   const [showApiKeyDialog, setShowApiKeyDialog] = useState(false);
 
@@ -32,6 +32,7 @@ function Header({ showProgressBar, moduleProgress, showNavLinks, showCoursesLink
       <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between gap-2 min-w-0">
         <div className="flex items-center gap-2 flex-shrink-0">
           <Link href="/">
+            {/* eslint-disable react-hooks/refs */}
             <img 
               ref={logoFadeIn.imgRef}
               src="/logo.svg" 
@@ -40,6 +41,7 @@ function Header({ showProgressBar, moduleProgress, showNavLinks, showCoursesLink
               onError={logoFadeIn.handleError}
               className={`h-6 w-auto transition-opacity duration-700 ease-out ${logoFadeIn.isLoaded ? 'opacity-100' : 'opacity-0'}`}
             />
+            {/* eslint-enable react-hooks/refs */}
           </Link>
         </div>
         {courseTitle ? (
@@ -129,8 +131,8 @@ function Header({ showProgressBar, moduleProgress, showNavLinks, showCoursesLink
           <div className="max-w-7xl mx-auto px-6 py-4">
             <div className="flex gap-2">
               {moduleProgress.map((mod, idx) => {
-                const module = course?.modules[idx];
-                const successfulLessons = module?.lessons.filter((l) => l.success) || [];
+                const courseModule = course?.modules[idx];
+                const successfulLessons = courseModule?.lessons.filter((l) => l.success) || [];
                 const totalLessons = successfulLessons.length;
                 // Calculate completed lessons based on progress
                 const completedLessons = mod.progress === 100 
@@ -161,7 +163,7 @@ function Header({ showProgressBar, moduleProgress, showNavLinks, showCoursesLink
                     <TooltipContent side="bottom" className="p-0 w-72 bg-white border border-neutral-200 shadow-lg rounded-lg">
                       <div className="p-4">
                         <div className="text-xs text-neutral-500 mb-0.5">Module {idx + 1}</div>
-                        <h3 className="text-base font-bold text-neutral-900 mb-2">{module?.title || `Module ${idx + 1}`}</h3>
+                        <h3 className="text-base font-bold text-neutral-900 mb-2">{courseModule?.title || `Module ${idx + 1}`}</h3>
                         {topics.length > 0 && (
                           <div className="text-sm text-neutral-600 mb-3">
                             {topics.join(", ")}

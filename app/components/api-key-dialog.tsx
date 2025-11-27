@@ -22,6 +22,158 @@ interface ApiKeyDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
+// Move components outside to avoid creating them during render
+const GridIcon = () => (
+  <div className="grid grid-cols-3 gap-0.5 w-4 h-4">
+    <div className="w-1 h-1 bg-neutral-600 rounded-sm"></div>
+    <div className="w-1 h-1 bg-neutral-600 rounded-sm"></div>
+    <div className="w-1 h-1 bg-neutral-600 rounded-sm"></div>
+    <div className="w-1 h-1 bg-neutral-600 rounded-sm"></div>
+    <div className="w-1 h-1 bg-neutral-600 rounded-sm"></div>
+    <div className="w-1 h-1 bg-neutral-600 rounded-sm"></div>
+    <div className="w-1 h-1 bg-neutral-600 rounded-sm"></div>
+    <div className="w-1 h-1 bg-neutral-600 rounded-sm"></div>
+    <div className="w-1 h-1 bg-neutral-600 rounded-sm"></div>
+  </div>
+);
+
+interface ApiKeyFormProps {
+  className?: string;
+  apiKey: string;
+  savedApiKey: string | null;
+  showApiKey: boolean;
+  inputRef: React.RefObject<HTMLInputElement | null>;
+  submitButtonRef: React.RefObject<HTMLButtonElement | null>;
+  onApiKeyChange: (value: string) => void;
+  onShowApiKeyToggle: () => void;
+  onSave: () => void;
+  onRemove: () => void;
+}
+
+const ApiKeyForm = ({
+  className,
+  apiKey,
+  savedApiKey,
+  showApiKey,
+  inputRef,
+  submitButtonRef,
+  onApiKeyChange,
+  onShowApiKeyToggle,
+  onSave,
+  onRemove,
+}: ApiKeyFormProps) => (
+  <div className={className}>
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (apiKey.trim()) {
+          onSave();
+        }
+      }}
+      className="space-y-4"
+    >
+      <div className="text-base text-neutral-900">
+        {savedApiKey ? "Update" : "Add"} your{" "}
+        <span className="font-semibold underline">Together AI</span> API key
+      </div>
+      <div className="relative">
+        <input
+          ref={inputRef}
+          type={showApiKey ? "text" : "password"}
+          placeholder="API Key"
+          value={apiKey}
+          onChange={(e) => onApiKeyChange(e.target.value)}
+          onPaste={() => {
+            // Focus the submit button after paste
+            setTimeout(() => {
+              submitButtonRef.current?.focus();
+            }, 0);
+          }}
+          className="w-full px-4 py-2 pr-20 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:border-transparent text-neutral-900 placeholder:text-neutral-400"
+        />
+        <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-2">
+          {apiKey && (
+            <button
+              type="button"
+              onClick={() => {
+                onApiKeyChange("");
+                inputRef.current?.focus();
+              }}
+              className="p-1.5 text-neutral-400 hover:text-neutral-600 transition-colors touch-manipulation"
+              aria-label="Clear API key"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={onShowApiKeyToggle}
+            className="p-1.5 text-neutral-400 hover:text-neutral-600 transition-colors touch-manipulation"
+            aria-label={showApiKey ? "Hide API key" : "Show API key"}
+          >
+            {showApiKey ? (
+              <EyeOff className="w-5 h-5" />
+            ) : (
+              <Eye className="w-5 h-5" />
+            )}
+          </button>
+        </div>
+      </div>
+      <ul className="space-y-2 text-sm text-neutral-600">
+        <li className="flex items-start">
+          <span className="mr-2">•</span>
+          <span>
+            Visit{" "}
+            <a
+              href="https://together.ai"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline hover:text-neutral-900"
+            >
+              together.ai
+            </a>{" "}
+            and sign up for free
+          </span>
+        </li>
+        <li className="flex items-start">
+          <span className="mr-2">•</span>
+          <span>Copy your API key and paste it above</span>
+        </li>
+      </ul>
+      <div className="flex flex-col gap-3">
+        <button
+          ref={submitButtonRef}
+          type="submit"
+          disabled={!apiKey.trim()}
+          className="w-full px-4 py-2 bg-neutral-900 text-white rounded-lg hover:bg-neutral-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {savedApiKey ? "Update API Key" : "Save API Key"}
+        </button>
+        <div className="flex items-center justify-between text-sm pt-2 gap-6">
+          <a
+            href="https://together.ai"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-neutral-600 hover:text-neutral-900 underline flex items-center gap-1"
+          >
+            Get your API key
+            <ExternalLink className="w-3 h-3" />
+          </a>
+          {savedApiKey && (
+            <button
+              type="button"
+              onClick={onRemove}
+              className="text-red-600 hover:text-red-700 underline text-sm"
+            >
+              Remove
+            </button>
+          )}
+        </div>
+      </div>
+    </form>
+  </div>
+);
+
 export function ApiKeyDialog({ open, onOpenChange }: ApiKeyDialogProps) {
   const [apiKey, setApiKey] = useState("");
   const [savedApiKey, setSavedApiKey] = useState<string | null>(null);
@@ -29,22 +181,30 @@ export function ApiKeyDialog({ open, onOpenChange }: ApiKeyDialogProps) {
   const isDesktop = useMediaQuery("(min-width: 768px)");
   const inputRef = useRef<HTMLInputElement>(null);
   const submitButtonRef = useRef<HTMLButtonElement>(null);
+  const hasLoadedRef = useRef(false);
 
-  // Load saved API key on mount and when dialog opens
+  // Load saved API key when dialog opens - only once per open
   useEffect(() => {
-    if (open) {
-      const storedKey = getApiKey();
+    if (!open) {
+      hasLoadedRef.current = false;
+      return;
+    }
+    
+    if (hasLoadedRef.current) return;
+    hasLoadedRef.current = true;
+    
+    const storedKey = getApiKey();
+    // Defer state updates to avoid cascading renders
+    const timeoutId = setTimeout(() => {
       setSavedApiKey(storedKey);
-      if (storedKey) {
-        setApiKey(storedKey);
-      } else {
-        setApiKey("");
-      }
+      setApiKey(storedKey || "");
       // Auto-focus the input when dialog opens
       setTimeout(() => {
         inputRef.current?.focus();
       }, 100);
-    }
+    }, 0);
+    
+    return () => clearTimeout(timeoutId);
   }, [open]);
 
   const handleSaveApiKey = () => {
@@ -61,133 +221,6 @@ export function ApiKeyDialog({ open, onOpenChange }: ApiKeyDialogProps) {
     setApiKey("");
   };
 
-  const GridIcon = () => (
-    <div className="grid grid-cols-3 gap-0.5 w-4 h-4">
-      <div className="w-1 h-1 bg-neutral-600 rounded-sm"></div>
-      <div className="w-1 h-1 bg-neutral-600 rounded-sm"></div>
-      <div className="w-1 h-1 bg-neutral-600 rounded-sm"></div>
-      <div className="w-1 h-1 bg-neutral-600 rounded-sm"></div>
-      <div className="w-1 h-1 bg-neutral-600 rounded-sm"></div>
-      <div className="w-1 h-1 bg-neutral-600 rounded-sm"></div>
-      <div className="w-1 h-1 bg-neutral-600 rounded-sm"></div>
-      <div className="w-1 h-1 bg-neutral-600 rounded-sm"></div>
-      <div className="w-1 h-1 bg-neutral-600 rounded-sm"></div>
-    </div>
-  );
-
-  const ApiKeyForm = ({ className }: { className?: string }) => (
-    <div className={className}>
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          if (apiKey.trim()) {
-            handleSaveApiKey();
-          }
-        }}
-        className="space-y-4"
-      >
-        <div className="text-base text-neutral-900">
-          {savedApiKey ? "Update" : "Add"} your{" "}
-          <span className="font-semibold underline">Together AI</span> API key
-        </div>
-        <div className="relative">
-        <input
-          ref={inputRef}
-            type={showApiKey ? "text" : "password"}
-          placeholder="API Key"
-          value={apiKey}
-          onChange={(e) => setApiKey(e.target.value)}
-          onPaste={() => {
-            // Focus the submit button after paste
-            setTimeout(() => {
-              submitButtonRef.current?.focus();
-            }, 0);
-          }}
-            className="w-full px-4 py-2 pr-20 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:border-transparent text-neutral-900 placeholder:text-neutral-400"
-        />
-          <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-2">
-            {apiKey && (
-              <button
-                type="button"
-                onClick={() => {
-                  setApiKey("");
-                  inputRef.current?.focus();
-                }}
-                className="p-1.5 text-neutral-400 hover:text-neutral-600 transition-colors touch-manipulation"
-                aria-label="Clear API key"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={() => setShowApiKey(!showApiKey)}
-              className="p-1.5 text-neutral-400 hover:text-neutral-600 transition-colors touch-manipulation"
-              aria-label={showApiKey ? "Hide API key" : "Show API key"}
-            >
-              {showApiKey ? (
-                <EyeOff className="w-5 h-5" />
-              ) : (
-                <Eye className="w-5 h-5" />
-              )}
-            </button>
-          </div>
-        </div>
-        <ul className="space-y-2 text-sm text-neutral-600">
-          <li className="flex items-start">
-            <span className="mr-2">•</span>
-            <span>
-              Visit{" "}
-              <a
-                href="https://together.ai"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="underline hover:text-neutral-900"
-              >
-                together.ai
-              </a>{" "}
-              and sign up for free
-            </span>
-          </li>
-          <li className="flex items-start">
-            <span className="mr-2">•</span>
-            <span>Copy your API key and paste it above</span>
-          </li>
-        </ul>
-        <div className="flex flex-col gap-3">
-          <button
-            ref={submitButtonRef}
-            type="submit"
-            disabled={!apiKey.trim()}
-            className="w-full px-4 py-2 bg-neutral-900 text-white rounded-lg hover:bg-neutral-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {savedApiKey ? "Update API Key" : "Save API Key"}
-          </button>
-          <div className="flex items-center justify-between text-sm pt-2 gap-6">
-            <a
-              href="https://together.ai"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-neutral-600 hover:text-neutral-900 underline flex items-center gap-1"
-            >
-              Get your API key
-              <ExternalLink className="w-3 h-3" />
-            </a>
-            {savedApiKey && (
-              <button
-                type="button"
-                onClick={handleRemoveApiKey}
-                className="text-red-600 hover:text-red-700 underline text-sm"
-              >
-                Remove
-              </button>
-            )}
-          </div>
-        </div>
-      </form>
-    </div>
-  );
-
   if (isDesktop) {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
@@ -200,7 +233,17 @@ export function ApiKeyDialog({ open, onOpenChange }: ApiKeyDialogProps) {
               </DialogTitle>
             </div>
           </DialogHeader>
-          <ApiKeyForm />
+          <ApiKeyForm
+            apiKey={apiKey}
+            savedApiKey={savedApiKey}
+            showApiKey={showApiKey}
+            inputRef={inputRef}
+            submitButtonRef={submitButtonRef}
+            onApiKeyChange={setApiKey}
+            onShowApiKeyToggle={() => setShowApiKey(!showApiKey)}
+            onSave={handleSaveApiKey}
+            onRemove={handleRemoveApiKey}
+          />
         </DialogContent>
       </Dialog>
     );
@@ -215,7 +258,17 @@ export function ApiKeyDialog({ open, onOpenChange }: ApiKeyDialogProps) {
             <DrawerTitle className="text-left text-neutral-900">Together AI API key</DrawerTitle>
           </div>
         </DrawerHeader>
-        <ApiKeyForm />
+        <ApiKeyForm
+          apiKey={apiKey}
+          savedApiKey={savedApiKey}
+          showApiKey={showApiKey}
+          inputRef={inputRef}
+          submitButtonRef={submitButtonRef}
+          onApiKeyChange={setApiKey}
+          onShowApiKeyToggle={() => setShowApiKey(!showApiKey)}
+          onSave={handleSaveApiKey}
+          onRemove={handleRemoveApiKey}
+        />
       </DrawerContent>
     </Drawer>
   );

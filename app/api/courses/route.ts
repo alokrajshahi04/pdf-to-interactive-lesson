@@ -8,7 +8,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 // GET /api/courses - List all public courses
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     // Fetch all public courses, ordered by creation date (newest first)
     const allCourses = await db

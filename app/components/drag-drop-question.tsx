@@ -52,7 +52,7 @@ export function DragDropQuestion({
     historyIndexRef.current = historyIndex;
   }, [historyIndex]);
 
-  // Sync userAnswer prop changes to state
+  // Sync userAnswer prop changes to state - use callback to avoid setState in effect
   useEffect(() => {
     const newAssignments = (() => {
       if (userAnswer && userAnswer.length === 3) {
@@ -61,10 +61,15 @@ export function DragDropQuestion({
       return [-1, -1, -1];
     })();
     
-    setSlotAssignments(newAssignments);
-    setHistory([newAssignments]);
-    setHistoryIndex(0);
-    historyIndexRef.current = 0;
+    // Defer state updates to avoid cascading renders
+    const timeoutId = setTimeout(() => {
+      setSlotAssignments(newAssignments);
+      setHistory([newAssignments]);
+      setHistoryIndex(0);
+      historyIndexRef.current = 0;
+    }, 0);
+    
+    return () => clearTimeout(timeoutId);
   }, [userAnswer]);
 
   // Add to history when user makes a change
@@ -375,9 +380,6 @@ export function DragDropQuestion({
                 const assignedChoiceColors = assignedChoiceIndex !== -1 
                   ? CHOICE_COLORS[assignedChoiceIndex % CHOICE_COLORS.length]
                   : null;
-
-                const correctChoiceIndex = showResult ? correctAnswer[slotIndex] : -1;
-                const correctChoice = showResult ? choices[correctAnswer[slotIndex]] : null;
 
                 const isEmpty = assignedChoiceIndex === -1;
                 const isEmptyWhenShowingResult = showResult && isEmpty;

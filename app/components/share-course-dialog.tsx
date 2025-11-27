@@ -23,50 +23,31 @@ interface ShareCourseDialogProps {
   courseSlug: string;
 }
 
-export function ShareCourseDialog({
-  open,
-  onOpenChange,
+interface ShareFormProps {
+  className?: string;
+  courseTitle: string;
+  shareLink: string;
+  copied: boolean;
+  inputRef: React.RefObject<HTMLInputElement | null>;
+  onCopyLink: () => void;
+  onClose: () => void;
+}
+
+// Move component outside to avoid creating it during render
+const ShareForm = ({
+  className,
   courseTitle,
-  courseSlug,
-}: ShareCourseDialogProps) {
-  const [copied, setCopied] = useState(false);
-  const isDesktop = useMediaQuery("(min-width: 768px)");
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  // Generate the shareable link
-  const shareLink =
-    typeof window !== "undefined"
-      ? `${window.location.origin}/course/${courseSlug}`
-      : "";
-
-  // Reset copied state when dialog opens
-  useEffect(() => {
-    if (open) {
-      setCopied(false);
-      // Auto-focus the input when dialog opens
-      setTimeout(() => {
-        inputRef.current?.focus();
-        inputRef.current?.select();
-      }, 100);
-    }
-  }, [open]);
-
-  const handleCopyLink = async () => {
-    try {
-      await navigator.clipboard.writeText(shareLink);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
-      console.error("Failed to copy link:", err);
-    }
-  };
-
-  const ShareForm = ({ className }: { className?: string }) => (
-    <div className={className}>
-      <div className="space-y-4">
-        <div className="text-base text-neutral-900">
-          Share <span className="font-semibold">{courseTitle}</span> with others
-        </div>
+  shareLink,
+  copied,
+  inputRef,
+  onCopyLink,
+  onClose,
+}: ShareFormProps) => (
+  <div className={className}>
+    <div className="space-y-4">
+      <div className="text-base text-neutral-900">
+        Share <span className="font-semibold">{courseTitle}</span> with others
+      </div>
         <div className="space-y-2">
           <label className="text-sm text-neutral-600">Course link</label>
           <div className="flex gap-2">
@@ -78,7 +59,7 @@ export function ShareCourseDialog({
               className="flex-1 px-4 py-2 border border-neutral-300 rounded-lg bg-neutral-50 text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:border-transparent"
             />
             <button
-              onClick={handleCopyLink}
+              onClick={onCopyLink}
               className="px-4 py-2 bg-neutral-900 text-white rounded-lg hover:bg-neutral-800 transition-colors flex items-center justify-center gap-2 min-w-[100px]"
             >
               {copied ? (
@@ -99,7 +80,7 @@ export function ShareCourseDialog({
           Anyone with this link can access and view your course.
         </p>
         <button
-          onClick={() => onOpenChange(false)}
+          onClick={onClose}
           className="w-full px-4 py-2 border border-neutral-300 rounded-lg hover:bg-neutral-50 transition-colors text-neutral-900"
         >
           Done
@@ -107,6 +88,48 @@ export function ShareCourseDialog({
       </div>
     </div>
   );
+
+export function ShareCourseDialog({
+  open,
+  onOpenChange,
+  courseTitle,
+  courseSlug,
+}: ShareCourseDialogProps) {
+  const [copied, setCopied] = useState(false);
+  const isDesktop = useMediaQuery("(min-width: 768px)");
+  const inputRef = useRef<HTMLInputElement>(null);
+  const prevOpenRef = useRef(open);
+
+  // Generate the shareable link
+  const shareLink =
+    typeof window !== "undefined"
+      ? `${window.location.origin}/course/${courseSlug}`
+      : "";
+
+  // Reset copied state when dialog opens - use ref to avoid setState in effect
+  useEffect(() => {
+    if (open && !prevOpenRef.current) {
+      // Dialog just opened
+      setCopied(false);
+      // Auto-focus the input when dialog opens
+      const focusTimeout = setTimeout(() => {
+        inputRef.current?.focus();
+        inputRef.current?.select();
+      }, 100);
+      return () => clearTimeout(focusTimeout);
+    }
+    prevOpenRef.current = open;
+  }, [open]);
+
+  const handleCopyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(shareLink);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error("Failed to copy link:", err);
+    }
+  };
 
   if (isDesktop) {
     return (
@@ -117,7 +140,14 @@ export function ShareCourseDialog({
               Share Course
             </DialogTitle>
           </DialogHeader>
-          <ShareForm />
+          <ShareForm
+            courseTitle={courseTitle}
+            shareLink={shareLink}
+            copied={copied}
+            inputRef={inputRef}
+            onCopyLink={handleCopyLink}
+            onClose={() => onOpenChange(false)}
+          />
         </DialogContent>
       </Dialog>
     );
@@ -131,7 +161,14 @@ export function ShareCourseDialog({
             Share Course
           </DrawerTitle>
         </DrawerHeader>
-        <ShareForm />
+        <ShareForm
+          courseTitle={courseTitle}
+          shareLink={shareLink}
+          copied={copied}
+          inputRef={inputRef}
+          onCopyLink={handleCopyLink}
+          onClose={() => onOpenChange(false)}
+        />
       </DrawerContent>
     </Drawer>
   );
