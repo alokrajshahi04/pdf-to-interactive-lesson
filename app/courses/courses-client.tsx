@@ -10,13 +10,13 @@ export function CoursesClient() {
   const handleSelectCourse = (courseId: string) => {
     // With database-backed courses, the Dashboard component handles navigation
     // This is kept for compatibility but not actively used
-    console.log("Course selected:", courseId);
+    void courseId;
   };
 
   const handleCourseGenerated = (generatedCourse: Course) => {
     // Course is already saved by Dashboard component
     // Navigation happens in the upload flow
-    console.log("Course generated:", generatedCourse.title);
+    void generatedCourse;
   };
 
   return (

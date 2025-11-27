@@ -375,9 +375,6 @@ function Dashboard({ onSelectCourse, onCourseGenerated }: DashboardProps) {
                 const completedModules = progress?.completedModules?.length || 0;
                 const progressPercent = totalModules > 0 ? Math.round((completedModules / totalModules) * 100) : 0;
                 
-                // Debug: Check localStorage vs course slug
-                console.log('[Mobile] Course slug:', course.slug, '| Progress found:', !!progress, '| Completed:', completedModules, '/', totalModules, '| courseData:', !!course.courseData);
-                
                 return (
                   <div
                     key={course.id}
@@ -461,9 +458,6 @@ function Dashboard({ onSelectCourse, onCourseGenerated }: DashboardProps) {
                 const totalModules = course.courseData?.modules?.length || 0;
                 const completedModules = progress?.completedModules?.length || 0;
                 const progressPercent = totalModules > 0 ? Math.round((completedModules / totalModules) * 100) : 0;
-                
-                // Debug: Check localStorage vs course slug
-                console.log('[Desktop] Course slug:', course.slug, '| Progress found:', !!progress, '| Completed:', completedModules, '/', totalModules, '| courseData:', !!course.courseData);
                 
                 return (
                   <div

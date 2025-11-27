@@ -115,9 +115,8 @@ export default function LessonPage() {
     initialStep: stepParam,
     initialCompletedModules: savedProgress?.completedModules || [],
     onNavigate: handleNavigate,
-    onModuleComplete: (completedIndex: number, allCompleted: number[]) => {
+    onModuleComplete: (_completedIndex: number, allCompleted: number[]) => {
       // Immediately save when a module completes
-      console.log('[MODULE COMPLETE CALLBACK] Saving immediately:', allCompleted);
       updateCourseProgress(slug, {
         completedModules: allCompleted,
       });
@@ -166,11 +165,6 @@ export default function LessonPage() {
     if (!course || !navigation) return;
 
     const timeoutId = setTimeout(() => {
-      console.log('[SAVE TRIGGER] Saving progress:', {
-        moduleIndex: navigation.moduleIndex,
-        lessonIndex: navigation.lessonIndex,
-        completedModules: navigation.completedModules,
-      });
       updateCourseProgress(slug, {
         currentModuleIndex: navigation.moduleIndex,
         currentLessonIndex: navigation.lessonIndex,

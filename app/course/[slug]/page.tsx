@@ -19,7 +19,6 @@ export default function CoursePage() {
   // Separate function to refresh progress from localStorage
   const refreshProgress = useCallback(() => {
     const progress = getCourseProgress(slug);
-    console.log('[MODULES SCREEN] Refreshing progress:', progress);
     if (progress) {
       setCompletedModules(progress.completedModules || []);
       setCurrentModuleIndex(progress.currentModuleIndex || 0);
@@ -71,13 +70,11 @@ export default function CoursePage() {
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        console.log('[MODULES SCREEN] Page visible, refreshing progress');
         refreshProgress();
       }
     };
 
     const handleFocus = () => {
-      console.log('[MODULES SCREEN] Window focused, refreshing progress');
       refreshProgress();
     };
 

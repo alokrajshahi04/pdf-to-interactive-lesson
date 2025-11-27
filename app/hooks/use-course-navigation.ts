@@ -488,8 +488,6 @@ export function useCourseNavigation(
         const updatedCompleted = completedModules.includes(moduleIndex)
           ? completedModules
           : [...completedModules, moduleIndex];
-        
-        console.log('[MODULE COMPLETE] Module:', moduleIndex, '| Previous completed:', completedModules, '| Updated completed:', updatedCompleted);
         setCompletedModules(updatedCompleted);
         
         // Immediately notify parent to save progress
