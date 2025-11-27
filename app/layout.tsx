@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Fustat } from "next/font/google";
 import "./globals.css";
@@ -23,7 +23,16 @@ const fustat = Fustat({
   display: "swap",
 });
 
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+};
+
 export const metadata: Metadata = {
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_APP_URL || "https://pdf-to-interactive-lesson.vercel.app"
+  ),
   title: {
     default: "PDF to Interactive Lesson Generator",
     template: "%s | PDF to Interactive Lesson Generator",
@@ -45,11 +54,6 @@ export const metadata: Metadata = {
   robots: {
     index: true,
     follow: true,
-  },
-  viewport: {
-    width: "device-width",
-    initialScale: 1,
-    maximumScale: 5,
   },
 };
 

@@ -25,8 +25,8 @@ export default async function Image({
   const fontData = fontArray.buffer
 
   // Load SVGs
-  const leftSvg = await readFile(join(process.cwd(), 'public/landing-left-optimized.svg'))
-  const rightSvg = await readFile(join(process.cwd(), 'public/landing-right-optimized.svg'))
+  const leftSvg = await readFile(join(process.cwd(), 'public/landing-left.svg'))
+  const rightSvg = await readFile(join(process.cwd(), 'public/landing-right.svg'))
   
   const leftSvgSrc = `data:image/svg+xml;base64,${leftSvg.toString('base64')}`
   const rightSvgSrc = `data:image/svg+xml;base64,${rightSvg.toString('base64')}`
