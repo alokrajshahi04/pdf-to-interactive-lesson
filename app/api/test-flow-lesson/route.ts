@@ -29,7 +29,6 @@ The entire process is a coordinated flow: light capture → electron excitation 
 `;
 
   try {
-    console.log("🧪 Testing flow lesson generation...");
     
     const result = await createLessons({
       module: testModule,

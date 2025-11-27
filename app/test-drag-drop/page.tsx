@@ -13,7 +13,6 @@ export default function TestDragDropPage() {
 
   const handleAnswerChange = (answer: number[]) => {
     setUserAnswer(answer);
-    console.log("Answer changed:", answer);
   };
 
   const handleContinue = () => {

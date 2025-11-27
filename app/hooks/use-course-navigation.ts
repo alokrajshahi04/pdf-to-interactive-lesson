@@ -172,17 +172,7 @@ export function useCourseNavigation(
   };
 
   const handleContinue = async () => {
-    debugLog.log("[NAVIGATION] handleContinue called", {
-      step,
-      moduleIndex,
-      lessonIndex,
-      showResult,
-      hasCurrentLesson: !!currentLesson,
-      currentLessonTitle: currentLesson?.data?.title,
-    });
-
     if (step === "module-intro") {
-      debugLog.log("[NAVIGATION] Moving from module-intro to content");
       setModuleStats({ correct: 0, total: 0, startTime: Date.now() });
       const newStep = "content";
       setStep(newStep);
@@ -192,7 +182,6 @@ export function useCourseNavigation(
         step: newStep,
       });
     } else if (step === "content") {
-      debugLog.log("[NAVIGATION] Moving from content to question");
       const newStep = "question";
       setStep(newStep);
       options?.onNavigate?.({
@@ -201,12 +190,6 @@ export function useCourseNavigation(
         step: newStep,
       });
     } else if (step === "question" && !showResult) {
-      debugLog.log("[NAVIGATION] Processing question answer", {
-        hasData: !!currentLesson?.data,
-        questionType: currentLesson?.data?.questionType,
-        userAnswer,
-      });
-
       // Check answer and update stats
       const data = currentLesson?.data;
       if (!data) {
@@ -214,23 +197,10 @@ export function useCourseNavigation(
         return;
       }
 
-      // For short-answer questions, call the grading API
-      debugLog.log("[NAVIGATION] Checking question type", {
-        questionType: data.questionType,
-        isShortAnswer: data.questionType === "short-answer",
-        hasGradingResult: !!data.gradingResult,
-        gradingResult: data.gradingResult,
-      });
-
       if (data.questionType === "short-answer") {
         // If we already have a grading result, clear it and re-grade
         // This ensures we always get fresh results when the user submits
         if (data.gradingResult) {
-          debugLog.log("[NAVIGATION] Clearing cached grading result to force re-grading", {
-            previousResult: data.gradingResult.isCorrect,
-            gradedAt: data.gradingResult.gradedAt,
-          });
-          
           // Clear the old grading result
           const updatedCourse = { ...course };
           const allLessons = updatedCourse.modules[moduleIndex].lessons;
@@ -260,14 +230,6 @@ export function useCourseNavigation(
         }
         
         // Call API to grade the answer (always, since we cleared cache if it existed)
-        debugLog.log("[GRADING] Starting short-answer grading", {
-          moduleIndex,
-          lessonIndex,
-          questionTitle: data.title,
-          userAnswerLength: (userAnswer as string)?.length,
-          correctAnswerLength: (data.answer as string)?.length,
-        });
-
         setIsGrading(true);
         setGradingError(null);
 
@@ -278,8 +240,6 @@ export function useCourseNavigation(
             throw new Error("API key not found. Please add it in settings.");
           }
 
-          debugLog.log("[GRADING] Making API request to /api/grade-short-answer");
-
           const requestBody = {
             userAnswer: userAnswer as string,
             correctAnswer: data.answer as string,
@@ -287,14 +247,6 @@ export function useCourseNavigation(
             info: data.info,
             question: data.question,
           };
-
-          debugLog.log("[GRADING] Request payload:", {
-            userAnswer: requestBody.userAnswer.substring(0, 100) + "...",
-            correctAnswer: requestBody.correctAnswer.substring(0, 100) + "...",
-            contentLength: requestBody.content.length,
-            infoLength: requestBody.info.length,
-            questionLength: requestBody.question.length,
-          });
 
           const response = await fetch("/api/grade-short-answer", {
             method: "POST",
@@ -305,38 +257,19 @@ export function useCourseNavigation(
             body: JSON.stringify(requestBody),
           });
 
-          debugLog.log("[GRADING] API response received", {
-            status: response.status,
-            statusText: response.statusText,
-            ok: response.ok,
-          });
-
           if (!response.ok) {
             const errorData = await response.json();
-            
             debugLog.error("[GRADING] API error response", {
               status: response.status,
               errorData,
             });
-            
             throw new Error(errorData.error || "Failed to grade answer");
           }
 
           const result = await response.json();
-          
-          debugLog.log("[GRADING] Successfully graded answer", {
-            isCorrect: result.isCorrect,
-            explanation: result.explanation?.substring(0, 100),
-          });
-          
           const isCorrect = result.isCorrect;
 
           // Update lesson data with grading result
-          debugLog.log("[GRADING] Updating course with grading result", {
-            moduleIndex,
-            lessonIndex,
-            isCorrect,
-          });
 
           const updatedCourse = { ...course };
           // Find the actual lesson index in the lessons array
@@ -363,10 +296,6 @@ export function useCourseNavigation(
                   isCorrect,
                   gradedAt: new Date().toISOString(),
                 };
-                debugLog.log("[GRADING] Lesson updated with grading result", {
-                  actualIndex,
-                  lessonTitle: lessonToUpdate.data.title,
-                });
                 setCourse(updatedCourse);
               } else {
                 debugLog.warn("[GRADING] Could not find lesson to update", {
@@ -379,20 +308,15 @@ export function useCourseNavigation(
             }
 
           // Update stats
-          setModuleStats((prev) => {
-            const newStats = {
-              ...prev,
-              correct: prev.correct + (isCorrect ? 1 : 0),
-              total: prev.total + 1,
-            };
-            debugLog.log("[GRADING] Updated module stats", newStats);
-            return newStats;
-          });
+          setModuleStats((prev) => ({
+            ...prev,
+            correct: prev.correct + (isCorrect ? 1 : 0),
+            total: prev.total + 1,
+          }));
 
           setShowResult(true);
           const newStep = "answer";
           setStep(newStep);
-          debugLog.log("[GRADING] Moving to answer step");
           options?.onNavigate?.({
             moduleIndex,
             lessonIndex,
@@ -406,15 +330,9 @@ export function useCourseNavigation(
           // Don't proceed to answer step on error
         } finally {
           setIsGrading(false);
-          debugLog.log("[GRADING] Grading process completed");
         }
       } else if (data.questionType === "drag-drop" || data.questionType === "flow-diagram") {
         // For drag-drop and flow-diagram, check arrays match exactly
-        debugLog.log("[NAVIGATION] Processing drag-drop/flow question", {
-          questionType: data.questionType,
-          userAnswer,
-          correctAnswer: data.answer,
-        });
         const userAnswerArray = userAnswer as number[];
         const correctAnswerArray = data.answer as number[];
         const isCorrect =
@@ -422,7 +340,6 @@ export function useCourseNavigation(
           Array.isArray(correctAnswerArray) &&
           userAnswerArray.length === correctAnswerArray.length &&
           JSON.stringify(userAnswerArray) === JSON.stringify(correctAnswerArray);
-        debugLog.log("[NAVIGATION] Answer check result", { isCorrect });
 
         setModuleStats((prev) => ({
           ...prev,
@@ -440,13 +357,7 @@ export function useCourseNavigation(
         });
       } else {
         // For multiple-choice and true-false, check directly
-        debugLog.log("[NAVIGATION] Processing non-short-answer question", {
-          questionType: data.questionType,
-          userAnswer,
-          correctAnswer: data.answer,
-        });
         const isCorrect = userAnswer === data.answer;
-        debugLog.log("[NAVIGATION] Answer check result", { isCorrect });
 
         setModuleStats((prev) => ({
           ...prev,
@@ -464,11 +375,6 @@ export function useCourseNavigation(
         });
       }
     } else if (step === "answer") {
-      debugLog.log("[NAVIGATION] Moving from answer step", {
-        lessonIndex,
-        totalLessons: successfulLessons.length,
-        hasNextLesson: lessonIndex < successfulLessons.length - 1,
-      });
       // Move to next lesson or module
       if (lessonIndex < successfulLessons.length - 1) {
         const newLessonIndex = lessonIndex + 1;

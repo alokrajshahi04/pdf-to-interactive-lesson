@@ -8,7 +8,6 @@ import { Header } from "@/app/components/header";
 import { Footer } from "@/app/components/footer";
 import type { Course, Step } from "@/app/hooks/use-course-navigation";
 import { useCourseNavigation } from "@/app/hooks/use-course-navigation";
-import { debugLog } from "@/lib/utils/debug";
 import { getCourseProgress, updateCourseProgress } from "@/lib/course-progress";
 
 export default function LessonPage() {
@@ -143,22 +142,6 @@ export default function LessonPage() {
     img.src = "/great-work.svg";
   }, []);
 
-  // Debug log for lesson data (must be before any conditional returns)
-  useEffect(() => {
-    if (course && navigation.currentLesson) {
-      debugLog.log("[PAGE] Lesson page rendered", {
-        slug,
-        moduleIndex: moduleIndexParam,
-        lessonIndex: lessonIndexParam,
-        step: stepParam,
-        hasCourse: !!course,
-        hasCurrentLesson: !!navigation.currentLesson,
-        questionType: navigation.currentLesson.data?.questionType,
-        lessonTitle: navigation.currentLesson.data?.title,
-        hasGradingResult: !!navigation.currentLesson.data?.gradingResult,
-      });
-    }
-  }, [slug, moduleIndexParam, lessonIndexParam, stepParam, course, navigation.currentLesson]);
 
   // Save progress to localStorage whenever it changes (debounced)
   useEffect(() => {
