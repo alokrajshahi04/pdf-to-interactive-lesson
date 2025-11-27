@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "packageManager": "pnpm@9.5.0",
+  "bin": {
+    "course": "./bin/course.ts"
+  },
   "scripts": {
     "setup": "pnpm install && cd api && uv venv && uv pip install -e . && cd .. && echo '\n✅ Setup complete! Copy .env.example to .env.local and add your API keys.'",
     "dev": "concurrently \"pnpm:dev:next\" \"pnpm:dev:api\" --names \"next,api\" --prefix-colors \"cyan,magenta\"",
@@ -12,8 +15,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "course": "tsx bin/course.ts",
     "pdf-to-image": "node scripts/pdf-to-image.ts",
-    "generate-course": "tsx lib/cli.ts",
     "test:grade": "tsx scripts/test-grade-short-answer.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
@@ -52,6 +55,7 @@
     "fast-xml-parser": "^5.3.0",
     "lucide-react": "^0.552.0",
     "next": "16.0.0",
+    "ora": "^9.0.0",
     "pdfjs-dist": "4.8.69",
     "react": "19.2.0",
     "react-dom": "19.2.0",

@@ -134,12 +134,43 @@ export async function getPdfImage(data: ArrayBuffer): Promise<Buffer | null> {
 }
 
 /**
- * Convert all pages of a PDF into PNG images
+ * Render a single PDF page to PNG
+ */
+async function renderPage(
+  doc: any,
+  pageNum: number,
+  canvasFactory: NodeCanvasFactory,
+  scale: number = 2.0
+): Promise<Buffer | null> {
+  try {
+    const page = await doc.getPage(pageNum);
+    const view = page.getViewport({ scale });
+    const rendered = canvasFactory.create(view.width, view.height);
+
+    // Render with options optimized for text extraction
+    await page.render({
+      canvasContext: rendered.context,
+      viewport: view,
+      canvasFactory: canvasFactory,
+      renderInteractiveForms: false,
+      annotationMode: 0, // Disable annotations
+    } as any).promise;
+
+    return (rendered.canvas as Canvas).toBuffer("image/png");
+  } catch (pageErr) {
+    console.error(`Failed to render page ${pageNum}:`, pageErr);
+    return null;
+  }
+}
+
+/**
+ * Convert all pages of a PDF into PNG images (parallelized)
  * Note: This function skips image rendering to avoid canvas factory conflicts
  * and only renders text content for OCR purposes.
  */
 export async function getAllPdfImages(
-  data: ArrayBuffer
+  data: ArrayBuffer,
+  concurrency: number = 5
 ): Promise<Buffer[] | null> {
   const baseDir = process.cwd();
   const pdfjsModulePath = path.join(baseDir, "node_modules", "pdfjs-dist");
@@ -160,29 +191,24 @@ export async function getAllPdfImages(
     // Use skipImages flag to minimize image processing overhead
     const canvasFactory = new NodeCanvasFactory(true);
     const pageCount = doc.numPages;
-    const images: Buffer[] = [];
+    
+    // Process pages in parallel batches
+    const results: (Buffer | null)[] = new Array(pageCount);
+    const scale = 2.0; // Match Railway API resolution (144 DPI) - was 4.0
 
-    for (let pageNum = 1; pageNum <= pageCount; pageNum++) {
-      try {
-        const page = await doc.getPage(pageNum);
-        const view = page.getViewport({ scale: 4.0 });
-        const rendered = canvasFactory.create(view.width, view.height);
-
-        // Render with options optimized for text extraction
-        await page.render({
-          canvasContext: rendered.context,
-          viewport: view,
-          canvasFactory: canvasFactory,
-          renderInteractiveForms: false,
-          annotationMode: 0, // Disable annotations
-        } as any).promise;
-
-        images.push((rendered.canvas as Canvas).toBuffer("image/png"));
-      } catch (pageErr) {
-        console.error(`Failed to render page ${pageNum}:`, pageErr);
-        // Continue processing other pages even if one fails
+    // Process in batches to control concurrency
+    for (let i = 0; i < pageCount; i += concurrency) {
+      const batch = [];
+      for (let j = i; j < Math.min(i + concurrency, pageCount); j++) {
+        batch.push(renderPage(doc, j + 1, canvasFactory, scale).then(buf => {
+          results[j] = buf;
+        }));
       }
+      await Promise.all(batch);
     }
+
+    // Filter out failed pages
+    const images = results.filter((buf): buf is Buffer => buf !== null);
 
     if (images.length === 0) {
       throw new Error("Failed to render any pages from PDF");

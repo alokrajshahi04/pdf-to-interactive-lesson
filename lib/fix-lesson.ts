@@ -21,6 +21,7 @@ export interface FixLessonInput {
   moduleTitle: string;
   content: string;
   apiKey: string;
+  model?: string;
   maxRetries?: number;
 }
 
@@ -41,6 +42,7 @@ export async function fixLesson({
   moduleTitle,
   content,
   apiKey,
+  model = DEFAULT_MODEL,
   maxRetries = 3,
 }: FixLessonInput): Promise<FixLessonResult> {
   const together = createTogetherClient(apiKey);
@@ -63,7 +65,7 @@ export async function fixLesson({
     try {
       // Ask LLM to fix the lesson
       const result = await generateText({
-        model: together(DEFAULT_MODEL),
+        model: together(model),
         prompt: `You are tasked with fixing a lesson that failed validation. The original lesson had the following problems:
 
 ${failureDetails}

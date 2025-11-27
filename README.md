@@ -82,55 +82,65 @@ The JSON file should follow this structure:
 
 See `lib/demo/transformer-course.json` for a complete example.
 
-## Usage
+## CLI Usage
 
 ### Generate a Full Course
 
 ```bash
-bun run lib/cli.ts generate-course data/document.pdf
+course generate data/document.pdf
 ```
 
 ### Generate Only Course Modules
 
 ```bash
-bun run lib/cli.ts generate-modules data/document.pdf
+course modules data/document.pdf
 ```
 
 ### CLI Options
 
 ```
 Options:
+  --output <path>            Save output to specific path
+  --save-text <path>         Save extracted text to file (PDFs only)
+  --save-text-auto           Save text next to PDF as .md file
   --no-validate              Disable all validation
   --no-validate-structure    Disable structure validation only
   --no-validate-content      Disable content validation only (saves time/cost)
   --no-retry                 Disable automatic retry/fix of failed lessons
   --max-retries <num>        Maximum retry attempts (default: 3)
-  --output <path>            Save output to JSON file (default: lessons.json)
+  --runs <num>               Run generation n times (for testing)
+  --verbose                  Show detailed validation errors
 ```
 
 ### Examples
 
 ```bash
 # Basic usage
-bun run lib/cli.ts generate-course data/document.pdf
+course generate data/document.pdf
+
+# Generate and cache OCR text for faster re-runs
+course generate data/document.pdf --save-text-auto
+
+# Use cached text (much faster)
+course generate data/document.md
 
 # Disable validation for faster generation
-bun run lib/cli.ts generate-course data/document.pdf --no-validate
+course generate data/document.pdf --no-validate
 
 # Disable retry mechanism
-bun run lib/cli.ts generate-course data/document.pdf --no-retry
+course generate data/document.pdf --no-retry
 
 # Increase retry attempts for better quality
-bun run lib/cli.ts generate-course data/document.pdf --max-retries 5
+course generate data/document.pdf --max-retries 5
 
 # Custom output path
-bun run lib/cli.ts generate-course data/document.pdf --output course.json
+course generate data/document.pdf --output course.json
 
 # From URL
-bun run lib/cli.ts generate-modules https://example.com/doc.pdf
+course modules https://example.com/doc.pdf
 
-# From markdown
-bun run lib/cli.ts generate-course output/document.md
+# Show detailed validation errors
+course generate data/document.pdf --verbose
 ```
 
 ## Output Structure
@@ -333,8 +343,11 @@ bun run lib/create-lesson.test.ts
 ### Project Structure
 
 ```
+bin/
+  course.ts                       - CLI interface (arg parsing, display, file I/O)
+  _course                         - Zsh completion script
+
 lib/
-  cli.ts                          - CLI interface (arg parsing, display, file I/O)
   create-course.ts                - Course generation orchestration (modules + lessons)
   create-lesson.ts                - Lesson generation and validation
   fix-lesson.ts                   - Automatic lesson fixing/retry logic
@@ -342,7 +355,7 @@ lib/
   ocr.ts                          - PDF text extraction
   types.ts                        - Shared TypeScript interfaces
   utils/
-    ai-client.ts                  - Shared Together AI client and model configuration
+    together.ts                   - Together AI client and model configuration
     xml.ts                        - XML parsing utilities
 ```
 
@@ -356,10 +369,10 @@ The codebase follows a clean separation of concerns:
   - `createCourse()` - Generate complete course (modules + lessons)
   - Can be called programmatically from anywhere (CLI, Next.js app, etc.)
 
-- **`cli.ts`**: User interface layer
+- **`bin/course.ts`**: User interface layer
 
   - Argument parsing and validation
-  - Display formatting and progress output
+  - Display formatting with ora spinners
   - File I/O operations
   - Calls business logic functions from `create-course.ts`
 
