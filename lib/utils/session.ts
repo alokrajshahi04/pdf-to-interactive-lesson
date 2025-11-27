@@ -33,7 +33,3 @@ export function clearUserId(): void {
   localStorage.removeItem(STORAGE_KEY);
 }
 
-// Backwards compatibility aliases
-export const getOrCreateSessionId = getOrCreateUserId;
-export const clearSessionId = clearUserId;
-
