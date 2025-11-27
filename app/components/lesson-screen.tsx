@@ -347,6 +347,44 @@ function LessonScreen({
                     showResult={showResult}
                     onAnswerChange={onAnswerChange}
                   />
+                  {/* Correct Answers Info Box */}
+                  {showResult && (() => {
+                    const correctAnswer = lessonData.answer as number[];
+                    const currentUserAnswer = (userAnswer as number[]) || [];
+                    const incorrectSlots = lessonData.slots!.map((slot, slotIndex) => {
+                      const assignedChoiceIndex = currentUserAnswer[slotIndex] ?? -1;
+                      const isCorrect = assignedChoiceIndex === correctAnswer[slotIndex];
+                      if (!isCorrect) {
+                        return {
+                          slotIndex,
+                          correctChoice: lessonData.choices![correctAnswer[slotIndex]],
+                        };
+                      }
+                      return null;
+                    }).filter(Boolean);
+
+                    if (incorrectSlots.length === 0) return null;
+
+                    return (
+                      <div className="mt-4 p-5 bg-blue-50 border border-blue-200 rounded-xl">
+                        <p className="text-sm font-semibold text-neutral-700 mb-3">
+                          Correct Answers:
+                        </p>
+                        <div className="space-y-2">
+                          {incorrectSlots.map((item) => (
+                            <div key={item!.slotIndex} className="flex items-start gap-2">
+                              <span className="text-sm font-medium text-neutral-600 min-w-[24px]">
+                                {item!.slotIndex + 1}.
+                              </span>
+                              <span className="text-sm text-neutral-800">
+                                {item!.correctChoice}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
               )}
 
@@ -408,6 +446,44 @@ function LessonScreen({
                     showResult={showResult}
                     onAnswerChange={onAnswerChange}
                   />
+                  {/* Correct Answers Info Box */}
+                  {showResult && (() => {
+                    const correctAnswer = lessonData.answer as number[];
+                    const currentUserAnswer = (userAnswer as number[]) || [];
+                    const incorrectSlots = lessonData.slots!.map((slot, slotIndex) => {
+                      const assignedChoiceIndex = currentUserAnswer[slotIndex] ?? -1;
+                      const isCorrect = assignedChoiceIndex === correctAnswer[slotIndex];
+                      if (!isCorrect) {
+                        return {
+                          slotIndex,
+                          correctChoice: lessonData.choices![correctAnswer[slotIndex]],
+                        };
+                      }
+                      return null;
+                    }).filter(Boolean);
+
+                    if (incorrectSlots.length === 0) return null;
+
+                    return (
+                      <div className="mt-4 p-5 bg-blue-50 border border-blue-200 rounded-xl">
+                        <p className="text-sm font-semibold text-neutral-700 mb-3">
+                          Correct Answers:
+                        </p>
+                        <div className="space-y-2">
+                          {incorrectSlots.map((item) => (
+                            <div key={item!.slotIndex} className="flex items-start gap-2">
+                              <span className="text-sm font-medium text-neutral-600 min-w-[24px]">
+                                {item!.slotIndex + 1}.
+                              </span>
+                              <span className="text-sm text-neutral-800">
+                                {item!.correctChoice}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
               )}
           </div>

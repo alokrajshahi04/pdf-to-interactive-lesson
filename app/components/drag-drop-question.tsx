@@ -428,9 +428,7 @@ export function DragDropQuestion({
                       backgroundColor,
                     }}
                     className={`w-full p-4 rounded-2xl flex flex-col items-center transition-all relative ${
-                      showResult && (isIncorrect || isEmptyWhenShowingResult) && correctChoice 
-                        ? "min-h-[200px]" 
-                        : showResult 
+                      showResult 
                         ? "h-[140px]" 
                         : "h-[120px]"
                     }`}
@@ -486,25 +484,12 @@ export function DragDropQuestion({
                         >
                           {assignedChoice}
                         </div>
-                      ) : showResult && correctChoice ? (
-                        <div className="text-center w-full">
-                          <p className="text-neutral-400 text-xs mb-2">Not answered</p>
-                          <div className="text-xs text-center leading-relaxed px-3 py-2 rounded-lg bg-green-50 border-2 border-green-300">
-                            <p className="text-green-900 font-medium">{correctChoice}</p>
-                          </div>
-                        </div>
+                      ) : showResult ? (
+                        <p className="text-amber-600 text-sm text-center w-full">Not answered</p>
                       ) : (
                         <p className="text-neutral-400 text-sm text-center w-full">Drop a choice here</p>
                       )}
                     </div>
-                    {showResult && isIncorrect && correctChoice && (
-                      <div className="mt-3 pt-3 border-t-2 border-red-200 w-full">
-                        <p className="text-xs text-green-700 font-semibold mb-2 text-center">Correct answer:</p>
-                        <div className="text-xs text-center leading-relaxed px-3 py-2 rounded-lg bg-green-50 border-2 border-green-300">
-                          <p className="text-green-900 font-medium">{correctChoice}</p>
-                        </div>
-                      </div>
-                    )}
                   </div>
                 );
               })}
