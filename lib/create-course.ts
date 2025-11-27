@@ -11,12 +11,15 @@ export interface CourseProgressCallback {
 export interface CreateModulesInput {
   content: string;
   apiKey: string;
+  model?: string;
+  maxRetries?: number;
   onProgress?: CourseProgressCallback;
 }
 
 export interface CreateCourseInput {
   content: string;
   apiKey: string;
+  model?: string;
   validateStructure?: boolean;
   validateContent?: boolean;
   retryFailures?: boolean;
@@ -35,13 +38,20 @@ export interface CourseOutput {
 export async function createModules({
   content,
   apiKey,
+  model = DEFAULT_MODEL,
+  maxRetries = 3,
   onProgress,
 }: CreateModulesInput): Promise<CourseStructure> {
   onProgress?.("modules-start", "Generating course structure...");
   const together = createTogetherClient(apiKey);
-  const result = await generateText({
-    model: together(DEFAULT_MODEL),
-    prompt: `Analyse the following content and create a course structure with 3 modules.
+  
+  let lastError: Error | null = null;
+  
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      const result = await generateText({
+        model: together(model),
+        prompt: `Analyse the following content and create a course structure with 3 modules.
 Respond only with XML format. Do not include any other text.
 Your response should ONLY contain the XML format following this structure:
 
@@ -53,20 +63,66 @@ Your response should ONLY contain the XML format following this structure:
 
 Content:
 ${content}`,
-  });
+      });
 
-  // Extract XML in case there's extra text
-  const xmlText = extractXml(result.text, "course");
+      // Extract XML in case there's extra text
+      let xmlText: string;
+      try {
+        xmlText = extractXml(result.text, "course");
+      } catch {
+        throw new Error(
+          `Model returned invalid response (no XML found).\n` +
+          `Response preview: ${result.text.substring(0, 200)}...`
+        );
+      }
 
-  // Parse XML to JavaScript object
-  const parser = createXMLParser(["module"]);
-  const courseStructure = parser.parse(xmlText);
+      // Parse XML to JavaScript object
+      const parser = createXMLParser(["module"]);
+      const courseStructure = parser.parse(xmlText);
 
-  onProgress?.("modules-complete", `Generated ${courseStructure.course.module.length} modules`, {
-    moduleCount: courseStructure.course.module.length,
-  });
+      // Validate the parsed structure
+      if (!courseStructure?.course?.module) {
+        throw new Error(
+          `Model returned invalid course structure.\n` +
+          `Expected: <course><module>...</module></course>\n` +
+          `Response preview: ${result.text.substring(0, 200)}...`
+        );
+      }
 
-  return courseStructure;
+      // Ensure module is always an array
+      const modules = Array.isArray(courseStructure.course.module) 
+        ? courseStructure.course.module 
+        : [courseStructure.course.module];
+
+      onProgress?.("modules-complete", `Generated ${modules.length} modules`, {
+        moduleCount: modules.length,
+      });
+
+      return {
+        ...courseStructure,
+        course: {
+          ...courseStructure.course,
+          module: modules,
+        },
+      };
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+      
+      if (attempt < maxRetries) {
+        onProgress?.("modules-retry", `Course structure generation failed, retrying (${attempt}/${maxRetries})...`, {
+          attempt,
+          maxRetries,
+          error: lastError.message,
+        });
+      }
+    }
+  }
+  
+  // All retries exhausted
+  throw new Error(
+    `Failed to generate course structure after ${maxRetries} attempts.\n` +
+    `Last error: ${lastError?.message}`
+  );
 }
 
 /**
@@ -75,6 +131,7 @@ ${content}`,
 export async function createCourse({
   content,
   apiKey,
+  model = DEFAULT_MODEL,
   validateStructure = true,
   validateContent = true,
   retryFailures = true,
@@ -82,7 +139,7 @@ export async function createCourse({
   onProgress,
 }: CreateCourseInput): Promise<CourseOutput> {
   // Generate course modules
-  const courseStructure = await createModules({ content, apiKey, onProgress });
+  const courseStructure = await createModules({ content, apiKey, model, maxRetries, onProgress });
   const totalModules = courseStructure.course.module.length;
   onProgress?.("lessons-start", `Generating lessons for ${totalModules} modules...`, {
     totalModules,
@@ -95,6 +152,7 @@ export async function createCourse({
       module,
       content,
       apiKey,
+      model,
       validateStructure,
       validateContent,
       retryFailures,

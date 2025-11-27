@@ -20,4 +20,16 @@ export const together = createTogetherAI({
 /**
  * Default model for course and lesson generation
  */
-export const DEFAULT_MODEL = "deepseek-ai/DeepSeek-V3.1";
+export const DEFAULT_MODEL = "zai-org/GLM-4.6";
+
+/**
+ * Available models for course generation
+ */
+export const AVAILABLE_MODELS = {
+  "deepseek-3.1": "deepseek-ai/DeepSeek-V3.1",
+  "glm-4.6": "zai-org/GLM-4.6",
+  "gpt-oss-120b": "openai/gpt-oss-120b",
+  "kimi-k2-thinking": "moonshotai/Kimi-K2-Thinking",
+} as const;
+
+export type ModelAlias = keyof typeof AVAILABLE_MODELS;

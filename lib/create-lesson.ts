@@ -24,6 +24,7 @@ export interface CreateLessonsInput {
   module: Module;
   content: string;
   apiKey: string;
+  model?: string; // Model to use for generation (default: DEFAULT_MODEL)
   validateStructure?: boolean; // If true, runs deterministic structure validation (default: true)
   validateContent?: boolean; // If true, runs LLM-based content validation (default: true)
   retryFailures?: boolean; // If true, attempts to fix failed lessons (default: true)
@@ -36,6 +37,7 @@ export interface ValidateLessonInput {
   moduleTitle: string;
   content: string;
   apiKey: string;
+  model?: string;
 }
 
 export interface ValidationResult {
@@ -53,6 +55,7 @@ export async function createLessons({
   module,
   content,
   apiKey,
+  model = DEFAULT_MODEL,
   validateStructure = true,
   validateContent = true,
   retryFailures = true,
@@ -64,7 +67,7 @@ export async function createLessons({
   
   // Start both standard lesson generation and flow generation concurrently
   const standardLessonsPromise = generateText({
-    model: together(DEFAULT_MODEL),
+    model: together(model),
     prompt: `Analyse the following content and create 3 lessons for the module "${module.title}".
 Respond only with XML format. Do not include any other text.
 
@@ -119,6 +122,7 @@ ${content}`,
     moduleTitle: module.title,
     content,
     apiKey,
+    model,
   });
 
   // Wait for both to complete
@@ -126,6 +130,17 @@ ${content}`,
     standardLessonsPromise,
     flowGenerationPromise,
   ]);
+
+  // Start flow question generation early (doesn't depend on standard lesson processing)
+  const flowQuestionPromise = flowResult?.hasFlow && flowResult.flowConfig
+    ? generateFlowQuestion({
+        flowConfig: flowResult.flowConfig,
+        moduleTitle: module.title,
+        content,
+        apiKey,
+        model,
+      })
+    : Promise.resolve(null);
 
   const parser = createXMLParser(["lesson", "choice", "slot"]);
 
@@ -264,6 +279,7 @@ ${content}`,
               moduleTitle: module.title,
               content,
               apiKey,
+              model,
             });
 
             return { index: i, lesson, validation };
@@ -363,6 +379,7 @@ ${content}`,
             moduleTitle: module.title,
             content,
             apiKey,
+            model,
             maxRetries,
           });
 
@@ -408,16 +425,10 @@ ${content}`,
       }
     }
 
-    // Generate flow-based lesson if a flow diagram was detected
-    if (flowResult?.hasFlow && flowResult.flowConfig) {
-      const flowLesson = await generateFlowQuestion({
-        flowConfig: flowResult.flowConfig,
-        moduleTitle: module.title,
-        content,
-        apiKey,
-      });
-
-      if (flowLesson) {
+    // Get flow lesson (was started earlier in parallel with standard lesson processing)
+    const flowLesson = await flowQuestionPromise;
+    
+    if (flowLesson) {
         // Validate flow lesson if content validation is enabled
         if (validateContent) {
           try {
@@ -426,6 +437,7 @@ ${content}`,
               moduleTitle: module.title,
               content,
               apiKey,
+              model,
             });
 
             if (validation.isValid) {
@@ -455,6 +467,7 @@ ${content}`,
                   moduleTitle: module.title,
                   content,
                   apiKey,
+                  model,
                   maxRetries,
                 });
 
@@ -523,7 +536,6 @@ ${content}`,
           // No validation - add directly
           lessonStructure.module.lessons.push(flowLesson);
         }
-      }
     }
 
     // Build final lessons array with success/failure status
@@ -570,16 +582,18 @@ async function generateFlowDiagram({
   moduleTitle,
   content,
   apiKey,
+  model = DEFAULT_MODEL,
 }: {
   moduleTitle: string;
   content: string;
   apiKey: string;
+  model?: string;
 }): Promise<{ hasFlow: boolean; flowConfig?: FlowConfig } | null> {
   const together = createTogetherClient(apiKey);
   
   try {
     const result = await generateText({
-      model: together(DEFAULT_MODEL),
+      model: together(model),
       prompt: `Analyze the following content for the module "${moduleTitle}".
 
 Determine if this content describes a PROCESS, SYSTEM, or SEQUENTIAL FLOW that would benefit from a visual flow diagram.
@@ -674,11 +688,13 @@ async function generateFlowQuestion({
   moduleTitle,
   content,
   apiKey,
+  model = DEFAULT_MODEL,
 }: {
   flowConfig: FlowConfig;
   moduleTitle: string;
   content: string;
   apiKey: string;
+  model?: string;
 }): Promise<FlowDiagramLesson | null> {
   const together = createTogetherClient(apiKey);
   
@@ -687,7 +703,7 @@ async function generateFlowQuestion({
   
   try {
     const result = await generateText({
-      model: together(DEFAULT_MODEL),
+      model: together(model),
       prompt: `Given this flow diagram for the module "${moduleTitle}", create a drag-and-drop ordering question.
 
 Flow nodes in the diagram:
@@ -810,6 +826,7 @@ export async function validateLesson({
   moduleTitle,
   content,
   apiKey,
+  model = DEFAULT_MODEL,
 }: ValidateLessonInput): Promise<ValidationResult> {
   const together = createTogetherClient(apiKey);
   
@@ -833,7 +850,7 @@ export async function validateLesson({
   };
 
   const result = await generateText({
-    model: together(DEFAULT_MODEL),
+    model: together(model),
     prompt: `You are a lesson quality validator. Validate the following lesson against the source content.
 
 Module: "${moduleTitle}"
