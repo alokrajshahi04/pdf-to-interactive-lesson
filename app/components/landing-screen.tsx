@@ -209,22 +209,33 @@ function LandingScreen({
     }
   };
 
-  const handleTryDemo = () => {
+  const handleTryDemo = async () => {
     try {
       setIsProcessing(true);
       setError(null);
       setProgress("Loading demo course...");
       
-      // Save the demo course to localStorage
-      const courseId = saveCourse(demoCourse as Course);
+      // Save the demo course to database via API
+      const userId = getOrCreateUserId();
+      const response = await fetch("/api/courses", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-User-ID": userId,
+        },
+        body: JSON.stringify({ course: demoCourse }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to save demo course");
+      }
+
+      const savedCourse = await response.json();
       
-      // Get the stored course to get its slug
-      const courses = getStoredCourses();
-      const storedCourse = courses.find((c) => c.id === courseId);
-      
-      if (storedCourse && storedCourse.slug) {
+      if (savedCourse && savedCourse.slug) {
         // Navigate to the course using its slug
-        window.location.href = `/course/${storedCourse.slug}`;
+        window.location.href = `/course/${savedCourse.slug}`;
       } else {
         throw new Error("Failed to retrieve course details");
       }
