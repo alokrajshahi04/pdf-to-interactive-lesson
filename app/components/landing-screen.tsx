@@ -8,8 +8,8 @@ import { getOrCreateUserId } from "@/lib/utils/session";
 import { ApiKeyDialog } from "./api-key-dialog";
 import { Github, Twitter } from "lucide-react";
 import Link from "next/link";
-import { useImageFadeIn } from "../hooks/use-image-fade-in";
 import { Loader } from "@/components/ai-elements/loader";
+import { LogoSvg, LandingHeroPoweredBySvg, LandingFooterPoweredBySvg, LandingBgSvg } from "./svg-icons";
 import type { Course } from "@/app/hooks/use-course-navigation";
 import demoCourse from "@/lib/demo/transformer-course.json";
 
@@ -246,12 +246,9 @@ function LandingScreen({
     }
   };
 
+  // Track loading state for large decorative images only
   const [loadedImages, setLoadedImages] = useState<Set<string>>(new Set());
-  const footerFadeIn = useImageFadeIn("/landing-footer-powered-by.svg");
   const imageRefs = {
-    bg: useRef<HTMLImageElement>(null),
-    logo: useRef<HTMLImageElement>(null),
-    heroPowered: useRef<HTMLImageElement>(null),
     left: useRef<HTMLImageElement>(null),
     right: useRef<HTMLImageElement>(null),
   };
@@ -269,16 +266,12 @@ function LandingScreen({
   useEffect(() => {
     const checkImageLoaded = (ref: React.RefObject<HTMLImageElement | null>, imageName: string) => {
       if (ref.current && ref.current.complete && ref.current.naturalWidth > 0) {
-        // Image is already loaded
         handleImageLoad(imageName);
       }
     };
 
     // Small delay to ensure refs are set
     setTimeout(() => {
-      checkImageLoaded(imageRefs.bg, 'bg');
-      checkImageLoaded(imageRefs.logo, 'logo');
-      checkImageLoaded(imageRefs.heroPowered, 'hero-powered');
       checkImageLoaded(imageRefs.left, 'left');
       checkImageLoaded(imageRefs.right, 'right');
     }, 0);
@@ -286,14 +279,10 @@ function LandingScreen({
 
   return (
     <div className="min-h-screen bg-white relative">
-      {/* Background SVG */}
-      <img 
-        ref={imageRefs.bg}
-        src="/landing-bg.svg" 
-        alt="" 
-        onLoad={() => handleImageLoad('bg')}
-        onError={() => handleImageError('bg')}
-        className={`fixed -bottom-40 left-0 w-full h-auto z-0 opacity-[0.08] blur-2xl transition-opacity duration-700 ease-out ${loadedImages.has('bg') ? 'opacity-[0.08]' : 'opacity-0'}`}
+      {/* Background SVG - inlined for instant render */}
+      <LandingBgSvg 
+        aria-hidden="true"
+        className="fixed -bottom-40 left-0 w-full h-auto z-0 opacity-[0.08] blur-2xl"
       />
       
       {/* API Key Dialog */}
@@ -312,20 +301,13 @@ function LandingScreen({
       <header className="sticky top-0 z-50 border-b-[0.5px] border-neutral-200 bg-white">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <img 
-              ref={imageRefs.logo}
-              src="/logo.svg" 
-              alt="Logo"
-              onLoad={() => handleImageLoad('logo')}
-              onError={() => handleImageError('logo')}
-              className={`h-6 w-auto transition-opacity duration-700 ease-out ${loadedImages.has('logo') ? 'opacity-100' : 'opacity-0'}`}
-            />
+            <LogoSvg className="h-6 w-auto" aria-label="Logo" />
           </div>
           <div className="flex items-center gap-4">
             {hasCourses && (
               <Link
                 href="/courses"
-                className="flex items-center justify-center h-10 px-4 bg-neutral-50 border border-neutral-200 rounded-full text-neutral-700 hover:text-neutral-900 transition-colors text-xs font-medium"
+                className="flex items-center justify-center h-10 px-4 bg-neutral-50 border border-neutral-200 rounded-full text-neutral-700 hover:text-neutral-900 transition-colors text-xs font-medium animate-fade-in"
                 aria-label="Courses"
               >
                 Courses
@@ -354,36 +336,36 @@ function LandingScreen({
             rel="noopener noreferrer"
             className="inline-block"
           >
-            <img 
-              ref={imageRefs.heroPowered}
-              src="/landing-hero-powered-by.svg" 
-              alt="Made & powered by together.ai"
-              onLoad={() => handleImageLoad('hero-powered')}
-              onError={() => handleImageError('hero-powered')}
-              className={`h-auto transition-opacity duration-700 ease-out ${loadedImages.has('hero-powered') ? 'opacity-100' : 'opacity-0'}`}
+            <LandingHeroPoweredBySvg 
+              className="h-8 w-auto"
+              aria-label="Made & powered by together.ai"
             />
           </a>
         </div>
 
         {/* Hero Section */}
         <div className="text-center mb-16 relative">
-          {/* Decorative elements */}
+          {/* Decorative elements - kept as img with fixed dimensions to prevent layout shift */}
           <img 
             ref={imageRefs.left}
             src="/landing-left.svg" 
             alt="" 
+            width={320}
+            height={320}
             onLoad={() => handleImageLoad('left')}
             onError={() => handleImageError('left')}
-            className={`hidden md:block absolute left-0 top-0 w-80 h-80 z-0 transition-opacity duration-700 ease-out ${loadedImages.has('left') ? 'opacity-100' : 'opacity-0'}`}
+            className={`hidden md:block absolute left-0 top-0 w-80 h-80 z-0 transition-opacity duration-500 ease-out ${loadedImages.has('left') ? 'opacity-100' : 'opacity-0'}`}
           />
 
           <img 
             ref={imageRefs.right}
             src="/landing-right.svg" 
             alt="" 
+            width={320}
+            height={320}
             onLoad={() => handleImageLoad('right')}
             onError={() => handleImageError('right')}
-            className={`hidden md:block absolute right-0 top-0 w-80 h-80 z-0 transition-opacity duration-700 ease-out ${loadedImages.has('right') ? 'opacity-100' : 'opacity-0'}`}
+            className={`hidden md:block absolute right-0 top-0 w-80 h-80 z-0 transition-opacity duration-500 ease-out ${loadedImages.has('right') ? 'opacity-100' : 'opacity-0'}`}
           />
 
           <h1 className="relative text-7xl font-bold text-neutral-900 mb-6 leading-none font-[family-name:var(--font-fustat)] z-10">
@@ -513,13 +495,9 @@ function LandingScreen({
           rel="noopener noreferrer"
           className="inline-block"
         >
-          <img 
-            ref={footerFadeIn.imgRef}
-            src="/landing-footer-powered-by.svg" 
-            alt="Powered by together.ai"
-            onLoad={footerFadeIn.handleLoad}
-            onError={footerFadeIn.handleError}
-            className={`h-auto transition-opacity duration-700 ease-out ${footerFadeIn.isLoaded ? 'opacity-100' : 'opacity-0'}`}
+          <LandingFooterPoweredBySvg 
+            className="h-6 w-auto"
+            aria-label="Powered by together.ai"
           />
         </a>
       </footer>
