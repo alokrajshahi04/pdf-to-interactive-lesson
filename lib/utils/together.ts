@@ -20,7 +20,7 @@ export const together = createTogetherAI({
 /**
  * Default model for course and lesson generation
  */
-export const DEFAULT_MODEL = "zai-org/GLM-4.6";
+export const DEFAULT_MODEL = "openai/gpt-oss-120b";
 
 /**
  * Single source of truth for model configuration

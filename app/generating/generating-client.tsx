@@ -22,6 +22,7 @@ export function GeneratingPageContent() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [progress, setProgress] = useState("Initializing...");
   const [error, setError] = useState<string | null>(null);
+  const [lastUpload, setLastUpload] = useState<{ url: string; fileName: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const hasStarted = useRef(false);
   const logoFadeIn = useImageFadeIn("/logo.svg");
@@ -84,6 +85,9 @@ export function GeneratingPageContent() {
         handleUploadUrl: "/api/upload-url",
       });
 
+      // Store the upload info for retry
+      setLastUpload({ url: blob.url, fileName: file.name });
+
       // Continue with generation (skip setting processing state since we're already processing)
       await handleGenerateFromUrl(blob.url, file.name, true);
     } catch (err) {
@@ -109,6 +113,9 @@ export function GeneratingPageContent() {
     }
     setError(null);
     setProgress("Generating course from PDF...");
+    
+    // Store the upload info for retry
+    setLastUpload({ url, fileName });
 
     try {
       const apiKey = getApiKey();
@@ -326,10 +333,12 @@ export function GeneratingPageContent() {
                 <div className="flex gap-3 justify-center">
                   <button
                     onClick={() => {
-                      setError(null);
-                      setIsProcessing(false);
-                      hasStarted.current = false;
-                      router.push("/courses");
+                      if (lastUpload) {
+                        setError(null);
+                        handleGenerateFromUrl(lastUpload.url, lastUpload.fileName);
+                      } else {
+                        router.push("/courses");
+                      }
                     }}
                     className="px-8 py-3 bg-neutral-900 text-white rounded-full font-medium hover:bg-neutral-800 transition-colors text-sm"
                   >
