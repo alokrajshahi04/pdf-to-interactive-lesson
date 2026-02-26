@@ -40,7 +40,9 @@ export default function CoursePage() {
           if (courseResponse.status === 404) {
             setError("Course not found");
           } else {
-            setError("Failed to load course");
+            const errorData = await courseResponse.json().catch(() => null);
+            const detail = errorData?.error || `Server error (${courseResponse.status})`;
+            setError(detail);
           }
           setLoading(false);
           return;
@@ -101,10 +103,13 @@ export default function CoursePage() {
   }
 
   if (error || !course) {
+    const isNotFound = error === "Course not found";
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-neutral-900 mb-4">Course not found</h1>
+          <h1 className="text-2xl font-bold text-neutral-900 mb-4">
+            {isNotFound ? "Course not found" : "Failed to load course"}
+          </h1>
           <p className="text-neutral-600 mb-6">{error || "The course you're looking for doesn't exist."}</p>
           <button
             onClick={() => router.push("/courses")}
