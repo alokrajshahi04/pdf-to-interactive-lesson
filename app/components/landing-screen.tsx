@@ -13,13 +13,7 @@ import { LogoSvg, LandingHeroPoweredBySvg, LandingFooterPoweredBySvg, LandingBgS
 import type { Course } from "@/app/hooks/use-course-navigation";
 import demoCourse from "@/lib/demo/transformer-course.json";
 
-interface LandingScreenProps {
-  onCourseGenerated: (courseData: any) => void;
-}
-
-function LandingScreen({
-  onCourseGenerated,
-}: LandingScreenProps) {
+function LandingScreen() {
   const [isDragging, setIsDragging] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);

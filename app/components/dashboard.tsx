@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { getApiKey } from "@/lib/api-key-storage";
 import { getOrCreateUserId } from "@/lib/utils/session";
 import { getCourseProgress } from "@/lib/course-progress";
+import { storePendingFile } from "@/lib/utils/indexed-db-storage";
 import type { Course } from "@/app/hooks/use-course-navigation";
 import { ApiKeyDialog } from "./api-key-dialog";
 import Link from "next/link";
@@ -184,24 +185,13 @@ function Dashboard() {
       }
     }
 
-    // Store file in sessionStorage and redirect immediately
-    // Convert file to base64 for storage
-    const reader = new FileReader();
-    reader.onload = () => {
-      const fileData = {
-        name: file.name,
-        type: file.type,
-        size: file.size,
-        data: reader.result as string, // base64 string
-      };
-      sessionStorage.setItem("pendingPdfUpload", JSON.stringify(fileData));
-      // Redirect immediately to generating page
+    try {
+      await storePendingFile(file);
       window.location.href = "/generating";
-    };
-    reader.onerror = () => {
-      setError("Failed to read file. Please try again.");
-    };
-    reader.readAsDataURL(file);
+    } catch (error) {
+      console.error("Failed to store file:", error);
+      setError("Failed to process file. Please try again.");
+    }
   };
 
   return (
