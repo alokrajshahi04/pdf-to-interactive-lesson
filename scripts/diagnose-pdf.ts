@@ -57,7 +57,7 @@ async function diagnose() {
     ];
 
     const requestBody = {
-      model: "meta-llama/Llama-4-Scout-17B-16E-Instruct",
+      model: "zai-org/GLM-5",
       messages,
       max_tokens: 4000,
       temperature: 0,
@@ -101,7 +101,7 @@ async function diagnose() {
     const response = await axios.post(
       "https://api.together.xyz/v1/chat/completions",
       {
-        model: "meta-llama/Llama-4-Scout-17B-16E-Instruct",
+        model: "zai-org/GLM-5",
         messages: [
           {
             role: "system",

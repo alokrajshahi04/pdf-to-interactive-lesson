@@ -3,7 +3,7 @@ import { readFileSync } from "fs";
 import { getAllPdfImages } from "./utils/pdf-to-image";
 import { convertPdfToImages } from "./utils/railway-pdf-service";
 
-const TOGETHER_VISION_MODEL = "meta-llama/Llama-4-Scout-17B-16E-Instruct";
+const TOGETHER_VISION_MODEL = "zai-org/GLM-5";
 
 export interface OcrProgressCallback {
   (type: string, message: string, data?: any): void;
