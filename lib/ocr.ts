@@ -98,10 +98,14 @@ RULES:
     });
   }
 
-  // Add the image
+  // Add the image with a text prompt (Together AI requires a text content block alongside image_url)
   messages.push({
     role: "user",
     content: [
+      {
+        type: "text",
+        text: "Convert this document page to markdown.",
+      },
       {
         type: "image_url",
         image_url: {
