@@ -4,6 +4,11 @@ import { getAllPdfImages } from "./utils/pdf-to-image";
 import { convertPdfToImages } from "./utils/railway-pdf-service";
 
 const TOGETHER_VISION_MODEL = "zai-org/GLM-5";
+const VISION_MODEL_FALLBACKS = [
+  "zai-org/GLM-5",
+  "moonshotai/Kimi-K2.5",
+  "MiniMaxAI/MiniMax-M2.5",
+];
 
 export interface OcrProgressCallback {
   (type: string, message: string, data?: any): void;
@@ -43,8 +48,9 @@ function sleep(ms: number): Promise<void> {
 }
 
 /**
- * Convert a single image to markdown using Together AI's vision model
- * Includes retry logic with exponential backoff
+ * Convert a single image to markdown using Together AI's vision model.
+ * Tries fallback models if the primary model is unavailable, and retries
+ * transient errors with exponential backoff.
  */
 async function imageToMarkdown(
   imageBuffer: Buffer,
@@ -56,17 +62,17 @@ async function imageToMarkdown(
     priorPage?: string;
     maintainFormat?: boolean;
     retries?: number;
-    pageContext?: string; // e.g. "page 5/100" for better logging
+    pageContext?: string;
   }
 ): Promise<{ content: string; inputTokens: number; outputTokens: number }> {
   const {
     apiKey,
-    model = TOGETHER_VISION_MODEL,
+    model: requestedModel = TOGETHER_VISION_MODEL,
     maxTokens = 4000,
     systemPrompt,
     priorPage,
     maintainFormat = false,
-    retries = 5, // Increased from 3 to 5 for better resilience with service interruptions
+    retries = 5,
     pageContext = "page",
   } = options;
 
@@ -90,7 +96,6 @@ RULES:
     },
   ];
 
-  // Add prior page context if maintaining format
   if (maintainFormat && priorPage) {
     messages.push({
       role: "system",
@@ -98,7 +103,6 @@ RULES:
     });
   }
 
-  // Add the image with a text prompt (Together AI requires a text content block alongside image_url)
   messages.push({
     role: "user",
     content: [
@@ -115,92 +119,101 @@ RULES:
     ],
   });
 
-  // Retry logic with exponential backoff + jitter
+  // Build ordered model list: requested model first, then fallbacks (deduplicated)
+  const modelsToTry = [
+    requestedModel,
+    ...VISION_MODEL_FALLBACKS.filter((m) => m !== requestedModel),
+  ];
+
   let lastError: any;
-  
-  for (let attempt = 0; attempt <= retries; attempt++) {
-    try {
-      // Add delay before retry (exponential backoff with jitter)
-      if (attempt > 0) {
-        // Exponential backoff: 1s, 2s, 4s, 8s, 16s with max 20s
-        const baseDelay = 1000 * Math.pow(2, attempt - 1);
-        const maxDelay = 20000; // Increased from 10s to 20s
-        // Add jitter (±20%) to prevent thundering herd
-        const jitter = 0.8 + Math.random() * 0.4; // Random between 0.8 and 1.2
-        const delayMs = Math.min(Math.floor(baseDelay * jitter), maxDelay);
-        
-        console.log(`   ⏳ [${pageContext}] Retry ${attempt}/${retries} after ${delayMs}ms...`);
-        await sleep(delayMs);
-      }
 
-      const response = await axios.post(
-        "https://api.together.xyz/v1/chat/completions",
-        {
-          model,
-          messages,
-          max_tokens: maxTokens,
-          temperature: 0,
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${apiKey}`,
-            "Content-Type": "application/json",
-          },
-          timeout: 60000, // 60s timeout
+  for (const currentModel of modelsToTry) {
+    for (let attempt = 0; attempt <= retries; attempt++) {
+      try {
+        if (attempt > 0) {
+          const baseDelay = 1000 * Math.pow(2, attempt - 1);
+          const jitter = 0.8 + Math.random() * 0.4;
+          const delayMs = Math.min(Math.floor(baseDelay * jitter), 20000);
+          console.log(`   ⏳ [${pageContext}] Retry ${attempt}/${retries} after ${delayMs}ms...`);
+          await sleep(delayMs);
         }
-      );
 
-      // Success - log if we had to retry
-      if (attempt > 0) {
-        console.log(`   ✅ [${pageContext}] Succeeded after ${attempt} ${attempt === 1 ? 'retry' : 'retries'}`);
-      }
+        const response = await axios.post(
+          "https://api.together.xyz/v1/chat/completions",
+          {
+            model: currentModel,
+            messages,
+            max_tokens: maxTokens,
+            temperature: 0,
+          },
+          {
+            headers: {
+              Authorization: `Bearer ${apiKey}`,
+              "Content-Type": "application/json",
+            },
+            timeout: 60000,
+          }
+        );
 
-      return {
-        content: response.data.choices[0].message.content,
-        inputTokens: response.data.usage?.prompt_tokens || 0,
-        outputTokens: response.data.usage?.completion_tokens || 0,
-      };
-    } catch (error: any) {
-      lastError = error;
-      
-      // Check if we should retry
-      const status = error.response?.status;
-      const shouldRetry = 
-        status === 503 || // Service unavailable
-        status === 429 || // Rate limit
-        status === 500 || // Server error
-        !error.response;  // Network error
-      
-      if (!shouldRetry || attempt === retries) {
-        // Don't retry, or we've exhausted retries
-        break;
+        if (currentModel !== requestedModel) {
+          console.log(`   ✅ [${pageContext}] Succeeded with fallback model ${currentModel}`);
+        } else if (attempt > 0) {
+          console.log(`   ✅ [${pageContext}] Succeeded after ${attempt} ${attempt === 1 ? 'retry' : 'retries'}`);
+        }
+
+        return {
+          content: response.data.choices[0].message.content,
+          inputTokens: response.data.usage?.prompt_tokens || 0,
+          outputTokens: response.data.usage?.completion_tokens || 0,
+        };
+      } catch (error: any) {
+        lastError = error;
+
+        // If the model itself is unavailable, skip straight to next fallback
+        const errorCode =
+          typeof error.response?.data === "string"
+            ? undefined
+            : error.response?.data?.error?.code;
+        if (errorCode === "model_not_available") {
+          console.warn(`   ⚠️  [${pageContext}] Model ${currentModel} is unavailable, trying next fallback...`);
+          break;
+        }
+
+        const status = error.response?.status;
+        const shouldRetry =
+          status === 503 ||
+          status === 429 ||
+          status === 500 ||
+          !error.response;
+
+        if (!shouldRetry || attempt === retries) {
+          break;
+        }
+
+        console.warn(`   ⚠️  [${pageContext}] Attempt ${attempt + 1} failed (${status || 'network error'}), retrying...`);
       }
-      
-      console.warn(`   ⚠️  [${pageContext}] Attempt ${attempt + 1} failed (${status || 'network error'}), retrying...`);
     }
   }
 
-  // If we got here, all retries failed - build detailed error message
+  // All models and retries exhausted
   const error = lastError;
-  let errorMsg = "OCR API call failed after retries";
-  
+  let errorMsg = "OCR API call failed";
+
   if (error.response) {
-    // HTTP error response from server
     const status = error.response.status;
     const statusText = error.response.statusText;
     const data = error.response.data;
-    
+
     errorMsg = `Together AI API error (${status} ${statusText})`;
-    
+
     if (data?.error?.message) {
       errorMsg += `: ${data.error.message}`;
     } else if (data?.message) {
       errorMsg += `: ${data.message}`;
-    } else if (typeof data === 'string') {
+    } else if (typeof data === "string") {
       errorMsg += `: ${data.substring(0, 200)}`;
     }
-    
-    // Add helpful context
+
     if (status === 401) {
       errorMsg += " - Check TOGETHER_API_KEY in .env.local";
     } else if (status === 429) {
@@ -208,26 +221,24 @@ RULES:
     } else if (status === 503) {
       errorMsg += " - Service temporarily unavailable";
     }
-    
-    errorMsg += ` (failed after ${retries + 1} attempts)`;
-    
+
+    errorMsg += ` (tried ${modelsToTry.length} models, ${retries + 1} attempts each)`;
+
     console.error("Full API error:", {
       status,
       statusText,
       data: JSON.stringify(data, null, 2),
       url: error.config?.url,
-      attempts: retries + 1,
+      modelsTried: modelsToTry,
     });
   } else if (error.request) {
-    // Request made but no response received
-    errorMsg = `No response from Together AI API - network error or timeout (failed after ${retries + 1} attempts)`;
+    errorMsg = `No response from Together AI API - network error or timeout (tried ${modelsToTry.length} models)`;
     console.error("Network error:", error.message);
   } else {
-    // Something else went wrong
     errorMsg = `OCR setup error: ${error.message}`;
     console.error("OCR error:", error);
   }
-  
+
   throw new Error(errorMsg);
 }
 
