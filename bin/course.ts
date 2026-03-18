@@ -306,11 +306,7 @@ async function extractContent(filePath: string, saveTextPath?: string): Promise<
     const startTime = Date.now();
 
     try {
-      const result = await ocr(filePath, {
-        maintainFormat: false,
-        concurrency: 5,
-        apiKey: process.env.TOGETHER_API_KEY || "",
-      });
+      const result = await ocr(filePath);
 
       const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
       const content = result.pages.map((p) => p.content).join("\n\n");

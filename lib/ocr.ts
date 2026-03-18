@@ -6,15 +6,7 @@ export interface OcrProgressCallback {
 }
 
 interface OcrOptions {
-  apiKey?: string; // No longer needed for text extraction, kept for API compatibility
   onProgress?: OcrProgressCallback;
-  // Legacy options (ignored, kept for API compatibility)
-  maintainFormat?: boolean;
-  concurrency?: number;
-  model?: string;
-  maxTokens?: number;
-  systemPrompt?: string;
-  startDelay?: number;
 }
 
 interface OcrResult {
