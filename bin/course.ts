@@ -3,7 +3,6 @@
 import { readFile, writeFile, unlink, mkdir } from "fs/promises";
 import { existsSync } from "fs";
 import { join } from "path";
-import axios from "axios";
 import ora from "ora";
 import { ocr } from "../lib/ocr";
 import { createModules, createCourse } from "../lib/create-course";
@@ -171,19 +170,13 @@ async function downloadFile(url: string): Promise<string> {
   const spinner = ora("Downloading PDF from URL").start();
 
   try {
-    const response = await axios({
-      method: "GET",
-      url,
-      responseType: "stream",
-    });
-
-    const writer = require("fs").createWriteStream(tempPath);
-    response.data.pipe(writer);
-
-    await new Promise((resolve, reject) => {
-      writer.on("finish", resolve);
-      writer.on("error", reject);
-    });
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status} ${response.statusText}`);
+    }
+    const buffer = Buffer.from(await response.arrayBuffer());
+    const { writeFileSync } = require("fs");
+    writeFileSync(tempPath, buffer);
 
     spinner.succeed(`Downloaded to ${dim(tempPath)}`);
     return tempPath;

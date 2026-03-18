@@ -1,11 +1,9 @@
 {
   "functions": {
     "app/api/generate-course/route.ts": {
-      "includeFiles": "node_modules/tesseract.js-core/tesseract-core-simd.wasm",
       "maxDuration": 300
     },
     "app/api/**/route.ts": {
-      "includeFiles": "node_modules/tesseract.js-core/tesseract-core-simd.wasm",
       "maxDuration": 60
     }
   }
