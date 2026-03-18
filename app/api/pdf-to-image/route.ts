@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getPdfImage } from "../../../lib/utils/pdf-to-image";
-import { compressImage } from "../../../lib/utils/compress-image";
+import * as mupdf from "mupdf";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -13,58 +12,32 @@ export async function POST(request: NextRequest) {
     if (!file) {
       return NextResponse.json(
         { error: "No file provided. Send a PDF file with the 'file' field." },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
-    // Validate it's a PDF
     if (!file.type.includes("pdf") && !file.name.endsWith(".pdf")) {
-      return NextResponse.json(
-        { error: "File must be a PDF" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "File must be a PDF" }, { status: 400 });
     }
 
-    // Convert File to ArrayBuffer
-    const arrayBuffer = await file.arrayBuffer();
+    const buffer = Buffer.from(await file.arrayBuffer());
+    const doc = mupdf.Document.openDocument(buffer, "application/pdf");
 
-    // Get first page as image
-    const imageBuffer = await getPdfImage(arrayBuffer);
-
-    if (!imageBuffer) {
-      return NextResponse.json(
-        { error: "Failed to convert PDF to image" },
-        { status: 500 }
-      );
+    if (doc.countPages() === 0) {
+      return NextResponse.json({ error: "PDF has no pages" }, { status: 400 });
     }
 
-    // Optional: compress the image if requested
-    const compress = formData.get("compress") === "true";
-    const quality = parseInt(formData.get("quality") as string) || 80;
-    const format = (formData.get("format") as "png" | "jpeg" | "webp") || "png";
+    // Render first page as PNG at 2x scale (144 DPI)
+    const page = doc.loadPage(0);
+    const pixmap = page.toPixmap(mupdf.Matrix.scale(2, 2), mupdf.ColorSpace.DeviceRGB, false, true);
+    const pngBuffer = Buffer.from(pixmap.asPNG());
 
-    let finalBuffer = imageBuffer;
-    if (compress) {
-      finalBuffer = await compressImage(imageBuffer, { quality, format });
-    }
-
-    // Determine content type
-    const contentType =
-      format === "jpeg"
-        ? "image/jpeg"
-        : format === "webp"
-        ? "image/webp"
-        : "image/png";
-
-    // Return the image
-    return new NextResponse(Buffer.from(finalBuffer), {
+    return new NextResponse(pngBuffer, {
       status: 200,
       headers: {
-        "Content-Type": contentType,
-        "Content-Disposition": `attachment; filename="page-1.${
-          format || "png"
-        }"`,
-        "Content-Length": finalBuffer.length.toString(),
+        "Content-Type": "image/png",
+        "Content-Disposition": 'attachment; filename="page-1.png"',
+        "Content-Length": pngBuffer.length.toString(),
       },
     });
   } catch (error) {
@@ -74,7 +47,7 @@ export async function POST(request: NextRequest) {
         error: "Internal server error",
         message: error instanceof Error ? error.message : "Unknown error",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

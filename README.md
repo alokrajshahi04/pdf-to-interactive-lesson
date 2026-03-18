@@ -27,15 +27,10 @@ cp .env.example .env.local
 # Set up database (required for sharing)
 pnpm db:push
 
-# Start both servers
+# Start development server
 pnpm dev
 # - Next.js: http://localhost:3000
-# - Flask API: http://localhost:8000
 ```
-
-Or run individually:
-- `pnpm dev:next` - Just Next.js
-- `pnpm dev:api` - Just Flask API
 
 ### Instant Course Upload
 
@@ -446,13 +441,6 @@ cp .env.example .env.local
 - Get this from [Neon](https://neon.tech/) after creating a project
 - Format: `postgresql://user:password@host/database?sslmode=require`
 - See [Neon Database Setup](#neon-database-setup) below for detailed instructions
-
-### Optional Variables
-
-**`RAILWAY_API_URL`** - Railway API URL for PDF conversion
-- If not set, uses local PDF.js (may have issues with some PDFs)
-- Deploy the Flask API from `/api` to Railway and set this URL
-- Example: `https://your-app.railway.app`
 
 ## Neon Database Setup
 
