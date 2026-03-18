@@ -2,7 +2,7 @@ import { generateText } from "ai";
 import type { Lesson, FixAttempt } from "./types";
 import { validateLessonsStructure } from "./validate-lesson-structure";
 import { validateLesson } from "./create-lesson";
-import { extractXml, createXMLParser } from "./utils/xml";
+import { extractXml, createXMLParser, postProcessLesson } from "./utils/xml";
 import { QuestionType } from "./types";
 import { createTogetherClient, DEFAULT_MODEL } from "./utils/together";
 
@@ -191,67 +191,26 @@ For flow-diagram questions, must have exactly 3 choices (node labels from the fl
       const parser = createXMLParser(["choice", "slot"]);
       const parsed = parser.parse(xmlText);
 
-      const fixedLesson = isFlowLesson ? parsed.flowLesson : parsed.lesson;
+      const rawLesson = isFlowLesson ? parsed.flowLesson : parsed.lesson;
+      const fixedLesson = postProcessLesson(rawLesson);
 
-      // Post-process: flatten choices and convert answer types
-      // Handle both nested structure (choices.choice[]) and flat structure (choice[])
-      if (fixedLesson.choices?.choice) {
-        fixedLesson.choices = fixedLesson.choices.choice;
-      } else if (fixedLesson.choice) {
-        // LLM sometimes generates <choice> directly without wrapping <choices>
-        fixedLesson.choices = fixedLesson.choice;
-        delete fixedLesson.choice;
-      }
-
-      // Flatten slots.slot[] to slots[]
-      // Handle both nested structure (slots.slot[]) and flat structure (slot[])
-      if (fixedLesson.slots?.slot) {
-        fixedLesson.slots = fixedLesson.slots.slot;
-      } else if (fixedLesson.slot) {
-        // LLM sometimes generates <slot> directly without wrapping <slots>
-        fixedLesson.slots = fixedLesson.slot;
-        delete fixedLesson.slot;
-      }
-
-      if (fixedLesson.questionType === QuestionType.MultipleChoice) {
-        fixedLesson.answer = parseInt(fixedLesson.answer, 10);
-      } else if (fixedLesson.questionType === QuestionType.TrueFalse) {
-        fixedLesson.answer =
-          fixedLesson.answer === "true" || fixedLesson.answer === true;
-      } else if (fixedLesson.questionType === QuestionType.DragDrop || fixedLesson.questionType === QuestionType.FlowDiagram) {
-        // Parse comma-separated string to array of numbers
-        if (typeof fixedLesson.answer === "string") {
-          fixedLesson.answer = fixedLesson.answer.split(",").map((val: string) => parseInt(val.trim(), 10));
-        } else if (Array.isArray(fixedLesson.answer)) {
-          fixedLesson.answer = fixedLesson.answer.map((val: any) => parseInt(val, 10));
-        }
-
-        // For flow-diagram, parse flowConfig from JSON string if needed
-        if (fixedLesson.questionType === QuestionType.FlowDiagram) {
-          if (typeof fixedLesson.flowConfig === "string") {
-            try {
-              fixedLesson.flowConfig = JSON.parse(fixedLesson.flowConfig);
-            } catch (parseError) {
-              console.error(`     ❌ Failed to parse flowConfig JSON:`, parseError);
-              // If parsing fails, keep the original flowConfig
-              fixedLesson.flowConfig = originalLesson.flowConfig;
-            }
-          } else if (!fixedLesson.flowConfig) {
-            // If no flowConfig in response, use the original
+      // For flow-diagram, handle flowConfig and truncation
+      if (fixedLesson.questionType === QuestionType.FlowDiagram) {
+        if (typeof fixedLesson.flowConfig === "string") {
+          try {
+            fixedLesson.flowConfig = JSON.parse(fixedLesson.flowConfig);
+          } catch (parseError) {
+            console.error(`     ❌ Failed to parse flowConfig JSON:`, parseError);
             fixedLesson.flowConfig = originalLesson.flowConfig;
           }
-
-          // Truncate to exactly 3 items if needed
-          if (fixedLesson.choices && fixedLesson.choices.length > 3) {
-            fixedLesson.choices = fixedLesson.choices.slice(0, 3);
-          }
-          if (fixedLesson.slots && fixedLesson.slots.length > 3) {
-            fixedLesson.slots = fixedLesson.slots.slice(0, 3);
-          }
-          if (fixedLesson.answer && fixedLesson.answer.length > 3) {
-            fixedLesson.answer = fixedLesson.answer.slice(0, 3);
-          }
+        } else if (!fixedLesson.flowConfig) {
+          fixedLesson.flowConfig = originalLesson.flowConfig;
         }
+
+        // Truncate to exactly 3 items if needed
+        if (fixedLesson.choices?.length > 3) fixedLesson.choices = fixedLesson.choices.slice(0, 3);
+        if (fixedLesson.slots?.length > 3) fixedLesson.slots = fixedLesson.slots.slice(0, 3);
+        if (fixedLesson.answer?.length > 3) fixedLesson.answer = fixedLesson.answer.slice(0, 3);
       }
 
       // Run structure validation

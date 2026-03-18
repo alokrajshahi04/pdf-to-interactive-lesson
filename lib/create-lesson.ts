@@ -11,7 +11,7 @@ import {
   type SimpleEdge,
   type FlowDiagramLesson,
 } from "./types";
-import { createXMLParser, extractJson } from "./utils/xml";
+import { createXMLParser, extractJson, postProcessLesson } from "./utils/xml";
 import { validateLessonsStructure } from "./validate-lesson-structure";
 import { fixLesson } from "./fix-lesson";
 import { createTogetherClient, DEFAULT_MODEL } from "./utils/together";
@@ -158,49 +158,7 @@ ${content}`,
 
     // Post-process to flatten choices and convert answer types
     if (lessonStructure.module?.lessons) {
-      lessonStructure.module.lessons = lessonStructure.module.lessons.map(
-        (lesson: any) => {
-          const processed: any = { ...lesson };
-
-          // Flatten choices.choice[] to choices[]
-          // Handle both nested structure (choices.choice[]) and flat structure (choice[])
-          if (lesson.choices?.choice) {
-            processed.choices = lesson.choices.choice;
-          } else if (lesson.choice) {
-            // LLM sometimes generates <choice> directly without wrapping <choices>
-            processed.choices = lesson.choice;
-            delete processed.choice;
-          }
-
-          // Flatten slots.slot[] to slots[]
-          // Handle both nested structure (slots.slot[]) and flat structure (slot[])
-          if (lesson.slots?.slot) {
-            processed.slots = lesson.slots.slot;
-          } else if (lesson.slot) {
-            // LLM sometimes generates <slot> directly without wrapping <slots>
-            processed.slots = lesson.slot;
-            delete processed.slot;
-          }
-
-          // Convert answer based on questionType
-          if (lesson.questionType === QuestionType.MultipleChoice) {
-            processed.answer = parseInt(lesson.answer, 10);
-          } else if (lesson.questionType === QuestionType.TrueFalse) {
-            processed.answer =
-              lesson.answer === "true" || lesson.answer === true;
-          } else if (lesson.questionType === QuestionType.DragDrop) {
-            // Parse comma-separated string to array of numbers
-            if (typeof lesson.answer === "string") {
-              processed.answer = lesson.answer.split(",").map((val: string) => parseInt(val.trim(), 10));
-            } else if (Array.isArray(lesson.answer)) {
-              processed.answer = lesson.answer.map((val: any) => parseInt(val, 10));
-            }
-          }
-          // short-answer keeps answer as string (no conversion needed)
-
-          return processed;
-        }
-      );
+      lessonStructure.module.lessons = lessonStructure.module.lessons.map(postProcessLesson);
     }
 
     // Run deterministic structure validation if requested
@@ -753,19 +711,14 @@ ${content}`,
       return null;
     }
 
-    const lesson = lessonStructure.flowLesson;
+    const raw = lessonStructure.flowLesson;
+    const lesson = postProcessLesson(raw);
 
-    // Flatten choices and slots
-    let choices = lesson.choices?.choice || lesson.choice || [];
-    let slots = lesson.slots?.slot || lesson.slot || [];
+    let choices = lesson.choices || [];
+    let slots = lesson.slots || [];
+    let answer: number[] = lesson.answer;
 
-    // Parse answer array
-    let answer: number[];
-    if (typeof lesson.answer === "string") {
-      answer = lesson.answer.split(",").map((val: string) => parseInt(val.trim(), 10));
-    } else if (Array.isArray(lesson.answer)) {
-      answer = lesson.answer.map((val: any) => parseInt(val, 10));
-    } else {
+    if (!Array.isArray(answer)) {
       console.error(`  ❌ Invalid answer format for flow question`);
       return null;
     }
