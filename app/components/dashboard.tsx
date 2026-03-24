@@ -355,7 +355,8 @@ function Dashboard() {
               <div className="grid grid-cols-1 gap-4">
               {courses.map((course) => {
                 const progress = getCourseProgress(course.slug);
-                const totalModules = course.courseData?.modules?.length || 0;
+                const modules = course.courseData?.modules || [];
+                const totalModules = modules.filter((m: { lessons?: { success: boolean }[] }) => m.lessons?.some(l => l.success)).length;
                 const completedModules = progress?.completedModules?.length || 0;
                 const progressPercent = totalModules > 0 ? Math.round((completedModules / totalModules) * 100) : 0;
                 
@@ -439,7 +440,8 @@ function Dashboard() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {courses.map((course) => {
                 const progress = getCourseProgress(course.slug);
-                const totalModules = course.courseData?.modules?.length || 0;
+                const modules = course.courseData?.modules || [];
+                const totalModules = modules.filter((m: { lessons?: { success: boolean }[] }) => m.lessons?.some(l => l.success)).length;
                 const completedModules = progress?.completedModules?.length || 0;
                 const progressPercent = totalModules > 0 ? Math.round((completedModules / totalModules) * 100) : 0;
                 

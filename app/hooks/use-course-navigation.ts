@@ -64,6 +64,7 @@ interface UseCourseNavigationOptions {
     step: Step;
   }) => void;
   onModuleComplete?: (completedIndex: number, allCompleted: number[]) => void;
+  onNeedsApiKey?: () => void;
 }
 
 export function useCourseNavigation(
@@ -99,6 +100,14 @@ export function useCourseNavigation(
   const [completedModules, setCompletedModules] = useState<number[]>(
     options?.initialCompletedModules ?? []
   );
+
+  // Sync completedModules when initialCompletedModules loads (async from localStorage)
+  useEffect(() => {
+    const initial = options?.initialCompletedModules;
+    if (initial && initial.length > 0 && completedModules.length === 0) {
+      setCompletedModules(initial);
+    }
+  }, [options?.initialCompletedModules]);
 
   // Lesson interaction
   const [step, setStep] = useState<Step>(
@@ -136,12 +145,18 @@ export function useCourseNavigation(
       ) + lessonIndex;
 
   const moduleProgressData = course.modules.map((mod, idx) => {
-    const progress =
-      idx < moduleIndex
+    let progress: number;
+    if (completedModules.includes(idx)) {
+      progress = 100;
+    } else if (idx === moduleIndex) {
+      progress = step === "module-complete"
         ? 100
-        : idx === moduleIndex
+        : successfulLessons.length > 0
         ? (lessonIndex / successfulLessons.length) * 100
         : 0;
+    } else {
+      progress = 0;
+    }
     return { progress };
   });
 
@@ -237,7 +252,9 @@ export function useCourseNavigation(
           const apiKey = getApiKey();
           if (!apiKey) {
             debugLog.error("[GRADING] Error: API key not found");
-            throw new Error("API key not found. Please add it in settings.");
+            setIsGrading(false);
+            options?.onNeedsApiKey?.();
+            return;
           }
 
           const requestBody = {
@@ -404,11 +421,7 @@ export function useCourseNavigation(
         setUserAnswer(null);
         setShowResult(false);
         setGradingError(null);
-        
-        // Advance to next module index (so it unlocks on modules screen)
-        const nextModuleIndex = moduleIndex + 1;
-        setModuleIndex(nextModuleIndex);
-        
+
         options?.onNavigate?.({
           moduleIndex,
           lessonIndex,

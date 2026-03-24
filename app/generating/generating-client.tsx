@@ -155,6 +155,7 @@ export function GeneratingPageContent() {
 
       let buffer = "";
       let courseData: Course | null = null;
+      let courseMetadata: Record<string, unknown> | null = null;
 
       while (true) {
         const { done, value } = await reader.read();
@@ -166,7 +167,7 @@ export function GeneratingPageContent() {
 
         for (const line of lines) {
           if (!line.trim()) continue;
-          
+
           let event;
           try {
             event = JSON.parse(line);
@@ -175,12 +176,13 @@ export function GeneratingPageContent() {
             console.warn("Failed to parse SSE line:", line);
             continue;
           }
-          
+
           // Handle parsed event
           if (event.type === "error") {
             throw new Error(event.error || "Unknown error occurred during course generation");
           } else if (event.type === "complete") {
             courseData = event.data.course;
+            courseMetadata = event.data.metadata || null;
             break;
           } else if (event.message) {
             setProgress(event.message);
@@ -191,6 +193,11 @@ export function GeneratingPageContent() {
 
       if (!courseData) {
         throw new Error("Failed to generate course");
+      }
+
+      // Attach generation metadata to course object (for debug panel)
+      if (courseMetadata) {
+        (courseData as unknown as Record<string, unknown>)._metadata = courseMetadata;
       }
 
       setProgress("Course generated successfully! Saving to database...");

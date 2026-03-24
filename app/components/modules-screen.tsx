@@ -233,6 +233,139 @@ function ModulesScreen({
               </div>
             )}
 
+            {/* Generation Stats */}
+            <div className="p-6 bg-amber-50 border border-amber-200 rounded-xl">
+              <h3 className="text-sm font-semibold text-amber-900 mb-4">Debug: Generation Stats (Local Only)</h3>
+              {(() => {
+                const allLessons = course.modules.flatMap((mod, modIdx) =>
+                  mod.lessons.map((lesson, lessonIdx) => ({ lesson, modIdx, lessonIdx, moduleTitle: mod.title }))
+                );
+                const succeeded = allLessons.filter(l => l.lesson.success);
+                const failed = allLessons.filter(l => !l.lesson.success);
+                const totalCount = allLessons.length;
+                const successRate = totalCount > 0 ? Math.round((succeeded.length / totalCount) * 100) : 0;
+                const meta = (course as unknown as { _metadata?: { generationTime?: string; ocrTime?: string; courseTime?: string; pages?: number; lessonStats?: { fixed?: number; fixAttempts?: number } } })._metadata;
+
+                return (
+                  <div className="space-y-4">
+                    {/* Timing info */}
+                    {meta && (
+                      <div className="flex flex-wrap items-center gap-3 text-xs">
+                        {meta.generationTime && (
+                          <span className="px-3 py-1.5 bg-white border border-amber-200 rounded-lg text-amber-900 font-medium">
+                            Total: {meta.generationTime}
+                          </span>
+                        )}
+                        {meta.ocrTime && (
+                          <span className="px-3 py-1.5 bg-white border border-amber-200 rounded-lg text-amber-900 font-medium">
+                            OCR: {meta.ocrTime}
+                          </span>
+                        )}
+                        {meta.courseTime && (
+                          <span className="px-3 py-1.5 bg-white border border-amber-200 rounded-lg text-amber-900 font-medium">
+                            Course gen: {meta.courseTime}
+                          </span>
+                        )}
+                        {meta.pages && (
+                          <span className="px-3 py-1.5 bg-white border border-amber-200 rounded-lg text-amber-900 font-medium">
+                            {meta.pages} pages
+                          </span>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Summary bar */}
+                    <div className="flex items-center gap-4 text-sm">
+                      <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full font-medium">
+                        {succeeded.length} passed
+                      </span>
+                      <span className={`px-3 py-1 rounded-full font-medium ${failed.length > 0 ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-600'}`}>
+                        {failed.length} failed
+                      </span>
+                      <span className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full font-medium">
+                        {totalCount} total
+                      </span>
+                      <span className="text-amber-800 font-medium">
+                        {successRate}% success rate
+                      </span>
+                      {meta?.lessonStats?.fixed ? (
+                        <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full font-medium">
+                          {meta.lessonStats.fixed} fixed ({meta.lessonStats.fixAttempts} fix attempts)
+                        </span>
+                      ) : null}
+                    </div>
+
+                    {/* Progress bar */}
+                    <div className="w-full h-3 bg-red-200 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-green-500 rounded-full transition-all"
+                        style={{ width: `${successRate}%` }}
+                      />
+                    </div>
+
+                    {/* Failed lessons detail */}
+                    {failed.length > 0 && (
+                      <div className="space-y-2">
+                        <h4 className="text-xs font-semibold text-red-800 uppercase tracking-wide">Failed Lessons</h4>
+                        {failed.map(({ lesson, modIdx, lessonIdx, moduleTitle }) => {
+                          const error = (lesson as unknown as { error?: { reason?: string; attempts?: number; details?: string[]; fixHistory?: unknown[] } }).error;
+                          return (
+                            <div key={`${modIdx}-${lessonIdx}`} className="bg-white rounded-lg p-3 border border-red-100 text-xs">
+                              <div className="flex items-start justify-between gap-2">
+                                <div>
+                                  <span className="font-semibold text-neutral-900">
+                                    M{modIdx + 1} L{lessonIdx + 1}
+                                  </span>
+                                  <span className="text-neutral-500 ml-2">{moduleTitle}</span>
+                                  {lesson.data?.title && (
+                                    <span className="text-neutral-600 ml-1">— {lesson.data.title}</span>
+                                  )}
+                                </div>
+                                {error?.attempts && (
+                                  <span className="flex-shrink-0 px-2 py-0.5 bg-amber-100 text-amber-800 rounded font-medium">
+                                    {error.attempts} attempt{error.attempts !== 1 ? 's' : ''}
+                                  </span>
+                                )}
+                              </div>
+                              {error?.reason && (
+                                <p className="mt-1 text-red-700">{error.reason}</p>
+                              )}
+                              {error?.details && error.details.length > 0 && (
+                                <ul className="mt-1 text-red-600 list-disc list-inside">
+                                  {error.details.map((d, i) => <li key={i}>{d}</li>)}
+                                </ul>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {/* Per-module breakdown */}
+                    <div className="space-y-1">
+                      <h4 className="text-xs font-semibold text-amber-800 uppercase tracking-wide">Per Module</h4>
+                      {course.modules.map((mod, idx) => {
+                        const total = mod.lessons.length;
+                        const passed = mod.lessons.filter(l => l.success).length;
+                        return (
+                          <div key={idx} className="flex items-center gap-2 text-xs">
+                            <span className="font-medium text-neutral-700 w-24 truncate">M{idx + 1}: {mod.title}</span>
+                            <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
+                              <div
+                                className={`h-full rounded-full ${passed === total ? 'bg-green-500' : 'bg-amber-400'}`}
+                                style={{ width: `${total > 0 ? (passed / total) * 100 : 0}%` }}
+                              />
+                            </div>
+                            <span className="text-neutral-600 w-16 text-right">{passed}/{total}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+
             {/* Full Course JSON */}
             <div className="p-6 bg-neutral-100 border border-neutral-300 rounded-xl">
               <div className="flex items-center justify-between mb-3">

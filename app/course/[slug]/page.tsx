@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ModulesScreen } from "@/app/components/modules-screen";
-import { getCourseProgress } from "@/lib/course-progress";
+import { getCourseProgress, deriveCurrentModuleIndex } from "@/lib/course-progress";
 import type { Course } from "@/app/hooks/use-course-navigation";
 
 export default function CoursePage() {
@@ -12,20 +12,12 @@ export default function CoursePage() {
   const slug = params.slug as string;
   const [course, setCourse] = useState<Course | null>(null);
   const [completedModules, setCompletedModules] = useState<number[]>([]);
-  const [currentModuleIndex, setCurrentModuleIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Separate function to refresh progress from localStorage
   const refreshProgress = useCallback(() => {
     const progress = getCourseProgress(slug);
-    if (progress) {
-      setCompletedModules(progress.completedModules || []);
-      setCurrentModuleIndex(progress.currentModuleIndex || 0);
-    } else {
-      setCompletedModules([]);
-      setCurrentModuleIndex(0);
-    }
+    setCompletedModules(progress?.completedModules || []);
   }, [slug]);
 
   useEffect(() => {
@@ -50,7 +42,7 @@ export default function CoursePage() {
 
         const courseData = await courseResponse.json();
         setCourse(courseData.course);
-        
+
         // Load user's progress from localStorage
         refreshProgress();
         
@@ -122,6 +114,8 @@ export default function CoursePage() {
     );
   }
 
+  const effectiveModuleIndex = deriveCurrentModuleIndex(completedModules, course.modules.length);
+
   return (
     <ModulesScreen
       course={course}
@@ -129,7 +123,7 @@ export default function CoursePage() {
       onStartModule={handleStartModule}
       onJumpToLesson={handleJumpToLesson}
       completedModules={completedModules}
-      currentModuleIndex={currentModuleIndex}
+      currentModuleIndex={effectiveModuleIndex}
     />
   );
 }

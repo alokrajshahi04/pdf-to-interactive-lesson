@@ -20,6 +20,7 @@ import { getApiKey, saveApiKey, removeApiKey } from "@/lib/api-key-storage";
 interface ApiKeyDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  message?: string;
 }
 
 // Move components outside to avoid creating them during render
@@ -174,7 +175,7 @@ const ApiKeyForm = ({
   </div>
 );
 
-export function ApiKeyDialog({ open, onOpenChange }: ApiKeyDialogProps) {
+export function ApiKeyDialog({ open, onOpenChange, message }: ApiKeyDialogProps) {
   const [apiKey, setApiKey] = useState("");
   const [savedApiKey, setSavedApiKey] = useState<string | null>(null);
   const [showApiKey, setShowApiKey] = useState(false);
@@ -233,6 +234,11 @@ export function ApiKeyDialog({ open, onOpenChange }: ApiKeyDialogProps) {
               </DialogTitle>
             </div>
           </DialogHeader>
+          {message && (
+            <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-2">
+              {message}
+            </p>
+          )}
           <ApiKeyForm
             apiKey={apiKey}
             savedApiKey={savedApiKey}
@@ -258,6 +264,11 @@ export function ApiKeyDialog({ open, onOpenChange }: ApiKeyDialogProps) {
             <DrawerTitle className="text-left text-neutral-900">Together AI API key</DrawerTitle>
           </div>
         </DrawerHeader>
+        {message && (
+          <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mx-4 mb-2">
+            {message}
+          </p>
+        )}
         <ApiKeyForm
           apiKey={apiKey}
           savedApiKey={savedApiKey}

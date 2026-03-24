@@ -54,6 +54,13 @@ export function postProcessLesson(lesson: any): any {
     delete processed.slot;
   }
 
+  // Strip answer hints like "(CORRECT)" from choices
+  if (Array.isArray(processed.choices)) {
+    processed.choices = processed.choices.map((c: any) =>
+      typeof c === "string" ? c.replace(/\s*\((?:CORRECT|correct|Correct)\)\s*/g, "").trim() : c
+    );
+  }
+
   // Convert answer based on questionType
   if (lesson.questionType === QuestionType.MultipleChoice) {
     processed.answer = parseInt(lesson.answer, 10);

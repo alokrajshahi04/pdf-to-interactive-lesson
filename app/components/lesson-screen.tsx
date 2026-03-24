@@ -208,7 +208,7 @@ function LessonScreen({
                           <div className="w-3 h-3 rounded-full bg-neutral-600" />
                         )}
                       </div>
-                      <span className="text-neutral-800 flex-1">{choice}</span>
+                      <span className="text-neutral-800 flex-1">{typeof choice === "string" ? choice.replace(/\s*\((?:CORRECT|correct|Correct)\)\s*/g, "").trim() : choice}</span>
                     </button>
                   ))}
                 </div>

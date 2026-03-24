@@ -6,6 +6,7 @@ import { ModuleCompleteScreen } from "@/app/components/module-complete-screen";
 import { LessonScreen } from "@/app/components/lesson-screen";
 import { Header } from "@/app/components/header";
 import { Footer } from "@/app/components/footer";
+import { ApiKeyDialog } from "@/app/components/api-key-dialog";
 import type { Course, Step } from "@/app/hooks/use-course-navigation";
 import { useCourseNavigation } from "@/app/hooks/use-course-navigation";
 import { getCourseProgress, updateCourseProgress } from "@/lib/course-progress";
@@ -20,13 +21,10 @@ export default function LessonPage() {
   const lessonIndexParam = parseInt(searchParams.get("lesson") || "0", 10);
 
   const [course, setCourse] = useState<Course | null>(null);
-  const [savedProgress, setSavedProgress] = useState<{
-    currentModuleIndex: number;
-    currentLessonIndex: number;
-    completedModules: number[];
-  } | null>(null);
+  const [savedCompletedModules, setSavedCompletedModules] = useState<number[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isApiKeyDialogOpen, setIsApiKeyDialogOpen] = useState(false);
   const hasAnimatedPage = useRef(false);
   const shouldAnimatePage = !hasAnimatedPage.current;
 
@@ -61,11 +59,7 @@ export default function LessonPage() {
         // Load user's progress from localStorage
         const progress = getCourseProgress(slug);
         if (progress) {
-          setSavedProgress({
-            currentModuleIndex: progress.currentModuleIndex,
-            currentLessonIndex: progress.currentLessonIndex,
-            completedModules: progress.completedModules || [],
-          });
+          setSavedCompletedModules(progress.completedModules || []);
         }
 
         setLoading(false);
@@ -112,13 +106,14 @@ export default function LessonPage() {
     initialModuleIndex: isNaN(moduleIndexParam) ? 0 : moduleIndexParam,
     initialLessonIndex: isNaN(lessonIndexParam) ? 0 : lessonIndexParam,
     initialStep: stepParam,
-    initialCompletedModules: savedProgress?.completedModules || [],
+    initialCompletedModules: savedCompletedModules,
     onNavigate: handleNavigate,
     onModuleComplete: (_completedIndex: number, allCompleted: number[]) => {
       // Immediately save when a module completes
-      updateCourseProgress(slug, {
-        completedModules: allCompleted,
-      });
+      updateCourseProgress(slug, allCompleted);
+    },
+    onNeedsApiKey: () => {
+      setIsApiKeyDialogOpen(true);
     },
   });
 
@@ -143,30 +138,13 @@ export default function LessonPage() {
   }, []);
 
 
-  // Save progress to localStorage whenever it changes (debounced)
-  useEffect(() => {
-    if (!course || !navigation) return;
-
-    const timeoutId = setTimeout(() => {
-      updateCourseProgress(slug, {
-        currentModuleIndex: navigation.moduleIndex,
-        currentLessonIndex: navigation.lessonIndex,
-        completedModules: navigation.completedModules,
-      });
-    }, 500); // Debounce to avoid too many writes
-
-    return () => clearTimeout(timeoutId);
-  }, [
-    slug,
-    course,
-    navigation?.moduleIndex,
-    navigation?.lessonIndex,
-    JSON.stringify(navigation?.completedModules), // Use JSON.stringify for array comparison
-  ]);
-
   // Handle navigation
   const handleBackToModules = () => {
     router.push(`/course/${slug}`);
+  };
+
+  const handleApiKeyDialogClose = (open: boolean) => {
+    setIsApiKeyDialogOpen(open);
   };
 
   if (loading) {
@@ -212,6 +190,11 @@ export default function LessonPage() {
     handleRetryGrading,
     handleContinue,
   } = navigation;
+
+  // Hook hasn't synced with the real course yet — keep showing loading
+  if (!currentModule && course.modules.length > 0 && moduleIndexParam < course.modules.length) {
+    return <div className="min-h-screen bg-white" />;
+  }
 
   // Only check for currentLesson if we're not on module-complete or module-intro steps
   if (!currentLesson && step !== "module-complete" && step !== "module-intro") {
@@ -268,6 +251,12 @@ export default function LessonPage() {
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
+      <ApiKeyDialog
+        open={isApiKeyDialogOpen}
+        onOpenChange={handleApiKeyDialogClose}
+        message="An API key is needed to grade short-answer questions."
+      />
+
       <Header
         showProgressBar={true}
         moduleProgress={moduleProgressData}

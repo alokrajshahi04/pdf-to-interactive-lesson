@@ -5,10 +5,20 @@
 
 export interface CourseProgress {
   slug: string;
-  currentModuleIndex: number;
-  currentLessonIndex: number;
   completedModules: number[];
   lastAccessedAt: string;
+}
+
+/**
+ * Derive current module index from completedModules.
+ * Returns the first incomplete module, or the last module if all are done.
+ */
+export function deriveCurrentModuleIndex(completedModules: number[], totalModules: number): number {
+  if (totalModules === 0) return 0;
+  for (let i = 0; i < totalModules; i++) {
+    if (!completedModules.includes(i)) return i;
+  }
+  return totalModules - 1;
 }
 
 const STORAGE_KEY = 'course-progress';
@@ -56,18 +66,15 @@ export function saveCourseProgress(progress: CourseProgress): void {
 }
 
 /**
- * Update specific fields of course progress
+ * Update completedModules for a course
  */
 export function updateCourseProgress(
   slug: string,
-  updates: Partial<Omit<CourseProgress, 'slug'>>
+  completedModules: number[]
 ): void {
-  const existing = getCourseProgress(slug);
   const progress: CourseProgress = {
     slug,
-    currentModuleIndex: updates.currentModuleIndex ?? existing?.currentModuleIndex ?? 0,
-    currentLessonIndex: updates.currentLessonIndex ?? existing?.currentLessonIndex ?? 0,
-    completedModules: updates.completedModules ?? existing?.completedModules ?? [],
+    completedModules,
     lastAccessedAt: new Date().toISOString(),
   };
   saveCourseProgress(progress);
