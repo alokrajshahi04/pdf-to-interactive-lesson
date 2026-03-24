@@ -479,6 +479,95 @@ function LandingScreen() {
             )}
           </div>
         </div>
+
+        {/* How it works */}
+        <section className="mt-32 mb-20">
+          <div className="text-center mb-12">
+            <span className="inline-block px-4 py-1.5 text-sm font-medium text-neutral-700 bg-red-50 rounded-full mb-6">
+              How it works
+            </span>
+            <h2 className="text-4xl md:text-5xl font-bold text-neutral-900 leading-tight font-[family-name:var(--font-fustat)]">
+              From static PDF to guided
+              <br />
+              learning — in minutes
+            </h2>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
+            {/* Step 1 — Upload */}
+            <div className="rounded-2xl border border-neutral-200 bg-gradient-to-b from-red-50/60 via-white to-white p-6 flex flex-col items-center text-center">
+              <div className="w-full aspect-[4/3] flex items-center justify-center mb-4">
+                <div className="w-40 h-28 rounded-xl border-2 border-dashed border-neutral-300 flex items-center justify-center bg-white/60">
+                  <div className="w-10 h-10 rounded-full bg-neutral-900 flex items-center justify-center">
+                    <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                    </svg>
+                  </div>
+                </div>
+              </div>
+              <span className="text-sm font-semibold text-neutral-400 mb-1">1</span>
+              <h3 className="text-lg font-bold text-neutral-900 mb-1">Upload a PDF</h3>
+              <p className="text-sm text-neutral-500">Lecture notes, textbooks, papers, or docs.</p>
+            </div>
+
+            {/* Step 2 — Break it down */}
+            <div className="rounded-2xl border border-neutral-200 bg-gradient-to-b from-red-50/60 via-white to-white p-6 flex flex-col items-center text-center">
+              <div className="w-full aspect-[4/3] flex items-center justify-center mb-4">
+                <svg viewBox="0 0 200 140" className="w-full h-full" fill="none">
+                  {/* PDF rectangle */}
+                  <rect x="20" y="30" width="60" height="80" rx="8" fill="url(#pdfGrad)" stroke="#FDBA74" strokeWidth="1" />
+                  <text x="50" y="75" textAnchor="middle" className="text-[10px] font-bold" fill="#EF4444">PDF</text>
+
+                  {/* Lines from PDF to labels */}
+                  <line x1="80" y1="50" x2="120" y2="35" stroke="#D4D4D4" strokeWidth="1" />
+                  <line x1="80" y1="70" x2="120" y2="70" stroke="#D4D4D4" strokeWidth="1" />
+                  <line x1="80" y1="90" x2="120" y2="105" stroke="#D4D4D4" strokeWidth="1" />
+
+                  {/* Labels */}
+                  <rect x="120" y="24" width="60" height="22" rx="6" fill="white" stroke="#E5E5E5" strokeWidth="1" />
+                  <text x="150" y="39" textAnchor="middle" fill="#525252" fontSize="10" fontWeight="500">Lessons</text>
+
+                  <rect x="120" y="59" width="60" height="22" rx="6" fill="white" stroke="#E5E5E5" strokeWidth="1" />
+                  <text x="150" y="74" textAnchor="middle" fill="#525252" fontSize="10" fontWeight="500">Quizzes</text>
+
+                  <rect x="120" y="94" width="68" height="22" rx="6" fill="white" stroke="#E5E5E5" strokeWidth="1" />
+                  <text x="154" y="109" textAnchor="middle" fill="#525252" fontSize="10" fontWeight="500">Diagrams</text>
+
+                  <defs>
+                    <linearGradient id="pdfGrad" x1="20" y1="30" x2="80" y2="110" gradientUnits="userSpaceOnUse">
+                      <stop stopColor="#FFEDD5" />
+                      <stop offset="1" stopColor="#FED7AA" />
+                    </linearGradient>
+                  </defs>
+                </svg>
+              </div>
+              <span className="text-sm font-semibold text-neutral-400 mb-1">2</span>
+              <h3 className="text-lg font-bold text-neutral-900 mb-1">We break it down</h3>
+              <p className="text-sm text-neutral-500">Content is split into short modules with clear explanations.</p>
+            </div>
+
+            {/* Step 3 — Learn by doing */}
+            <div className="rounded-2xl border border-neutral-200 bg-gradient-to-b from-red-50/60 via-white to-white p-6 flex flex-col items-center text-center">
+              <div className="w-full aspect-[4/3] flex items-center justify-center mb-4">
+                <div className="flex flex-col gap-2 w-36">
+                  {["A", "B", "C", "D"].map((letter) => (
+                    <div key={letter} className="flex items-center gap-2">
+                      <span className={`text-xs font-bold w-4 ${letter === "B" ? "text-green-600" : letter === "D" ? "text-red-500" : "text-neutral-400"}`}>{letter}</span>
+                      <div className={`h-6 flex-1 rounded-md ${
+                        letter === "B" ? "bg-green-400 border border-green-500" :
+                        letter === "D" ? "bg-red-300 border border-red-400" :
+                        "bg-neutral-100 border border-neutral-200"
+                      }`} />
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <span className="text-sm font-semibold text-neutral-400 mb-1">3</span>
+              <h3 className="text-lg font-bold text-neutral-900 mb-1">Learn by doing</h3>
+              <p className="text-sm text-neutral-500">Answer questions, get feedback, and track progress.</p>
+            </div>
+          </div>
+        </section>
       </main>
 
       {/* Footer */}
