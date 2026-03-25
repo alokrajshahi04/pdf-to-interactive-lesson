@@ -6,6 +6,7 @@ import { getOrCreateUserId } from "@/lib/utils/session";
 import { getCourseProgress } from "@/lib/course-progress";
 import { storePendingFile } from "@/lib/utils/indexed-db-storage";
 import type { Course } from "@/app/hooks/use-course-navigation";
+import { HeaderActions } from "./header-actions";
 import { ApiKeyDialog } from "./api-key-dialog";
 import Link from "next/link";
 import { Github, Twitter } from "lucide-react";
@@ -174,8 +175,8 @@ function Dashboard() {
         const response = await fetch("/api/rate-limit-status");
         const rateLimitStatus = await response.json();
         
-        if (rateLimitStatus.hasReachedLimit) {
-          setError("You've created your free course! Add your Together AI API key to generate unlimited courses.");
+        if (rateLimitStatus.hasReachedCourseLimit) {
+          setError("You've used all 3 free courses! Add your Together AI API key to generate unlimited courses.");
           setIsApiKeyDialogOpen(true);
           return;
         }
@@ -217,26 +218,7 @@ function Dashboard() {
               />
             </Link>
           </div>
-          <div className="flex items-center gap-4">
-            {courses.length > 0 && (
-              <Link
-                href="/courses"
-                className="flex items-center justify-center h-10 px-4 bg-neutral-50 border border-neutral-200 rounded-full text-neutral-700 hover:text-neutral-900 transition-colors text-xs font-medium"
-                aria-label="Courses"
-              >
-                Courses
-              </Link>
-            )}
-            <button 
-              onClick={() => setIsApiKeyDialogOpen(true)}
-              className="flex items-center justify-center w-10 h-10 bg-neutral-50 border border-neutral-200 rounded-full text-neutral-700 hover:text-neutral-900 transition-colors cursor-pointer"
-              aria-label="API Key"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
-              </svg>
-            </button>
-          </div>
+          <HeaderActions />
         </div>
       </header>
       
@@ -260,7 +242,7 @@ function Dashboard() {
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
           onClick={() => !isProcessing && fileInputRef.current?.click()}
-          className={`lg:flex-1 border-[0.5px] border-dashed rounded-2xl p-8 flex flex-col items-center justify-center transition-colors backdrop-blur-sm relative overflow-hidden ${
+          className={`lg:h-64 border-[0.5px] border-dashed rounded-2xl p-8 flex flex-col items-center justify-center transition-colors backdrop-blur-sm relative overflow-hidden ${
             isDragging
               ? "border-blue-500 bg-blue-50/80"
               : isProcessing

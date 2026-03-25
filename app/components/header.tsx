@@ -1,11 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import { Check, Minus, ChevronDown } from "lucide-react";
 import Link from "next/link";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
-import { ApiKeyDialog } from "./api-key-dialog";
+import { HeaderActions } from "./header-actions";
 import type { Course } from "../hooks/use-course-navigation";
 import { useImageFadeIn } from "../hooks/use-image-fade-in";
 
@@ -23,33 +22,9 @@ interface HeaderProps {
 
 function Header({ showProgressBar, moduleProgress, showCoursesLink, courseTitle, course, onModuleSelect, currentModuleIndex, completedModules }: HeaderProps) {
   const logoFadeIn = useImageFadeIn("/logo.svg");
-  const [showApiKeyDialog, setShowApiKeyDialog] = useState(false);
-  const [credits, setCredits] = useState<{ coursesRemaining: number; gradingsRemaining: number } | null>(null);
-
-  useEffect(() => {
-    const fetchCredits = () => {
-      fetch("/api/rate-limit-status")
-        .then((res) => res.json())
-        .then((data) => {
-          if (data.courseLimit != null) {
-            setCredits({
-              coursesRemaining: data.courseLimit - data.coursesCreated,
-              gradingsRemaining: data.gradingLimit - data.gradingsUsed,
-            });
-          }
-        })
-        .catch(() => {});
-    };
-
-    fetchCredits();
-    window.addEventListener("credits-updated", fetchCredits);
-    return () => window.removeEventListener("credits-updated", fetchCredits);
-  }, []);
 
   return (
     <div className="sticky top-0 z-50 bg-white border-b border-neutral-200">
-      <ApiKeyDialog open={showApiKeyDialog} onOpenChange={setShowApiKeyDialog} />
-      
       <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between gap-2 min-w-0">
         <div className="flex items-center gap-2 flex-shrink-0">
           <Link href="/">
@@ -126,31 +101,7 @@ function Header({ showProgressBar, moduleProgress, showCoursesLink, courseTitle,
           </div>
         ) : null}
         
-        {/* Right Side Actions */}
-        <div className="flex items-center gap-2 flex-shrink-0">
-          {showCoursesLink && (
-            <Link
-              href="/courses"
-              className="text-sm font-medium text-neutral-600 hover:text-neutral-900 transition-colors px-3 py-1.5"
-            >
-              Courses
-            </Link>
-          )}
-          {credits && (
-            <span className="text-xs text-neutral-500 bg-neutral-50 border border-neutral-200 rounded-full px-3 py-1.5 tabular-nums">
-              {credits.coursesRemaining} courses · {credits.gradingsRemaining} gradings
-            </span>
-          )}
-          <button
-            onClick={() => setShowApiKeyDialog(true)}
-            className="flex items-center justify-center w-10 h-10 bg-neutral-50 border border-neutral-200 rounded-full text-neutral-700 hover:text-neutral-900 transition-colors cursor-pointer"
-            aria-label="API Key"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
-            </svg>
-          </button>
-        </div>
+        <HeaderActions showCoursesLink={showCoursesLink} />
       </div>
       {/* Progress bar */}
       {showProgressBar && moduleProgress && (
