@@ -6,7 +6,10 @@ function Footer() {
       Powered by <span className="font-semibold">together.ai</span>
       </div>
       <div className="flex items-center gap-2">
-        <button
+        <a
+          href="https://github.com"
+          target="_blank"
+          rel="noopener noreferrer"
           className="w-8 h-8 rounded-full bg-neutral-100 border border-neutral-200 flex items-center justify-center text-neutral-600 hover:text-neutral-900 transition-colors"
           aria-label="GitHub"
         >
@@ -22,25 +25,18 @@ function Footer() {
               clipRule="evenodd"
             />
           </svg>
-        </button>
-        <button
+        </a>
+        <a
+          href="https://x.com/nutlope"
+          target="_blank"
+          rel="noopener noreferrer"
           className="w-8 h-8 rounded-full bg-neutral-100 border border-neutral-200 flex items-center justify-center text-neutral-600 hover:text-neutral-900 transition-colors"
-          aria-label="Close"
+          aria-label="X (Twitter)"
         >
-          <svg
-            className="w-4 h-4"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M6 18L18 6M6 6l12 12"
-            />
+          <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
           </svg>
-        </button>
+        </a>
       </div>
       </div>
     </div>

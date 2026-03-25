@@ -73,7 +73,7 @@ export default function LessonPage() {
     fetchCourseAndProgress();
   }, [slug]);
 
-  // Navigation callback to update URL
+  // Navigation callback to update URL without triggering Next.js page navigation
   const handleNavigate = ({
     moduleIndex,
     lessonIndex,
@@ -92,7 +92,10 @@ export default function LessonPage() {
     }
     const queryString = urlParams.toString();
     const url = `/course/${slug}/module/${moduleIndex}${queryString ? `?${queryString}` : ""}`;
-    router.push(url, { scroll: false });
+    // Use pushState to update the URL without a full page refresh.
+    // The UI is driven by useCourseNavigation's internal state, so we only
+    // need the URL to stay in sync for bookmarking and page refresh.
+    window.history.pushState(null, "", url);
   };
 
   // Default empty course structure to satisfy Rules of Hooks
