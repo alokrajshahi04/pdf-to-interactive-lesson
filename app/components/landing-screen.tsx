@@ -167,8 +167,8 @@ function LandingScreen() {
         const response = await fetch("/api/rate-limit-status");
         const rateLimitStatus = await response.json();
         
-        if (rateLimitStatus.hasReachedLimit) {
-          setError("You've created your free course! Add your Together AI API key to generate unlimited courses.");
+        if (rateLimitStatus.hasReachedCourseLimit) {
+          setError("You've used all 3 free courses! Add your Together AI API key to generate unlimited courses.");
           setPendingFile(file); // Store the file to upload after API key is saved
           setIsApiKeyDialogOpen(true);
           return;

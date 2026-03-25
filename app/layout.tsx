@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Fustat } from "next/font/google";
 import "./globals.css";
-import { CreditsProviderWrapper } from "./components/credits-provider-wrapper";
+
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -67,7 +67,7 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${fustat.variable} antialiased bg-white`}
       >
-        <CreditsProviderWrapper>{children}</CreditsProviderWrapper>
+        {children}
       </body>
     </html>
   );

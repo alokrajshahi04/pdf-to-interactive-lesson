@@ -1,7 +1,7 @@
 /**
  * Rate limiting utility using Upstash Redis
- * 
- * Allows 1 free course per IP address (lifetime).
+ *
+ * Allows 3 free courses and 50 free grading calls per IP address (lifetime).
  * Users with their own Together AI API key bypass rate limiting entirely.
  */
 
@@ -31,8 +31,10 @@ export function getClientIdentifier(request: Request): string {
 }
 
 // Constants
-const FREE_COURSE_LIMIT = 1;
+const FREE_COURSE_LIMIT = 3;
+const FREE_GRADING_LIMIT = 50;
 const RATE_LIMIT_KEY_PREFIX = 'rate-limit:';
+const GRADING_KEY_PREFIX = 'grading-limit:';
 
 interface RateLimitResult {
   allowed: boolean;
@@ -40,35 +42,35 @@ interface RateLimitResult {
   limit: number;
 }
 
+interface GradingLimitResult {
+  allowed: boolean;
+  gradingsUsed: number;
+  limit: number;
+}
+
 interface RateLimitStatus {
   coursesCreated: number;
-  limit: number;
-  hasReachedLimit: boolean;
+  courseLimit: number;
+  gradingsUsed: number;
+  gradingLimit: number;
+  hasReachedCourseLimit: boolean;
+  hasReachedGradingLimit: boolean;
 }
 
 /**
  * Check if a client is allowed to generate a course
- * @param clientId - Unique identifier (e.g., IP address)
- * @param hasApiKey - Whether the user has provided their own API key
- * @returns Object with allowed status, current count, and limit
  */
 export async function checkRateLimit(
   clientId: string,
   hasApiKey: boolean
 ): Promise<RateLimitResult> {
-  // If user has their own API key, bypass rate limiting entirely
   if (hasApiKey) {
-    return {
-      allowed: true,
-      coursesCreated: 0,
-      limit: Infinity,
-    };
+    return { allowed: true, coursesCreated: 0, limit: Infinity };
   }
 
   const key = `${RATE_LIMIT_KEY_PREFIX}${clientId}`;
-  
+
   try {
-    // Get current course count from Redis
     const count = await redis.get<number>(key);
     const coursesCreated = count || 0;
 
@@ -79,30 +81,19 @@ export async function checkRateLimit(
     };
   } catch (error) {
     console.error('Error checking rate limit:', error);
-    // On error, be permissive and allow the request
-    return {
-      allowed: true,
-      coursesCreated: 0,
-      limit: FREE_COURSE_LIMIT,
-    };
+    return { allowed: true, coursesCreated: 0, limit: FREE_COURSE_LIMIT };
   }
 }
 
 /**
  * Increment the course count for a client (call after successful generation)
- * @param clientId - Unique identifier (e.g., IP address)
- * @returns The new course count
  */
 export async function incrementRateLimit(clientId: string): Promise<number> {
   const key = `${RATE_LIMIT_KEY_PREFIX}${clientId}`;
-  
+
   try {
-    // Increment the counter in Redis
     const newCount = await redis.incr(key);
-    
-    // Set expiry to 1 year (for cleanup, though this is essentially "lifetime")
     await redis.expire(key, 60 * 60 * 24 * 365);
-    
     return newCount;
   } catch (error) {
     console.error('Error incrementing rate limit:', error);
@@ -111,31 +102,83 @@ export async function incrementRateLimit(clientId: string): Promise<number> {
 }
 
 /**
- * Get current rate limit status for a client without incrementing
- * @param clientId - Unique identifier (e.g., IP address)
- * @returns Current status with course count and limit info
+ * Check if a client is allowed to grade an answer
+ */
+export async function checkGradingLimit(
+  clientId: string,
+  hasApiKey: boolean
+): Promise<GradingLimitResult> {
+  if (hasApiKey) {
+    return { allowed: true, gradingsUsed: 0, limit: Infinity };
+  }
+
+  const key = `${GRADING_KEY_PREFIX}${clientId}`;
+
+  try {
+    const count = await redis.get<number>(key);
+    const gradingsUsed = count || 0;
+
+    return {
+      allowed: gradingsUsed < FREE_GRADING_LIMIT,
+      gradingsUsed,
+      limit: FREE_GRADING_LIMIT,
+    };
+  } catch (error) {
+    console.error('Error checking grading limit:', error);
+    return { allowed: true, gradingsUsed: 0, limit: FREE_GRADING_LIMIT };
+  }
+}
+
+/**
+ * Increment the grading count for a client (call after successful grading)
+ */
+export async function incrementGradingLimit(clientId: string): Promise<number> {
+  const key = `${GRADING_KEY_PREFIX}${clientId}`;
+
+  try {
+    const newCount = await redis.incr(key);
+    await redis.expire(key, 60 * 60 * 24 * 365);
+    return newCount;
+  } catch (error) {
+    console.error('Error incrementing grading limit:', error);
+    return 0;
+  }
+}
+
+/**
+ * Get current rate limit status for a client (courses + grading)
  */
 export async function getRateLimitStatus(
   clientId: string
 ): Promise<RateLimitStatus> {
-  const key = `${RATE_LIMIT_KEY_PREFIX}${clientId}`;
-  
+  const courseKey = `${RATE_LIMIT_KEY_PREFIX}${clientId}`;
+  const gradingKey = `${GRADING_KEY_PREFIX}${clientId}`;
+
   try {
-    const count = await redis.get<number>(key);
-    const coursesCreated = count || 0;
+    const [courseCount, gradingCount] = await Promise.all([
+      redis.get<number>(courseKey),
+      redis.get<number>(gradingKey),
+    ]);
+    const coursesCreated = courseCount || 0;
+    const gradingsUsed = gradingCount || 0;
 
     return {
       coursesCreated,
-      limit: FREE_COURSE_LIMIT,
-      hasReachedLimit: coursesCreated >= FREE_COURSE_LIMIT,
+      courseLimit: FREE_COURSE_LIMIT,
+      gradingsUsed,
+      gradingLimit: FREE_GRADING_LIMIT,
+      hasReachedCourseLimit: coursesCreated >= FREE_COURSE_LIMIT,
+      hasReachedGradingLimit: gradingsUsed >= FREE_GRADING_LIMIT,
     };
   } catch (error) {
     console.error('Error getting rate limit status:', error);
     return {
       coursesCreated: 0,
-      limit: FREE_COURSE_LIMIT,
-      hasReachedLimit: false,
+      courseLimit: FREE_COURSE_LIMIT,
+      gradingsUsed: 0,
+      gradingLimit: FREE_GRADING_LIMIT,
+      hasReachedCourseLimit: false,
+      hasReachedGradingLimit: false,
     };
   }
 }
-

@@ -3,6 +3,7 @@ import { generateCourseFromPdf } from "../../../lib/generate-course-from-pdf";
 import {
   checkRateLimit,
   incrementRateLimit,
+  getRateLimitStatus,
   getClientIdentifier,
 } from "@/lib/utils/rate-limiter";
 
@@ -68,7 +69,7 @@ export async function POST(request: NextRequest) {
       
       if (!rateLimitCheck.allowed && !apiKey) {
         sendError(
-          "You've used your free course. Please add your Together AI API key to generate unlimited courses."
+          "You've used all 3 free courses. Please add your Together AI API key to generate unlimited courses."
         );
         return;
       }
@@ -86,15 +87,18 @@ export async function POST(request: NextRequest) {
       });
 
       // Increment rate limit only if user didn't provide their own API key
-      let coursesCreated = rateLimitCheck.coursesCreated;
       if (!apiKey) {
-        coursesCreated = await incrementRateLimit(clientId);
+        await incrementRateLimit(clientId);
       }
 
-      // Send final result with course count info
+      // Get full status for the client
+      const status = await getRateLimitStatus(clientId);
+
+      // Send final result with credit info
       sendComplete({
         ...result,
-        coursesCreated,
+        coursesCreated: status.coursesCreated,
+        gradingsUsed: status.gradingsUsed,
       });
     } catch (error) {
       console.error("❌ Error generating course:", error);

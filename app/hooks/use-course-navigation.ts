@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { getApiKey } from "@/lib/api-key-storage";
-import { useCredits } from "./use-credits";
 import { debugLog } from "@/lib/utils/debug";
 import type { FlowConfig } from "@/lib/types";
 
@@ -71,8 +70,6 @@ export function useCourseNavigation(
   initialCourse: Course,
   options?: UseCourseNavigationOptions
 ) {
-  const { updateCredits } = useCredits();
-  
   // Core state
   const [course, setCourse] = useState<Course>(initialCourse);
   const [showLanding, setShowLanding] = useState(true);
@@ -278,6 +275,11 @@ export function useCourseNavigation(
               status: response.status,
               errorData,
             });
+            if (response.status === 429) {
+              throw new Error(
+                "You've used all your free grading credits. Add your API key for unlimited grading."
+              );
+            }
             throw new Error(errorData.error || "Failed to grade answer");
           }
 
@@ -328,6 +330,9 @@ export function useCourseNavigation(
             correct: prev.correct + (isCorrect ? 1 : 0),
             total: prev.total + 1,
           }));
+
+          // Notify header to refresh credits
+          window.dispatchEvent(new Event("credits-updated"));
 
           setShowResult(true);
           const newStep = "answer";

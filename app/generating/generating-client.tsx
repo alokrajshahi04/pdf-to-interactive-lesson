@@ -7,7 +7,7 @@ import { getApiKey } from "@/lib/api-key-storage";
 import { getPendingFile } from "@/lib/utils/indexed-db-storage";
 import { getOrCreateUserId } from "@/lib/utils/session";
 import type { Course } from "@/app/hooks/use-course-navigation";
-import { useCredits } from "../hooks/use-credits";
+
 import { ApiKeyDialog } from "../components/api-key-dialog";
 import Link from "next/link";
 import { Github, Twitter, Key } from "lucide-react";
@@ -17,8 +17,8 @@ import { useImageFadeIn } from "../hooks/use-image-fade-in";
 export function GeneratingPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { updateCredits } = useCredits();
   const [isApiKeyDialogOpen, setIsApiKeyDialogOpen] = useState(false);
+  const [credits, setCredits] = useState<{ coursesRemaining: number; gradingsRemaining: number } | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [progress, setProgress] = useState("Initializing...");
   const [error, setError] = useState<string | null>(null);
@@ -64,6 +64,26 @@ export function GeneratingPageContent() {
 
     initializeUpload();
   }, [searchParams, router]);
+
+  useEffect(() => {
+    const fetchCredits = () => {
+      fetch("/api/rate-limit-status")
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.courseLimit != null) {
+            setCredits({
+              coursesRemaining: data.courseLimit - data.coursesCreated,
+              gradingsRemaining: data.gradingLimit - data.gradingsUsed,
+            });
+          }
+        })
+        .catch(() => {});
+    };
+
+    fetchCredits();
+    window.addEventListener("credits-updated", fetchCredits);
+    return () => window.removeEventListener("credits-updated", fetchCredits);
+  }, []);
 
   const handleFileUpload = async (file: File) => {
     setIsProcessing(true);
@@ -281,7 +301,7 @@ export function GeneratingPageContent() {
             <Link href="/">
               <img 
                 ref={logoFadeIn.imgRef}
-                src="/logo.svg" 
+                src="/logo.svg"
                 alt="Logo"
                 onLoad={logoFadeIn.handleLoad}
                 onError={logoFadeIn.handleError}
@@ -297,7 +317,12 @@ export function GeneratingPageContent() {
             >
               Courses
             </Link>
-            <button 
+            {credits && (
+              <span className="text-xs text-neutral-500 bg-neutral-50 border border-neutral-200 rounded-full px-3 py-1.5 tabular-nums">
+                {credits.coursesRemaining} courses · {credits.gradingsRemaining} gradings
+              </span>
+            )}
+            <button
               onClick={() => setIsApiKeyDialogOpen(true)}
               className="flex items-center justify-center w-10 h-10 bg-neutral-50 border border-neutral-200 rounded-full text-neutral-700 hover:text-neutral-900 transition-colors cursor-pointer"
               aria-label="API Key"

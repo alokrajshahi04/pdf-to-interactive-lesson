@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Check, Minus, ChevronDown } from "lucide-react";
 import Link from "next/link";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
@@ -24,6 +24,27 @@ interface HeaderProps {
 function Header({ showProgressBar, moduleProgress, showCoursesLink, courseTitle, course, onModuleSelect, currentModuleIndex, completedModules }: HeaderProps) {
   const logoFadeIn = useImageFadeIn("/logo.svg");
   const [showApiKeyDialog, setShowApiKeyDialog] = useState(false);
+  const [credits, setCredits] = useState<{ coursesRemaining: number; gradingsRemaining: number } | null>(null);
+
+  useEffect(() => {
+    const fetchCredits = () => {
+      fetch("/api/rate-limit-status")
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.courseLimit != null) {
+            setCredits({
+              coursesRemaining: data.courseLimit - data.coursesCreated,
+              gradingsRemaining: data.gradingLimit - data.gradingsUsed,
+            });
+          }
+        })
+        .catch(() => {});
+    };
+
+    fetchCredits();
+    window.addEventListener("credits-updated", fetchCredits);
+    return () => window.removeEventListener("credits-updated", fetchCredits);
+  }, []);
 
   return (
     <div className="sticky top-0 z-50 bg-white border-b border-neutral-200">
@@ -35,7 +56,7 @@ function Header({ showProgressBar, moduleProgress, showCoursesLink, courseTitle,
             {/* eslint-disable react-hooks/refs */}
             <img 
               ref={logoFadeIn.imgRef}
-              src="/logo.svg" 
+              src="/logo.svg"
               alt="Logo"
               onLoad={logoFadeIn.handleLoad}
               onError={logoFadeIn.handleError}
@@ -82,18 +103,19 @@ function Header({ showProgressBar, moduleProgress, showCoursesLink, courseTitle,
                             : "text-neutral-600 hover:bg-neutral-50"
                         }`}
                       >
-                        <div className="flex items-center justify-between">
-                          <span className="flex items-center gap-2">
-                            {isLocked && (
+                        <div className="flex items-center gap-2">
+                          <span className="truncate min-w-0 flex-1">
+                            Module {idx + 1}: {module.title}
+                          </span>
+                          <span className="flex-shrink-0 w-4 flex items-center justify-center">
+                            {isLocked ? (
                               <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
                                 <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
                               </svg>
-                            )}
-                            Module {idx + 1}: {module.title}
+                            ) : isCompleted ? (
+                              <Check className="w-4 h-4 text-green-600" />
+                            ) : null}
                           </span>
-                          {isCompleted && (
-                            <Check className="w-4 h-4 text-green-600" />
-                          )}
                         </div>
                       </button>
                     );
@@ -114,7 +136,12 @@ function Header({ showProgressBar, moduleProgress, showCoursesLink, courseTitle,
               Courses
             </Link>
           )}
-          <button 
+          {credits && (
+            <span className="text-xs text-neutral-500 bg-neutral-50 border border-neutral-200 rounded-full px-3 py-1.5 tabular-nums">
+              {credits.coursesRemaining} courses · {credits.gradingsRemaining} gradings
+            </span>
+          )}
+          <button
             onClick={() => setShowApiKeyDialog(true)}
             className="flex items-center justify-center w-10 h-10 bg-neutral-50 border border-neutral-200 rounded-full text-neutral-700 hover:text-neutral-900 transition-colors cursor-pointer"
             aria-label="API Key"
