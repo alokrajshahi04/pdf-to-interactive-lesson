@@ -111,69 +111,41 @@ function ModuleCompleteScreen({
       </div>
 
       {/* Statistics */}
-      <div className="max-w-md mx-auto bg-neutral-50 rounded-2xl p-6 text-left animate-fadeInUp" style={{ animationDelay: '0.3s' }}>
-        {/* Accuracy */}
-        <div className="mb-4">
-          <div className="flex justify-between items-center mb-2">
-            <span className="text-sm text-neutral-600">Accuracy:</span>
-            <span className="text-sm text-green-600 font-semibold">
+      <div className="max-w-md mx-auto text-left animate-fadeInUp" style={{ animationDelay: '0.3s' }}>
+        {/* Stats Row */}
+        <div className="grid grid-cols-3 gap-3 mb-4">
+          <div className="bg-neutral-50 rounded-xl p-4 text-center">
+            <div className="text-2xl font-bold text-green-600 mb-1">
               {moduleStats.total > 0
                 ? Math.round((moduleStats.correct / moduleStats.total) * 100)
-                : 100}
-              %
-            </span>
+                : 100}%
+            </div>
+            <div className="text-xs text-neutral-500">Accuracy</div>
           </div>
-          <div className="h-2 bg-neutral-200 rounded-full overflow-hidden">
-            <div
-              className="h-full bg-green-500"
-              style={{
-                width: `${
-                  moduleStats.total > 0
-                    ? (moduleStats.correct / moduleStats.total) * 100
-                    : 100
-                }%`,
-              }}
-            />
+          <div className="bg-neutral-50 rounded-xl p-4 text-center">
+            <div className="text-2xl font-bold text-neutral-900 mb-1">
+              {moduleStats.correct}/{moduleStats.total}
+            </div>
+            <div className="text-xs text-neutral-500">Correct</div>
           </div>
-        </div>
-
-        {/* Questions answered */}
-        <div className="mb-4">
-          <div className="flex justify-between items-center mb-2">
-            <span className="text-sm text-neutral-600">Questions answered:</span>
-            <span className="text-sm text-green-600 font-semibold">
-              {moduleStats.total}
-            </span>
-          </div>
-          <div className="h-2 bg-neutral-200 rounded-full overflow-hidden">
-            <div className="h-full bg-green-500 w-full" />
+          <div className="bg-neutral-50 rounded-xl p-4 text-center">
+            <div className="text-2xl font-bold text-neutral-900 mb-1">
+              {Math.max(1, Math.round((Date.now() - moduleStats.startTime) / 60000))}m
+            </div>
+            <div className="text-xs text-neutral-500">Time</div>
           </div>
         </div>
 
-        {/* Time spent */}
-        <div className="mb-4">
-          <div className="flex justify-between items-center">
-            <span className="text-sm text-neutral-600">Time spent:</span>
-            <span className="text-sm text-neutral-900 font-semibold">
-              {Math.round((Date.now() - moduleStats.startTime) / 60000)} min
-            </span>
-          </div>
-        </div>
-
-        {/* Separator */}
-        <div className="bg-[#E5E5E5] -mx-6 my-4" style={{ width: 'calc(100% + 3rem)', height: '0.5px' }}></div>
-
-        {/* What you covered */}
-        <div>
-          <h3 className="text-base font-semibold text-neutral-900 mb-3">What you covered:</h3>
-          <ul className="space-y-2">
+        {/* Topics covered */}
+        <div className="bg-neutral-50 rounded-xl p-4">
+          <h3 className="text-xs font-medium text-neutral-500 uppercase tracking-wide mb-3">Topics covered</h3>
+          <div className="flex flex-wrap gap-2">
             {successfulLessons.map((lesson, idx) => (
-              <li key={idx} className="flex items-start gap-2">
-                <span className="text-neutral-900 text-sm">•</span>
-                <span className="text-sm text-neutral-800">{lesson.data.title}</span>
-              </li>
+              <span key={idx} className="inline-flex items-center px-3 py-1.5 bg-white border border-neutral-200 rounded-full text-xs text-neutral-700">
+                {lesson.data.title}
+              </span>
             ))}
-          </ul>
+          </div>
         </div>
       </div>
 
