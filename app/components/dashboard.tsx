@@ -5,7 +5,7 @@ import { getApiKey } from "@/lib/api-key-storage";
 import { getOrCreateUserId } from "@/lib/utils/session";
 import { getCourseProgress } from "@/lib/course-progress";
 import { storePendingFile } from "@/lib/utils/indexed-db-storage";
-import type { Course } from "@/app/hooks/use-course-navigation";
+import type { Course } from "@/lib/types";
 import { HeaderActions } from "./header-actions";
 import { ApiKeyDialog } from "./api-key-dialog";
 import Link from "next/link";

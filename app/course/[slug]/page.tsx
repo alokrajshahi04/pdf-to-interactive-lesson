@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ModulesScreen } from "@/app/components/modules-screen";
 import { getCourseProgress, deriveCurrentModuleIndex } from "@/lib/course-progress";
-import type { Course } from "@/app/hooks/use-course-navigation";
+import type { Course } from "@/lib/types";
 
 export default function CoursePage() {
   const params = useParams();

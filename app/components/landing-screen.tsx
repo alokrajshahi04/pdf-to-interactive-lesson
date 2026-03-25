@@ -10,7 +10,7 @@ import { Github, Twitter } from "lucide-react";
 import Link from "next/link";
 import { Loader } from "@/components/ai-elements/loader";
 import { LogoSvg, LandingHeroPoweredBySvg, LandingFooterPoweredBySvg, LandingBgSvg } from "./svg-icons";
-import type { Course } from "@/app/hooks/use-course-navigation";
+import type { Course } from "@/lib/types";
 import { HeaderActions } from "./header-actions";
 import demoCourse from "@/lib/demo/transformer-course.json";
 

@@ -25,11 +25,4 @@ export function getOrCreateUserId(): string {
   return sessionId;
 }
 
-/**
- * Clear the user ID (useful for testing or reset)
- */
-export function clearUserId(): void {
-  if (typeof window === 'undefined') return;
-  localStorage.removeItem(STORAGE_KEY);
-}
 

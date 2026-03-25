@@ -23,8 +23,4 @@ export function removeApiKey(): void {
   }
 }
 
-export function hasApiKey(): boolean {
-  return getApiKey() !== null && getApiKey() !== "";
-}
-
 

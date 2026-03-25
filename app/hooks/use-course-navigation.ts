@@ -1,50 +1,9 @@
 import { useState, useEffect } from "react";
 import { getApiKey } from "@/lib/api-key-storage";
 import { debugLog } from "@/lib/utils/debug";
-import type { FlowConfig } from "@/lib/types";
+import type { Course, Step } from "@/lib/types";
 
-type QuestionType = "short-answer" | "true-false" | "multiple-choice" | "drag-drop" | "flow-diagram";
-
-interface GradingResult {
-  isCorrect: boolean;
-  gradedAt: string;
-}
-
-interface LessonData {
-  content: string;
-  info: string;
-  question: string;
-  answer: string | boolean | number | number[];
-  title: string;
-  questionType: QuestionType;
-  choices?: string[];
-  slots?: string[];
-  flowConfig?: FlowConfig;
-  gradingResult?: GradingResult;
-  explanation?: string;
-}
-
-interface Lesson {
-  success: boolean;
-  data: LessonData;
-}
-
-interface Module {
-  title: string;
-  lessons: Lesson[];
-}
-
-export interface Course {
-  title: string;
-  modules: Module[];
-}
-
-export type Step =
-  | "module-intro"
-  | "content"
-  | "question"
-  | "answer"
-  | "module-complete";
+export type { Course, Step };
 
 export interface ModuleStats {
   correct: number;

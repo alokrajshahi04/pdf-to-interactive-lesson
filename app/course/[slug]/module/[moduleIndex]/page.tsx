@@ -7,7 +7,7 @@ import { LessonScreen } from "@/app/components/lesson-screen";
 import { Header } from "@/app/components/header";
 import { Footer } from "@/app/components/footer";
 import { ApiKeyDialog } from "@/app/components/api-key-dialog";
-import type { Course, Step } from "@/app/hooks/use-course-navigation";
+import type { Course, Step } from "@/lib/types";
 import { useCourseNavigation } from "@/app/hooks/use-course-navigation";
 import { getCourseProgress, updateCourseProgress } from "@/lib/course-progress";
 
