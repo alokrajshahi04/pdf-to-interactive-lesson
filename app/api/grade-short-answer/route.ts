@@ -11,13 +11,13 @@ export const dynamic = "force-dynamic";
 // POST /api/grade-short-answer
 export async function POST(request: NextRequest) {
   try {
-    // Get API key from headers
-    const apiKey = request.headers.get("X-Together-API-Key");
+    // Get API key from headers, fall back to server key for free users
+    const apiKey = request.headers.get("X-Together-API-Key") || process.env.TOGETHER_API_KEY;
     if (!apiKey) {
-      debugLog.error("[API] Missing API key in request");
+      debugLog.error("[API] No API key available (neither user nor server)");
       return Response.json(
-        { error: "Together AI API key is required" },
-        { status: 401 }
+        { error: "No API key available for grading" },
+        { status: 500 }
       );
     }
 

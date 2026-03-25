@@ -250,12 +250,6 @@ export function useCourseNavigation(
 
         try {
           const apiKey = getApiKey();
-          if (!apiKey) {
-            debugLog.error("[GRADING] Error: API key not found");
-            setIsGrading(false);
-            options?.onNeedsApiKey?.();
-            return;
-          }
 
           const requestBody = {
             userAnswer: userAnswer as string,
@@ -265,12 +259,16 @@ export function useCourseNavigation(
             question: data.question,
           };
 
+          const headers: Record<string, string> = {
+            "Content-Type": "application/json",
+          };
+          if (apiKey) {
+            headers["X-Together-API-Key"] = apiKey;
+          }
+
           const response = await fetch("/api/grade-short-answer", {
             method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "X-Together-API-Key": apiKey,
-            },
+            headers,
             body: JSON.stringify(requestBody),
           });
 

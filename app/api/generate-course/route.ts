@@ -10,7 +10,7 @@ import {
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 // Increase timeout to 5 minutes (300 seconds) - max for Vercel Pro plan
-export const maxDuration = 300;
+export const maxDuration = 800;
 
 // Helper to create a streaming response with progress updates
 function createStreamResponse() {
