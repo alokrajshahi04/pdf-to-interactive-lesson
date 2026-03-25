@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { generateText } from "ai";
 import { createTogetherClient, DEFAULT_MODEL } from "@/lib/utils/together";
-import { extractJson } from "@/lib/utils/xml";
+import { parseJSON } from "@/lib/utils/json";
 import { debugLog } from "@/lib/utils/debug";
 import {
   getClientIdentifier,
@@ -97,8 +97,7 @@ Respond ONLY with valid JSON in this exact format:
 
     try {
       // Extract JSON from response (in case there's extra text)
-      const jsonText = extractJson(result.text);
-      const evaluation = JSON.parse(jsonText);
+      const evaluation = parseJSON(result.text);
 
       // Validate the response structure
       if (typeof evaluation.isCorrect !== "boolean") {

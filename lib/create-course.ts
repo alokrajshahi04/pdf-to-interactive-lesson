@@ -3,6 +3,7 @@ import type { CourseStructure, ModuleWithLessons } from "./types";
 import { courseStructureSchema } from "./schemas";
 import { createLessons } from "./create-lesson";
 import { createTogetherClient, DEFAULT_MODEL } from "./utils/together";
+import { parseJSON } from "./utils/json";
 
 export interface CourseProgressCallback {
   (type: string, message: string, data?: any): void;
@@ -35,25 +36,6 @@ export interface CourseOutput {
     outputTokens: number;
     totalTokens: number;
   };
-}
-
-/**
- * Parse JSON from model response, extracting it from surrounding text if needed.
- */
-function parseJSON(text: string): any {
-  const trimmed = text.trim();
-  if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
-    try {
-      return JSON.parse(trimmed);
-    } catch {}
-  }
-  const match =
-    trimmed.match(/```(?:json)?\s*([\s\S]*?)```/) ||
-    trimmed.match(/(\{[\s\S]*\})/);
-  if (match) {
-    return JSON.parse(match[1].trim());
-  }
-  throw new Error("No JSON found in response");
 }
 
 /**

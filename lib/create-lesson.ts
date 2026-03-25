@@ -19,6 +19,7 @@ import {
   validationResultSchema,
 } from "./schemas";
 import { createTogetherClient, DEFAULT_MODEL } from "./utils/together";
+import { parseJSON } from "./utils/json";
 
 export interface LessonProgressCallback {
   (type: string, message: string, data?: any): void;
@@ -53,25 +54,6 @@ export interface ValidationResult {
     answer?: string;
     choices?: string;
   };
-}
-
-/**
- * Parse JSON from model response, extracting it from surrounding text if needed.
- */
-function parseJSON(text: string): any {
-  // Try direct parse first
-  const trimmed = text.trim();
-  if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
-    try {
-      return JSON.parse(trimmed);
-    } catch {}
-  }
-  // Extract JSON from markdown code blocks or surrounding text
-  const match = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/) || trimmed.match(/(\{[\s\S]*\})/);
-  if (match) {
-    return JSON.parse(match[1].trim());
-  }
-  throw new Error("No JSON found in response");
 }
 
 export async function createLessons({
