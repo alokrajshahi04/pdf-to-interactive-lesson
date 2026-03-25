@@ -51,7 +51,7 @@ function Header({ showProgressBar, moduleProgress, showCoursesLink, courseTitle,
                   <ChevronDown className="w-4 h-4" />
                 </button>
               </PopoverTrigger>
-              <PopoverContent className="w-80 p-0" align="start">
+              <PopoverContent className="w-80 p-0" align="end">
                 <div className="p-2">
                   <div className="text-xs text-neutral-500 mb-2 px-2">Select Module</div>
                   {course?.modules.map((module, idx) => {
