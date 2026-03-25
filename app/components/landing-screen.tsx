@@ -277,7 +277,7 @@ function LandingScreen() {
       {/* Background SVG - inlined for instant render */}
       <LandingBgSvg 
         aria-hidden="true"
-        className="fixed -bottom-40 left-0 w-full h-auto z-0 opacity-[0.08] blur-2xl"
+        className="fixed -bottom-40 left-0 w-full h-auto z-0 opacity-[0.08] blur-2xl pointer-events-none"
       />
       
       {/* API Key Dialog */}
@@ -579,7 +579,7 @@ function LandingScreen() {
             <Github className="w-4 h-4" />
           </a>
           <a 
-            href="https://x.com" 
+            href="https://x.com/nutlope" 
             target="_blank" 
             rel="noopener noreferrer"
             className="flex items-center justify-center w-8 h-8 bg-neutral-50 border border-neutral-200 rounded-full text-neutral-700 hover:text-neutral-900 transition-colors"

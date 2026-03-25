@@ -383,7 +383,7 @@ export function GeneratingPageContent() {
             <Github className="w-4 h-4" />
           </a>
           <a 
-            href="https://x.com" 
+            href="https://x.com/nutlope" 
             target="_blank" 
             rel="noopener noreferrer"
             className="flex items-center justify-center w-8 h-8 bg-neutral-50 border border-neutral-200 rounded-full text-neutral-700 hover:text-neutral-900 transition-colors"
