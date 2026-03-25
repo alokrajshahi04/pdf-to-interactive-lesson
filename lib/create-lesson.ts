@@ -35,6 +35,10 @@ export interface CreateLessonsInput {
   retryFailures?: boolean;
   maxRetries?: number;
   onProgress?: LessonProgressCallback;
+  /** Questions already generated in previous modules — avoid duplicating these */
+  previousQuestions?: string[];
+  /** All module titles in the course — helps focus questions on this module's scope */
+  allModuleTitles?: string[];
 }
 
 export interface ValidateLessonInput {
@@ -63,16 +67,27 @@ export async function createLessons({
   model = DEFAULT_MODEL,
   validateContent = true,
   onProgress,
+  previousQuestions = [],
+  allModuleTitles = [],
 }: CreateLessonsInput): Promise<ModuleWithLessons> {
   onProgress?.("lesson-start", `Generating lessons for "${module.title}"...`);
   const together = createTogetherClient(apiKey);
+
+  // Build deduplication context for the prompt
+  const moduleContext = allModuleTitles.length > 0
+    ? `\nThis course has ${allModuleTitles.length} modules:\n${allModuleTitles.map((t, i) => `${i + 1}. "${t}"`).join("\n")}\nYou are generating lessons ONLY for module "${module.title}". Focus your questions on topics and facts unique to this module's scope. Do NOT cover topics that belong to the other modules.\n`
+    : "";
+
+  const dedupContext = previousQuestions.length > 0
+    ? `\nIMPORTANT — AVOID DUPLICATE QUESTIONS: The following questions have already been used in other modules of this course. You MUST NOT ask the same or similar questions. Each question must test a DIFFERENT fact or concept.\nAlready used:\n${previousQuestions.map((q, i) => `${i + 1}. "${q}"`).join("\n")}\n`
+    : "";
 
   // Start both standard lesson generation and flow generation concurrently
   const standardLessonsPromise = generateText({
     model: together(model),
     prompt: `Analyse the following content and create 3 lessons for the module "${module.title}".
 Respond ONLY with a JSON object. No other text.
-
+${moduleContext}${dedupContext}
 You must create exactly ONE lesson for EACH question type:
 1. "short-answer" - answer is a text string
 2. "true-false" - answer is true or false (boolean)
@@ -389,7 +404,7 @@ Respond ONLY with JSON:
   "title": "Lesson Title",
   "content": "Brief 2-3 sentence explanation of the process",
   "info": "One key fact about this process",
-  "question": "Put the following steps in the correct order",
+  "question": "What is the correct order of steps in [specific process name]?",
   "choices": ["Step A", "Step B", "Step C"],
   "slots": ["First", "Second", "Third"],
   "answer": [0, 2, 1]
@@ -400,6 +415,7 @@ Rules:
 - Choices = actual node labels from the flow
 - Slots = "First", "Second", "Third"
 - Answer = array of 3 indices (0-2) mapping slot→choice. [0,2,1] means First→choice0, Second→choice2, Third→choice1
+- The question MUST be specific to this process — mention the actual process or topic by name. Do NOT use generic phrasing like "Put the following steps in the correct order"
 
 Source content:
 ${content}`,
