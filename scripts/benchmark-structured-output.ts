@@ -21,12 +21,14 @@ const BENCHMARKS_DIR = resolve(DATA_DIR, "benchmarks");
 const args = process.argv.slice(2);
 const tag =
   args.find((a) => a.startsWith("--tag="))?.split("=")[1] ?? "benchmark";
+const model =
+  args.find((a) => a.startsWith("--model="))?.split("=")[1] ?? undefined;
 const inputFiles = args
   .filter((a) => !a.startsWith("--"))
   .map((f) => resolve(f));
 
 if (inputFiles.length === 0) {
-  console.error("Usage: tsx scripts/benchmark-structured-output.ts --tag=<name> <file1> [file2...]");
+  console.error("Usage: tsx scripts/benchmark-structured-output.ts --tag=<name> [--model=<model>] <file1> [file2...]");
   process.exit(1);
 }
 
@@ -116,6 +118,7 @@ async function benchmarkFile(filePath: string): Promise<RunResult> {
   const course = await createCourse({
     content: truncatedContent,
     apiKey: apiKey!,
+    model,
     validateStructure: true,
     validateContent: true,
     retryFailures: true,
@@ -190,8 +193,9 @@ async function benchmarkFile(filePath: string): Promise<RunResult> {
 }
 
 async function main() {
+  const displayModel = model ?? "openai/gpt-oss-120b (default)";
   console.log(`\n🏁 Benchmark: ${tag}`);
-  console.log(`   Model: openai/gpt-oss-120b`);
+  console.log(`   Model: ${displayModel}`);
   console.log(`   Files: ${inputFiles.map((f) => basename(f)).join(", ")}`);
 
   const results: RunResult[] = [];
@@ -264,7 +268,7 @@ async function main() {
 
   const output = {
     tag,
-    model: "openai/gpt-oss-120b",
+    model: model ?? "openai/gpt-oss-120b",
     timestamp: new Date().toISOString(),
     aggregate: {
       totalTimeMs: totalTime,

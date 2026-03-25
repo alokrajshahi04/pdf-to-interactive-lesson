@@ -12,24 +12,24 @@ export function createTogetherClient(apiKey: string) {
 /**
  * Default model for course and lesson generation
  */
-export const DEFAULT_MODEL = "openai/gpt-oss-120b";
+export const DEFAULT_MODEL = "MiniMaxAI/MiniMax-M2.5";
 
 /**
  * Single source of truth for model configuration
  * Pricing is per 1M tokens (input, output in USD)
  */
 export const MODEL_CONFIG = {
-  "deepseek-3.1": {
-    fullName: "deepseek-ai/DeepSeek-V3.1",
-    pricing: { input: 0.60, output: 1.70 },
-  },
-  "glm-4.6": {
-    fullName: "zai-org/GLM-4.6",
-    pricing: { input: 0.60, output: 2.20 },
+  "minimax-m2.5": {
+    fullName: "MiniMaxAI/MiniMax-M2.5",
+    pricing: { input: 0.30, output: 1.10 },
   },
   "gpt-oss-120b": {
     fullName: "openai/gpt-oss-120b",
     pricing: { input: 0.15, output: 0.60 },
+  },
+  "deepseek-3.1": {
+    fullName: "deepseek-ai/DeepSeek-V3.1",
+    pricing: { input: 0.60, output: 1.70 },
   },
 } as const;
 
