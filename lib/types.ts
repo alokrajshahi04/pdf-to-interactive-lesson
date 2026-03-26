@@ -112,3 +112,48 @@ export interface CourseStructure {
     module: Module[];
   };
 }
+
+// --- Client-side types used by hooks and components ---
+
+export type QuestionTypeString = "short-answer" | "true-false" | "multiple-choice" | "drag-drop" | "flow-diagram";
+
+export interface GradingResult {
+  isCorrect: boolean;
+  gradedAt: string;
+}
+
+export interface LessonData {
+  content: string;
+  info: string;
+  question: string;
+  answer: string | boolean | number | number[];
+  title: string;
+  questionType: QuestionTypeString;
+  choices?: string[];
+  slots?: string[];
+  flowConfig?: FlowConfig;
+  gradingResult?: GradingResult;
+  explanation?: string;
+}
+
+export interface ClientLesson {
+  success: boolean;
+  data: LessonData;
+}
+
+export interface ClientModule {
+  title: string;
+  lessons: ClientLesson[];
+}
+
+export interface Course {
+  title: string;
+  modules: ClientModule[];
+}
+
+export type Step =
+  | "module-intro"
+  | "content"
+  | "question"
+  | "answer"
+  | "module-complete";

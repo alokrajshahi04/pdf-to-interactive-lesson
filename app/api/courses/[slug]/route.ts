@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { courses } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
+import { handleApiError } from "@/lib/utils/api-errors";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -58,19 +59,7 @@ export async function GET(
     });
   } catch (error) {
     console.error("Error fetching course:", error);
-    
-    // Check if it's a database connection error
-    if (error instanceof Error && error.message.includes("DATABASE_URL")) {
-      return NextResponse.json(
-        { error: "Database not configured. Please set DATABASE_URL environment variable." },
-        { status: 500 }
-      );
-    }
-    
-    return NextResponse.json(
-      { error: "Failed to fetch course" },
-      { status: 500 }
-    );
+    return handleApiError(error, "Failed to fetch course");
   }
 }
 
@@ -108,19 +97,7 @@ export async function DELETE(
     });
   } catch (error) {
     console.error("Error deleting course:", error);
-    
-    // Check if it's a database connection error
-    if (error instanceof Error && error.message.includes("DATABASE_URL")) {
-      return NextResponse.json(
-        { error: "Database not configured. Please set DATABASE_URL environment variable." },
-        { status: 500 }
-      );
-    }
-    
-    return NextResponse.json(
-      { error: "Failed to delete course" },
-      { status: 500 }
-    );
+    return handleApiError(error, "Failed to delete course");
   }
 }
 

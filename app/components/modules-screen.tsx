@@ -5,7 +5,7 @@ import { Header } from "./header";
 import { Footer } from "./footer";
 import { ShareCourseDialog } from "./share-course-dialog";
 import { Share2 } from "lucide-react";
-import type { Course } from "@/app/hooks/use-course-navigation";
+import type { Course } from "@/lib/types";
 
 interface ModulesScreenProps {
   course: Course;
@@ -71,7 +71,7 @@ function ModulesScreen({
       <div className="max-w-7xl mx-auto px-6 py-16 flex-grow">
         <div className="grid grid-cols-1 lg:grid-cols-2 lg:gap-16">
           {/* Left Column - Course Overview */}
-          <div className="flex flex-col justify-center items-center text-center lg:pr-16">
+          <div className="flex flex-col justify-center lg:pr-16">
             <h2 className="text-5xl font-bold text-neutral-900 mb-6 leading-tight">
               We built your course!
             </h2>
@@ -82,7 +82,7 @@ function ModulesScreen({
             </p>
 
             {/* Action Buttons */}
-            <div className="space-y-4 pb-16 w-full flex flex-col items-center">
+            <div className="space-y-4 pb-16 w-full flex flex-col">
               <button
                 onClick={() => onStartModule(currentModuleIndex)}
                 className="w-full max-w-sm py-4 gradient-border-button bg-neutral-900 text-white font-semibold hover:bg-neutral-800 transition-all flex items-center justify-center gap-2 cursor-pointer"
@@ -105,7 +105,7 @@ function ModulesScreen({
               
               <button
                 onClick={() => setIsShareDialogOpen(true)}
-                className="w-full max-w-sm py-4 border-2 border-neutral-900 text-neutral-900 font-semibold rounded-2xl hover:bg-neutral-50 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                className="w-full max-w-sm py-4 border-2 border-neutral-900 text-neutral-900 font-semibold rounded-full hover:bg-neutral-50 transition-all flex items-center justify-center gap-2 cursor-pointer"
               >
                 <Share2 className="w-5 h-5" />
                 Share Course

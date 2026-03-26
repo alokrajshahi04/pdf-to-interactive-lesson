@@ -3,40 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { DragDropQuestion } from "./drag-drop-question";
 import { FlowDiagram } from "./flow-diagram";
-import type { FlowConfig } from "@/lib/types";
-
-type QuestionType = "short-answer" | "true-false" | "multiple-choice" | "drag-drop" | "flow-diagram";
-
-interface GradingResult {
-  isCorrect: boolean;
-  gradedAt: string;
-}
-
-interface LessonData {
-  content: string;
-  info: string;
-  question: string;
-  answer: string | boolean | number | number[];
-  title: string;
-  questionType: QuestionType;
-  choices?: string[];
-  slots?: string[];
-  flowConfig?: FlowConfig;
-  gradingResult?: GradingResult;
-  explanation?: string;
-}
-
-interface Lesson {
-  success: boolean;
-  data: LessonData;
-}
-
-interface Module {
-  title: string;
-  lessons: Lesson[];
-}
-
-type Step = "module-intro" | "content" | "question" | "answer";
+import type { LessonData, Step } from "@/lib/types";
 
 interface LessonScreenProps {
   step: Step;
@@ -88,6 +55,37 @@ function LessonScreen({
 
   const animateClass = (condition = true) =>
     shouldAnimateOnLoad && condition ? "animate-fadeInUp" : "";
+
+  const renderIncorrectSlots = () => {
+    if (!showResult || !lessonData.choices || !lessonData.slots) return null;
+    const correctAnswer = lessonData.answer as number[];
+    const currentUserAnswer = (userAnswer as number[]) || [];
+    const incorrectSlots = lessonData.slots.map((slot, slotIndex) => {
+      const assignedChoiceIndex = currentUserAnswer[slotIndex] ?? -1;
+      if (assignedChoiceIndex !== correctAnswer[slotIndex]) {
+        return { slotIndex, correctChoice: lessonData.choices![correctAnswer[slotIndex]] };
+      }
+      return null;
+    }).filter(Boolean);
+
+    if (incorrectSlots.length === 0) return null;
+
+    return (
+      <div className="mt-4 p-5 bg-blue-50 border border-blue-200 rounded-xl">
+        <p className="text-sm font-semibold text-neutral-700 mb-3">Correct Answers:</p>
+        <div className="space-y-2">
+          {incorrectSlots.map((item) => (
+            <div key={item!.slotIndex} className="flex items-start gap-2">
+              <span className="text-sm font-medium text-neutral-600 min-w-[24px]">
+                {item!.slotIndex + 1}.
+              </span>
+              <span className="text-sm text-neutral-800">{item!.correctChoice}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
 
   return (
     <>
@@ -308,17 +306,7 @@ function LessonScreen({
                     )}
                   </div>
                 )}
-                {showResult && lessonData.gradingResult && (
-                  <div className="mt-4 p-5 bg-blue-50 border border-blue-200 rounded-xl">
-                    <p className="text-sm font-semibold text-neutral-700 mb-2">
-                      Answer:
-                    </p>
-                    <p className="text-neutral-800 leading-relaxed">
-                      {lessonData.answer}
-                    </p>
-                  </div>
-                )}
-                {showResult && !lessonData.gradingResult && !isGrading && !gradingError && (
+                {showResult && !isGrading && !gradingError && (
                   <div className="mt-4 p-5 bg-blue-50 border border-blue-200 rounded-xl">
                     <p className="text-sm font-semibold text-neutral-700 mb-2">
                       Answer:
@@ -347,44 +335,7 @@ function LessonScreen({
                     showResult={showResult}
                     onAnswerChange={onAnswerChange}
                   />
-                  {/* Correct Answers Info Box */}
-                  {showResult && (() => {
-                    const correctAnswer = lessonData.answer as number[];
-                    const currentUserAnswer = (userAnswer as number[]) || [];
-                    const incorrectSlots = lessonData.slots!.map((slot, slotIndex) => {
-                      const assignedChoiceIndex = currentUserAnswer[slotIndex] ?? -1;
-                      const isCorrect = assignedChoiceIndex === correctAnswer[slotIndex];
-                      if (!isCorrect) {
-                        return {
-                          slotIndex,
-                          correctChoice: lessonData.choices![correctAnswer[slotIndex]],
-                        };
-                      }
-                      return null;
-                    }).filter(Boolean);
-
-                    if (incorrectSlots.length === 0) return null;
-
-                    return (
-                      <div className="mt-4 p-5 bg-blue-50 border border-blue-200 rounded-xl">
-                        <p className="text-sm font-semibold text-neutral-700 mb-3">
-                          Correct Answers:
-                        </p>
-                        <div className="space-y-2">
-                          {incorrectSlots.map((item) => (
-                            <div key={item!.slotIndex} className="flex items-start gap-2">
-                              <span className="text-sm font-medium text-neutral-600 min-w-[24px]">
-                                {item!.slotIndex + 1}.
-                              </span>
-                              <span className="text-sm text-neutral-800">
-                                {item!.correctChoice}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    );
-                  })()}
+                  {renderIncorrectSlots()}
                 </div>
               )}
 
@@ -436,7 +387,7 @@ function LessonScreen({
                       </div>
                     </div>
                   )}
-                  
+
                   {/* Drag-Drop Question */}
                   <DragDropQuestion
                     choices={lessonData.choices}
@@ -446,44 +397,7 @@ function LessonScreen({
                     showResult={showResult}
                     onAnswerChange={onAnswerChange}
                   />
-                  {/* Correct Answers Info Box */}
-                  {showResult && (() => {
-                    const correctAnswer = lessonData.answer as number[];
-                    const currentUserAnswer = (userAnswer as number[]) || [];
-                    const incorrectSlots = lessonData.slots!.map((slot, slotIndex) => {
-                      const assignedChoiceIndex = currentUserAnswer[slotIndex] ?? -1;
-                      const isCorrect = assignedChoiceIndex === correctAnswer[slotIndex];
-                      if (!isCorrect) {
-                        return {
-                          slotIndex,
-                          correctChoice: lessonData.choices![correctAnswer[slotIndex]],
-                        };
-                      }
-                      return null;
-                    }).filter(Boolean);
-
-                    if (incorrectSlots.length === 0) return null;
-
-                    return (
-                      <div className="mt-4 p-5 bg-blue-50 border border-blue-200 rounded-xl">
-                        <p className="text-sm font-semibold text-neutral-700 mb-3">
-                          Correct Answers:
-                        </p>
-                        <div className="space-y-2">
-                          {incorrectSlots.map((item) => (
-                            <div key={item!.slotIndex} className="flex items-start gap-2">
-                              <span className="text-sm font-medium text-neutral-600 min-w-[24px]">
-                                {item!.slotIndex + 1}.
-                              </span>
-                              <span className="text-sm text-neutral-800">
-                                {item!.correctChoice}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    );
-                  })()}
+                  {renderIncorrectSlots()}
                 </div>
               )}
           </div>

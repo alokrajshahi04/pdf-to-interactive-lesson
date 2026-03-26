@@ -6,8 +6,9 @@ import { upload } from "@vercel/blob/client";
 import { getApiKey } from "@/lib/api-key-storage";
 import { getPendingFile } from "@/lib/utils/indexed-db-storage";
 import { getOrCreateUserId } from "@/lib/utils/session";
-import type { Course } from "@/app/hooks/use-course-navigation";
+import type { Course } from "@/lib/types";
 import { HeaderActions } from "../components/header-actions";
+import { ApiKeyDialog } from "../components/api-key-dialog";
 
 import Link from "next/link";
 import { Github, Twitter } from "lucide-react";
@@ -21,7 +22,7 @@ export function GeneratingPageContent() {
   const [progress, setProgress] = useState("Initializing...");
   const [error, setError] = useState<string | null>(null);
   const [lastUpload, setLastUpload] = useState<{ url: string; fileName: string } | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isApiKeyDialogOpen, setIsApiKeyDialogOpen] = useState(false);
   const hasStarted = useRef(false);
   const logoFadeIn = useImageFadeIn("/logo.svg");
   const creatingGuyFadeIn = useImageFadeIn("/creating-guy.svg");
@@ -244,22 +245,28 @@ export function GeneratingPageContent() {
     }
   };
 
-  const handleApiKeySaved = async () => {
-    // Check if there's a pending file to upload
-    if (!hasStarted.current) {
-      try {
-        const file = await getPendingFile();
-        if (file) {
-          handleFileUpload(file);
-        }
-      } catch (error) {
-        console.error("Failed to process pending file after API key save:", error);
+  const isApiKeyError = error?.toLowerCase().includes("api key") || error?.toLowerCase().includes("invalid api");
+
+  const handleApiKeyDialogChange = (open: boolean) => {
+    setIsApiKeyDialogOpen(open);
+    // When dialog closes, check if a key was saved and auto-retry
+    if (!open && lastUpload) {
+      const key = getApiKey();
+      if (key) {
+        setError(null);
+        handleGenerateFromUrl(lastUpload.url, lastUpload.fileName);
       }
     }
   };
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
+      <ApiKeyDialog
+        open={isApiKeyDialogOpen}
+        onOpenChange={handleApiKeyDialogChange}
+        message={isApiKeyError ? "Add your Together AI API key to continue generating your course." : undefined}
+      />
+
       {/* Header */}
       <header className="sticky top-0 z-50 border-b-[0.5px] border-neutral-200 bg-white w-full">
         <div className="w-full px-8 py-4 flex items-center justify-between">
@@ -309,19 +316,28 @@ export function GeneratingPageContent() {
                   </div>
                 </div>
                 <div className="flex gap-3 justify-center">
-                  <button
-                    onClick={() => {
-                      if (lastUpload) {
-                        setError(null);
-                        handleGenerateFromUrl(lastUpload.url, lastUpload.fileName);
-                      } else {
-                        router.push("/courses");
-                      }
-                    }}
-                    className="px-8 py-3 bg-neutral-900 text-white rounded-full font-medium hover:bg-neutral-800 transition-colors text-sm"
-                  >
-                    Try Again
-                  </button>
+                  {isApiKeyError ? (
+                    <button
+                      onClick={() => setIsApiKeyDialogOpen(true)}
+                      className="px-8 py-3 bg-neutral-900 text-white rounded-full font-medium hover:bg-neutral-800 transition-colors text-sm"
+                    >
+                      Add API Key
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => {
+                        if (lastUpload) {
+                          setError(null);
+                          handleGenerateFromUrl(lastUpload.url, lastUpload.fileName);
+                        } else {
+                          router.push("/courses");
+                        }
+                      }}
+                      className="px-8 py-3 bg-neutral-900 text-white rounded-full font-medium hover:bg-neutral-800 transition-colors text-sm"
+                    >
+                      Try Again
+                    </button>
+                  )}
                   <Link
                     href="/courses"
                     className="px-8 py-3 bg-neutral-100 text-neutral-700 rounded-full font-medium hover:bg-neutral-200 transition-colors text-sm"
