@@ -82,15 +82,12 @@ export async function createLessons({
     ? `\nIMPORTANT — AVOID DUPLICATE QUESTIONS: The following questions have already been used in other modules of this course. You MUST NOT ask the same or similar questions. Each question must test a DIFFERENT fact or concept.\nAlready used:\n${previousQuestions.map((q, i) => `${i + 1}. "${q}"`).join("\n")}\n`
     : "";
 
-  // Start both standard lesson generation and flow generation concurrently
-  const standardLessonsPromise = generateText({
-    model: together(model),
-    prompt: `Analyse the following content and create 3 lessons for the module "${module.title}".
+  const standardLessonPrompt = `Analyse the following content and create 3 lessons for the module "${module.title}".
 Respond ONLY with a JSON object. No other text.
 ${moduleContext}${dedupContext}
 You must create exactly ONE lesson for EACH question type:
-1. "short-answer" - answer is a text string
-2. "true-false" - answer is true or false (boolean)
+1. "short-answer" - answer is a text string. The answer must be a fact EXPLICITLY stated in the source content. Do NOT ask about exact URLs, code snippets, or strings that may have formatting issues. Do NOT embed unverified claims or translations in the question itself — only state facts from the source.
+2. "true-false" - answer is true or false (boolean). The statement MUST be clearly and unambiguously true or false based solely on the source content. Avoid nuanced, debatable, or misleading phrasing. Do NOT use double negatives. Do NOT paraphrase the source in a way that subtly changes meaning.
 3. "multiple-choice" - answer is index 0-3, must include 4 choices
 
 Return this exact JSON structure:
@@ -128,7 +125,12 @@ Return this exact JSON structure:
 For numeric questions, choices can be numbers: [88.3, 91.7, 92.7, 95.0]
 
 Content:
-${content}`,
+${content}`;
+
+  // Start both standard lesson generation and flow generation concurrently
+  const standardLessonsPromise = generateText({
+    model: together(model),
+    prompt: standardLessonPrompt,
   });
 
   const flowGenerationPromise = generateFlowDiagram({
@@ -156,15 +158,25 @@ ${content}`,
         })
       : Promise.resolve(null);
 
-  // Parse JSON and validate with Zod — replaces XML parsing + postProcessLesson + validateLessonsStructure
-  const parsed = parseJSON(result.text);
-  const validated = standardLessonsSchema.safeParse(parsed);
+  // Parse JSON and validate with Zod, retrying on structural failures (truncation, wrong types)
+  const maxStructureRetries = 3;
+  let validated = standardLessonsSchema.safeParse(parseJSON(result.text));
+
+  for (let attempt = 1; attempt <= maxStructureRetries && !validated.success; attempt++) {
+    const issues = validated.error.issues.map(i => `${i.path.join(".")}: ${i.message}`).join(", ");
+    console.warn(`  ⚠️  Zod validation failed for "${module.title}" (attempt ${attempt}/${maxStructureRetries}): ${issues}`);
+
+    const retryResult = await generateText({
+      model: together(model),
+      prompt: standardLessonPrompt,
+    });
+    validated = standardLessonsSchema.safeParse(parseJSON(retryResult.text));
+  }
 
   if (!validated.success) {
     console.error("Zod validation failed for module:", module.title);
     console.error("Issues:", validated.error.issues.map(i => `${i.path.join(".")}: ${i.message}`).join(", "));
-    console.error("Raw response:", result.text.substring(0, 500));
-    throw new Error(`Structured output validation failed: ${validated.error.issues.map(i => i.message).join(", ")}`);
+    throw new Error(`Structured output validation failed after ${maxStructureRetries} retries: ${validated.error.issues.map(i => i.message).join(", ")}`);
   }
 
   // Track failures by lesson index
