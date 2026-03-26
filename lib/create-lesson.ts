@@ -35,6 +35,10 @@ export interface CreateLessonsInput {
   retryFailures?: boolean;
   maxRetries?: number;
   onProgress?: LessonProgressCallback;
+  /** Questions already generated in previous modules — avoid duplicating these */
+  previousQuestions?: string[];
+  /** All module titles in the course — helps focus questions on this module's scope */
+  allModuleTitles?: string[];
 }
 
 export interface ValidateLessonInput {
@@ -63,19 +67,27 @@ export async function createLessons({
   model = DEFAULT_MODEL,
   validateContent = true,
   onProgress,
+  previousQuestions = [],
+  allModuleTitles = [],
 }: CreateLessonsInput): Promise<ModuleWithLessons> {
   onProgress?.("lesson-start", `Generating lessons for "${module.title}"...`);
   const together = createTogetherClient(apiKey);
 
-  // Start both standard lesson generation and flow generation concurrently
-  const standardLessonsPromise = generateText({
-    model: together(model),
-    prompt: `Analyse the following content and create 3 lessons for the module "${module.title}".
-Respond ONLY with a JSON object. No other text.
+  // Build deduplication context for the prompt
+  const moduleContext = allModuleTitles.length > 0
+    ? `\nThis course has ${allModuleTitles.length} modules:\n${allModuleTitles.map((t, i) => `${i + 1}. "${t}"`).join("\n")}\nYou are generating lessons ONLY for module "${module.title}". Focus your questions on topics and facts unique to this module's scope. Do NOT cover topics that belong to the other modules.\n`
+    : "";
 
+  const dedupContext = previousQuestions.length > 0
+    ? `\nIMPORTANT — AVOID DUPLICATE QUESTIONS: The following questions have already been used in other modules of this course. You MUST NOT ask the same or similar questions. Each question must test a DIFFERENT fact or concept.\nAlready used:\n${previousQuestions.map((q, i) => `${i + 1}. "${q}"`).join("\n")}\n`
+    : "";
+
+  const standardLessonPrompt = `Analyse the following content and create 3 lessons for the module "${module.title}".
+Respond ONLY with a JSON object. No other text.
+${moduleContext}${dedupContext}
 You must create exactly ONE lesson for EACH question type:
-1. "short-answer" - answer is a text string
-2. "true-false" - answer is true or false (boolean)
+1. "short-answer" - answer is a text string. The answer must be a fact EXPLICITLY stated in the source content. Do NOT ask about exact URLs, code snippets, or strings that may have formatting issues. Do NOT embed unverified claims or translations in the question itself — only state facts from the source.
+2. "true-false" - answer is true or false (boolean). The statement MUST be clearly and unambiguously true or false based solely on the source content. Avoid nuanced, debatable, or misleading phrasing. Do NOT use double negatives. Do NOT paraphrase the source in a way that subtly changes meaning.
 3. "multiple-choice" - answer is index 0-3, must include 4 choices
 
 Return this exact JSON structure:
@@ -113,7 +125,12 @@ Return this exact JSON structure:
 For numeric questions, choices can be numbers: [88.3, 91.7, 92.7, 95.0]
 
 Content:
-${content}`,
+${content}`;
+
+  // Start both standard lesson generation and flow generation concurrently
+  const standardLessonsPromise = generateText({
+    model: together(model),
+    prompt: standardLessonPrompt,
   });
 
   const flowGenerationPromise = generateFlowDiagram({
@@ -141,15 +158,25 @@ ${content}`,
         })
       : Promise.resolve(null);
 
-  // Parse JSON and validate with Zod — replaces XML parsing + postProcessLesson + validateLessonsStructure
-  const parsed = parseJSON(result.text);
-  const validated = standardLessonsSchema.safeParse(parsed);
+  // Parse JSON and validate with Zod, retrying on structural failures (truncation, wrong types)
+  const maxStructureRetries = 3;
+  let validated = standardLessonsSchema.safeParse(parseJSON(result.text));
+
+  for (let attempt = 1; attempt <= maxStructureRetries && !validated.success; attempt++) {
+    const issues = validated.error.issues.map(i => `${i.path.join(".")}: ${i.message}`).join(", ");
+    console.warn(`  ⚠️  Zod validation failed for "${module.title}" (attempt ${attempt}/${maxStructureRetries}): ${issues}`);
+
+    const retryResult = await generateText({
+      model: together(model),
+      prompt: standardLessonPrompt,
+    });
+    validated = standardLessonsSchema.safeParse(parseJSON(retryResult.text));
+  }
 
   if (!validated.success) {
     console.error("Zod validation failed for module:", module.title);
     console.error("Issues:", validated.error.issues.map(i => `${i.path.join(".")}: ${i.message}`).join(", "));
-    console.error("Raw response:", result.text.substring(0, 500));
-    throw new Error(`Structured output validation failed: ${validated.error.issues.map(i => i.message).join(", ")}`);
+    throw new Error(`Structured output validation failed after ${maxStructureRetries} retries: ${validated.error.issues.map(i => i.message).join(", ")}`);
   }
 
   // Track failures by lesson index
@@ -389,7 +416,7 @@ Respond ONLY with JSON:
   "title": "Lesson Title",
   "content": "Brief 2-3 sentence explanation of the process",
   "info": "One key fact about this process",
-  "question": "Put the following steps in the correct order",
+  "question": "What is the correct order of steps in [specific process name]?",
   "choices": ["Step A", "Step B", "Step C"],
   "slots": ["First", "Second", "Third"],
   "answer": [0, 2, 1]
@@ -400,6 +427,7 @@ Rules:
 - Choices = actual node labels from the flow
 - Slots = "First", "Second", "Third"
 - Answer = array of 3 indices (0-2) mapping slot→choice. [0,2,1] means First→choice0, Second→choice2, Third→choice1
+- The question MUST be specific to this process — mention the actual process or topic by name. Do NOT use generic phrasing like "Put the following steps in the correct order"
 
 Source content:
 ${content}`,

@@ -140,9 +140,26 @@ export async function createCourse({
     { totalModules }
   );
 
+  // Generate lessons sequentially so each module knows what questions were already
+  // asked in previous modules, preventing duplicate questions across the course.
+  const allModuleTitles = courseStructure.course.module.map((m) => m.title);
+  const allLessons: ModuleWithLessons[] = [];
+  const previousQuestions: string[] = [];
   let completedModules = 0;
-  const lessonsPromises = courseStructure.course.module.map((module, index) =>
-    createLessons({
+
+  for (const [index, module] of courseStructure.course.module.entries()) {
+    onProgress?.(
+      "lessons-progress",
+      `Generating lessons for module ${index + 1}/${totalModules}: "${module.title}"`,
+      {
+        completed: completedModules,
+        total: totalModules,
+        currentModule: index + 1,
+        moduleTitle: module.title,
+      }
+    );
+
+    const result = await createLessons({
       module,
       content,
       apiKey,
@@ -151,6 +168,8 @@ export async function createCourse({
       validateContent,
       retryFailures,
       maxRetries,
+      previousQuestions: [...previousQuestions],
+      allModuleTitles,
       onProgress: (type, message, data) => {
         if (type === "lesson-complete") {
           completedModules++;
@@ -164,23 +183,19 @@ export async function createCourse({
               moduleTitle: module.title,
             }
           );
-        } else if (type === "lesson-start") {
-          onProgress?.(
-            "lessons-progress",
-            `Generating lessons for module ${index + 1}/${totalModules}: "${module.title}"`,
-            {
-              completed: completedModules,
-              total: totalModules,
-              currentModule: index + 1,
-              moduleTitle: module.title,
-            }
-          );
         }
       },
-    })
-  );
+    });
 
-  const allLessons = await Promise.all(lessonsPromises);
+    allLessons.push(result);
+
+    // Accumulate questions from successful lessons for dedup context
+    for (const lr of result.lessons) {
+      if (lr.success) {
+        previousQuestions.push(lr.data.question);
+      }
+    }
+  }
 
   let totalLessons = 0;
   let successfulLessons = 0;
