@@ -19,6 +19,12 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const PDFS_DIR = resolve(__dirname, "../data/pdfs");
 const BENCHMARKS_DIR = resolve(__dirname, "../data/benchmarks");
 
+const args = process.argv.slice(2);
+const iterations = parseInt(
+  args.find((a) => a.startsWith("--iterations="))?.split("=")[1] ?? "1",
+  10
+);
+
 const apiKey = process.env.TOGETHER_API_KEY;
 if (!apiKey) {
   console.error("TOGETHER_API_KEY is required");
@@ -157,27 +163,55 @@ async function main() {
 
   console.log(`\n🏁 Duplicate Question Benchmark`);
   console.log(`   PDFs: ${pdfFiles.length}`);
+  console.log(`   Iterations: ${iterations}`);
   console.log(`   Files: ${pdfFiles.map((f) => basename(f)).join(", ")}`);
   console.log("═".repeat(60));
 
-  // Run ALL PDFs in parallel, catching per-PDF errors
+  const allIterationResults: CourseResult[][] = [];
   const startTime = Date.now();
-  const results = await Promise.all(
-    pdfFiles.map(async (f) => {
-      try {
-        return await processPdf(f);
-      } catch (error: any) {
-        console.error(`  ❌ FAILED ${basename(f)}: ${error.message}`);
-        return {
-          file: basename(f),
-          questions: [],
-          totalLessons: 0,
-          successfulLessons: 0,
-          timeMs: 0,
-        } as CourseResult;
-      }
-    })
-  );
+
+  for (let iter = 0; iter < iterations; iter++) {
+    if (iterations > 1) {
+      console.log(`\n${"━".repeat(60)}`);
+      console.log(`ITERATION ${iter + 1}/${iterations}`);
+      console.log("━".repeat(60));
+    }
+
+    // Run ALL PDFs in parallel, catching per-PDF errors
+    const results = await Promise.all(
+      pdfFiles.map(async (f) => {
+        try {
+          return await processPdf(f);
+        } catch (error: any) {
+          console.error(`  ❌ FAILED ${basename(f)}: ${error.message}`);
+          return {
+            file: basename(f),
+            questions: [],
+            totalLessons: 0,
+            successfulLessons: 0,
+            timeMs: 0,
+          } as CourseResult;
+        }
+      })
+    );
+
+    allIterationResults.push(results);
+
+    if (iterations > 1) {
+      const iterQuestions = results.flatMap((r) => r.questions);
+      const iterDupes = findDuplicates(iterQuestions);
+      const iterDupeCount = iterDupes.reduce((s, g) => s + g.occurrences.length, 0);
+      const rate = iterQuestions.length > 0
+        ? `${((iterDupeCount / iterQuestions.length) * 100).toFixed(1)}%`
+        : "N/A";
+      console.log(
+        `  Iteration ${iter + 1}: ${iterQuestions.length} questions — ${iterDupes.length} dupe groups — rate: ${rate}`
+      );
+    }
+  }
+
+  // Flatten all iterations
+  const results = allIterationResults.flat();
   const totalTimeMs = Date.now() - startTime;
 
   // Collect all questions
@@ -186,9 +220,10 @@ async function main() {
   const totalSuccessful = results.reduce((s, r) => s + r.successfulLessons, 0);
 
   console.log("\n" + "═".repeat(60));
-  console.log("RESULTS SUMMARY");
+  console.log(`RESULTS SUMMARY${iterations > 1 ? ` (${iterations} iterations)` : ""}`);
   console.log("═".repeat(60));
   console.log(`  Total time:       ${(totalTimeMs / 1000).toFixed(1)}s`);
+  if (iterations > 1) console.log(`  Iterations:       ${iterations}`);
   console.log(`  Total lessons:    ${totalLessons}`);
   console.log(`  Successful:       ${totalSuccessful}`);
   console.log(`  Total questions:  ${allQuestions.length}`);
@@ -280,6 +315,7 @@ async function main() {
 
   const output = {
     timestamp: new Date().toISOString(),
+    iterations,
     totalTimeMs,
     summary: {
       totalPdfs: pdfFiles.length,

@@ -42,6 +42,10 @@ const model =
 const judgeModel =
   args.find((a) => a.startsWith("--judge="))?.split("=")[1] ??
   "anthropic/claude-opus-4-6";
+const iterations = parseInt(
+  args.find((a) => a.startsWith("--iterations="))?.split("=")[1] ?? "1",
+  10
+);
 const inputFiles = args
   .filter((a) => !a.startsWith("--"))
   .map((f) => resolve(f));
@@ -510,40 +514,70 @@ async function main() {
   console.log(`   Generation model: ${displayModel}`);
   console.log(`   Judge model:      ${judgeModel}`);
   console.log(`   Files: ${files.length}`);
+  console.log(`   Iterations: ${iterations}`);
   console.log(`   Dimensions: Self-contained (S), Concrete (C), Grounded (G)`);
   console.log("═".repeat(60));
 
-  const results: FileResult[] = [];
+  const allIterationResults: FileResult[][] = [];
   const startTime = Date.now();
 
-  for (const file of files) {
-    if (!existsSync(file)) {
-      console.error(`File not found: ${file}`);
-      continue;
+  for (let iter = 0; iter < iterations; iter++) {
+    if (iterations > 1) {
+      console.log(`\n${"━".repeat(60)}`);
+      console.log(`ITERATION ${iter + 1}/${iterations}`);
+      console.log("━".repeat(60));
     }
-    try {
-      const result = await processFile(file);
-      results.push(result);
-    } catch (error: any) {
-      console.error(`  ❌ FAILED ${basename(file)}: ${error.message}`);
-      results.push({
-        file: basename(file),
-        totalLessons: 0,
-        successfulLessons: 0,
-        gradedQuestions: [],
-        stats: {
-          selfContained: { pass: 0, fail: 0 },
-          concrete: { pass: 0, fail: 0 },
-          grounded: { pass: 0, fail: 0 },
-          overallPass: 0,
-          overallFail: 0,
-        },
-        generationTimeMs: 0,
-        judgingTimeMs: 0,
-      });
+
+    const results: FileResult[] = [];
+
+    for (const file of files) {
+      if (!existsSync(file)) {
+        console.error(`File not found: ${file}`);
+        continue;
+      }
+      try {
+        const result = await processFile(file);
+        results.push(result);
+      } catch (error: any) {
+        console.error(`  ❌ FAILED ${basename(file)}: ${error.message}`);
+        results.push({
+          file: basename(file),
+          totalLessons: 0,
+          successfulLessons: 0,
+          gradedQuestions: [],
+          stats: {
+            selfContained: { pass: 0, fail: 0 },
+            concrete: { pass: 0, fail: 0 },
+            grounded: { pass: 0, fail: 0 },
+            overallPass: 0,
+            overallFail: 0,
+          },
+          generationTimeMs: 0,
+          judgingTimeMs: 0,
+        });
+      }
+    }
+
+    allIterationResults.push(results);
+
+    if (iterations > 1) {
+      const iterGraded = results.flatMap((r) => r.gradedQuestions);
+      const iterTotal = iterGraded.length;
+      const iterSC = iterGraded.filter((q) => q.verdict.selfContained).length;
+      const iterC = iterGraded.filter((q) => q.verdict.concrete).length;
+      const iterG = iterGraded.filter((q) => q.verdict.grounded).length;
+      const iterAll = iterGraded.filter(
+        (q) => q.verdict.selfContained && q.verdict.concrete && q.verdict.grounded
+      ).length;
+      const p = (n: number) => iterTotal > 0 ? `${Math.round((n / iterTotal) * 100)}%` : "N/A";
+      console.log(
+        `  Iteration ${iter + 1}: ${iterTotal} graded — S:${p(iterSC)} C:${p(iterC)} G:${p(iterG)} All:${p(iterAll)}`
+      );
     }
   }
 
+  // Flatten all iterations into one results array for aggregate stats
+  const results = allIterationResults.flat();
   const totalTimeMs = Date.now() - startTime;
 
   // ── Aggregate ──
@@ -573,9 +607,10 @@ async function main() {
     total > 0 ? `${Math.round((n / total) * 100)}%` : "N/A";
 
   console.log("\n" + "═".repeat(60));
-  console.log("AGGREGATE RESULTS");
+  console.log(`AGGREGATE RESULTS${iterations > 1 ? ` (${iterations} iterations)` : ""}`);
   console.log("═".repeat(60));
   console.log(`  Total time:       ${(totalTimeMs / 1000).toFixed(1)}s`);
+  if (iterations > 1) console.log(`  Iterations:       ${iterations}`);
   console.log(`  Questions graded: ${total}`);
   console.log(`  Fully grounded:   ${agg.overallPass}/${total} (${pct(agg.overallPass)})`);
   console.log();
@@ -709,6 +744,7 @@ async function main() {
     timestamp: new Date().toISOString(),
     generationModel: model ?? DEFAULT_MODEL,
     judgeModel,
+    iterations,
     totalTimeMs,
     aggregate: {
       totalGraded: total,
