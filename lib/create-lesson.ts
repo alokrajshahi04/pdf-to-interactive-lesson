@@ -60,6 +60,26 @@ export interface ValidationResult {
   };
 }
 
+/**
+ * Shuffles multiple-choice options in-place and updates the answer index.
+ * The prompt instructs the model to always place the correct answer at index 0,
+ * so we use choices[0] as the source of truth regardless of what answer index
+ * the model outputs. This eliminates wrong-index errors.
+ */
+function shuffleMultipleChoice(lesson: any): void {
+  const choices = lesson.choices as (string | number)[];
+  const correctChoice = choices[0];
+
+  // Fisher-Yates shuffle
+  for (let i = choices.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [choices[i], choices[j]] = [choices[j], choices[i]];
+  }
+
+  // Update the answer index to where the correct choice ended up
+  lesson.answer = choices.indexOf(correctChoice);
+}
+
 export async function createLessons({
   module,
   content,
@@ -84,11 +104,13 @@ export async function createLessons({
 
   const standardLessonPrompt = `Analyse the following content and create 3 lessons for the module "${module.title}".
 Respond ONLY with a JSON object. No other text.
+
+CRITICAL: Every fact, claim, and detail in your lessons MUST come directly from the source content below. Do NOT infer, elaborate, or add information not explicitly stated in the source. Do NOT reference the source as "the article", "the passage", or "the brief" — write as if the lesson stands alone.
 ${moduleContext}${dedupContext}
 You must create exactly ONE lesson for EACH question type:
 1. "short-answer" - answer is a text string. The answer must be a fact EXPLICITLY stated in the source content. Do NOT ask about exact URLs, code snippets, or strings that may have formatting issues. Do NOT embed unverified claims or translations in the question itself — only state facts from the source.
 2. "true-false" - answer is true or false (boolean). The statement MUST be clearly and unambiguously true or false based solely on the source content. Avoid nuanced, debatable, or misleading phrasing. Do NOT use double negatives. Do NOT paraphrase the source in a way that subtly changes meaning.
-3. "multiple-choice" - answer is index 0-3, must include 4 choices
+3. "multiple-choice" - answer is ALWAYS 0. Put the CORRECT answer as the FIRST choice (index 0), then 3 wrong choices. The correct answer AND all distractor choices must be grounded in or directly related to the source content. Do NOT invent plausible-sounding facts for distractors.
 
 Return this exact JSON structure:
 {
@@ -115,8 +137,8 @@ Return this exact JSON structure:
       "info": "A quick one sentence key fact",
       "question": "A multiple choice question",
       "questionType": "multiple-choice",
-      "answer": 1,
-      "choices": ["Option A", "Option B (correct)", "Option C", "Option D"],
+      "answer": 0,
+      "choices": ["Correct answer", "Wrong option B", "Wrong option C", "Wrong option D"],
       "explanation": "Why the correct answer is right"
     }
   ]
@@ -182,6 +204,13 @@ ${content}`;
   // Track failures by lesson index
   const failuresByIndex = new Map<number, FailedLesson>();
   const lessons: any[] = validated.data.lessons.map((lesson) => ({ ...lesson }));
+
+  // Shuffle multiple-choice options so the correct answer isn't always first
+  for (const lesson of lessons) {
+    if (lesson.questionType === "multiple-choice" && Array.isArray(lesson.choices) && lesson.choices.length === 4) {
+      shuffleMultipleChoice(lesson);
+    }
+  }
 
   // Run LLM-based content validation if requested (concurrently)
   if (validateContent) {
@@ -270,6 +299,8 @@ ${content}`;
 ${failed.error.reason}
 ${failed.error.details?.join("\n") || ""}
 
+IMPORTANT: All facts must come ONLY from the source content. Do NOT infer or add information not in the source.
+
 Module: "${module.title}"
 Original lesson: ${JSON.stringify(failed.data, null, 2)}
 
@@ -279,12 +310,16 @@ ${content}
 Generate a corrected version. Respond ONLY with JSON matching this structure:
 ${failed.data.questionType === "short-answer" ? '{"title":"...","content":"...","info":"...","question":"...","questionType":"short-answer","answer":"..."}' : ""}
 ${failed.data.questionType === "true-false" ? '{"title":"...","content":"...","info":"...","question":"...","questionType":"true-false","answer":true}' : ""}
-${failed.data.questionType === "multiple-choice" ? '{"title":"...","content":"...","info":"...","question":"...","questionType":"multiple-choice","answer":1,"choices":["A","B","C","D"],"explanation":"..."}' : ""}`,
+${failed.data.questionType === "multiple-choice" ? '{"title":"...","content":"...","info":"...","question":"...","questionType":"multiple-choice","answer":0,"choices":["Correct answer","Wrong B","Wrong C","Wrong D"],"explanation":"..."}' : ""}`,
           });
           const parsed = parseJSON(fixResult.text);
           const revalidated = singleLessonSchema.safeParse(parsed);
           if (revalidated.success) {
-            lessons[index] = { ...revalidated.data };
+            const fixed = { ...revalidated.data };
+            if (fixed.questionType === "multiple-choice" && Array.isArray(fixed.choices) && fixed.choices.length === 4) {
+              shuffleMultipleChoice(fixed);
+            }
+            lessons[index] = fixed;
             failuresByIndex.delete(index);
           }
         } catch {
@@ -334,6 +369,7 @@ async function generateFlowDiagram({
       model: together(model),
       prompt: `Analyze the following content for the module "${moduleTitle}".
 Determine if this content describes a PROCESS, SYSTEM, or SEQUENTIAL FLOW suitable for a flow diagram.
+Only include processes and steps that are EXPLICITLY described in the source content. Do NOT invent or infer steps.
 
 Good candidates: step-by-step processes, system architectures, cause-and-effect chains, workflows, state transitions.
 
@@ -428,6 +464,7 @@ Rules:
 - Slots = "First", "Second", "Third"
 - Answer = array of 3 indices (0-2) mapping slot→choice. [0,2,1] means First→choice0, Second→choice2, Third→choice1
 - The question MUST be specific to this process — mention the actual process or topic by name. Do NOT use generic phrasing like "Put the following steps in the correct order"
+- All content, info, and question text must come from the source content. Do NOT add facts not in the source.
 
 Source content:
 ${content}`,
@@ -510,6 +547,7 @@ Validation Criteria:
 3. ANSWER: Is the answer correct based on the source content?
 4. CHOICES (if multiple-choice): Are all choices plausible? Is the correct answer index accurate?
 5. INFO: Does the highlighted info fact come from the lesson content?
+6. GROUNDING: Are ALL facts and claims in the lesson content, answer, and choices EXPLICITLY stated in or directly supported by the source? Flag any claims that appear plausible but are NOT in the source (hallucination).
 
 Return:
 {"isValid": true, "explanation": "Brief assessment"}
