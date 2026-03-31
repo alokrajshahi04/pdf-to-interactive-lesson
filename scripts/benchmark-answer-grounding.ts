@@ -15,13 +15,15 @@
  *
  * If no files given, runs all PDFs in data/pdfs/.
  * --model   sets the generation model (default: MiniMaxAI/MiniMax-M2.5)
- * --judge   sets the judge model via OpenRouter (default: anthropic/claude-opus-4-6)
+ * --judge   sets the judge model (default: anthropic/claude-opus-4-6). Use --judge=claude to use Claude Code CLI.
  * --tag     label for the output file (default: grounding)
  */
 
 import { createCourse } from "../lib/create-course";
 import { generateText } from "ai";
 import { createOpenAI } from "@ai-sdk/openai";
+import { createTogetherAI } from "@ai-sdk/togetherai";
+import { createAnthropic } from "@ai-sdk/anthropic";
 import { ocr } from "../lib/ocr";
 import { DEFAULT_MODEL } from "../lib/utils/together";
 import { parseJSON } from "../lib/utils/json";
@@ -41,7 +43,7 @@ const model =
   args.find((a) => a.startsWith("--model="))?.split("=")[1] ?? undefined;
 const judgeModel =
   args.find((a) => a.startsWith("--judge="))?.split("=")[1] ??
-  "anthropic/claude-opus-4-6";
+  "anthropic/claude-sonnet-4-6";
 const iterations = parseInt(
   args.find((a) => a.startsWith("--iterations="))?.split("=")[1] ?? "1",
   10
@@ -57,15 +59,39 @@ if (!apiKey) {
 }
 
 const openrouterApiKey = process.env.OPENROUTER_API_KEY;
-if (!openrouterApiKey) {
-  console.error("OPENROUTER_API_KEY is required (used for the judge model)");
-  process.exit(1);
+const anthropicApiKey = process.env.ANTHROPIC_API_KEY;
+
+// Judge provider selection:
+// 1. anthropic/ prefix + ANTHROPIC_API_KEY → use @ai-sdk/anthropic directly
+// 2. anthropic/ prefix + OPENROUTER_API_KEY → use OpenRouter
+// 3. other models → use Together AI
+function getJudgeModel() {
+  if (judgeModel.startsWith("anthropic/")) {
+    const modelId = judgeModel.replace("anthropic/", "");
+    if (anthropicApiKey) {
+      return createAnthropic({ apiKey: anthropicApiKey })(modelId);
+    }
+    if (openrouterApiKey) {
+      return createOpenAI({
+        apiKey: openrouterApiKey,
+        baseURL: "https://openrouter.ai/api/v1",
+        compatibility: "compatible",
+      })(judgeModel);
+    }
+    throw new Error("anthropic/ judge requires ANTHROPIC_API_KEY or OPENROUTER_API_KEY");
+  }
+  return createTogetherAI({ apiKey: apiKey })(judgeModel);
 }
 
-const openrouter = createOpenAI({
-  apiKey: openrouterApiKey,
-  baseURL: "https://openrouter.ai/api/v1",
-});
+async function judge(prompt: string): Promise<string> {
+  const r = await generateText({
+    model: getJudgeModel(),
+    temperature: 0,
+    maxOutputTokens: 1024,
+    prompt,
+  });
+  return r.text;
+}
 
 // ── Types ───────────────────────────────────────────────
 
@@ -264,17 +290,14 @@ async function judgeGrounding(
 ): Promise<GroundingVerdict> {
   const questionContext = buildQuestionContext(q);
 
-  const result = await generateText({
-    model: openrouter(judgeModel),
-    maxTokens: 1024,
-    prompt: `You are a quality judge for educational content. Evaluate the GROUNDING and SELF-CONTAINEDNESS of a question-answer pair.
+  const resultText = await judge(`You are a quality judge for educational content. Evaluate the GROUNDING and SELF-CONTAINEDNESS of a question-answer pair.
 
 This is NOT about whether the answer is factually correct. It's about whether the answer is well-formed, self-contained, and properly grounded in the source material.
 
 ${questionContext}
 
-Source content the lesson was generated from (may be truncated):
-${sourceContent.substring(0, 8000)}
+Source content the lesson was generated from:
+${sourceContent}
 
 Evaluate these three dimensions:
 
@@ -302,13 +325,12 @@ Respond ONLY with JSON:
   "grounded": true/false,
   "issues": ["list of specific issues found, empty if all pass"],
   "explanation": "Brief overall assessment"
-}`,
-  });
+}`);
 
-  const verdict = parseGroundingResponse(result.text);
+  const verdict = parseGroundingResponse(resultText);
   if (!verdict) {
     console.warn(
-      `  ⚠️  Judge parse failed. Raw: ${result.text.substring(0, 200)}`
+      `  ⚠️  Judge parse failed. Raw: ${resultText.substring(0, 200)}`
     );
     return {
       selfContained: true,
@@ -331,20 +353,10 @@ async function processFile(filePath: string): Promise<FileResult> {
 
   const { content, ocrTimeMs } = await getContent(filePath);
 
-  const maxChars = 20000;
-  const truncated =
-    content.length > maxChars
-      ? content.substring(0, maxChars) + "\n\n[Content truncated]"
-      : content;
-
-  if (content.length > maxChars) {
-    console.log(`  Truncated: ${content.length} → ${maxChars} chars`);
-  }
-
   // Generate course
   const genStart = Date.now();
   const course = await createCourse({
-    content: truncated,
+    content,
     apiKey: apiKey!,
     model,
     validateStructure: true,
@@ -402,7 +414,7 @@ async function processFile(filePath: string): Promise<FileResult> {
         choices: lesson.data.choices,
         slots: lesson.data.slots,
       },
-      truncated
+      content
     );
 
     // If heuristics flagged issues, force selfContained to false

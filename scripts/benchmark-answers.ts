@@ -10,13 +10,15 @@
  *
  * If no files given, runs all PDFs in data/pdfs/.
  * --model   sets the generation model (default: MiniMaxAI/MiniMax-M2.5)
- * --judge   sets the judge model via OpenRouter (default: anthropic/claude-opus-4-6)
+ * --judge   sets the judge model (default: anthropic/claude-opus-4-6). Use --judge=claude to use Claude Code CLI.
  * --tag     label for the output file (default: answers)
  */
 
 import { createCourse } from "../lib/create-course";
 import { generateText } from "ai";
 import { createOpenAI } from "@ai-sdk/openai";
+import { createTogetherAI } from "@ai-sdk/togetherai";
+import { createAnthropic } from "@ai-sdk/anthropic";
 import { ocr } from "../lib/ocr";
 import { DEFAULT_MODEL } from "../lib/utils/together";
 import { parseJSON } from "../lib/utils/json";
@@ -33,7 +35,7 @@ const args = process.argv.slice(2);
 const tag = args.find((a) => a.startsWith("--tag="))?.split("=")[1] ?? "answers";
 const model = args.find((a) => a.startsWith("--model="))?.split("=")[1] ?? undefined;
 const judgeModel =
-  args.find((a) => a.startsWith("--judge="))?.split("=")[1] ?? "anthropic/claude-opus-4-6";
+  args.find((a) => a.startsWith("--judge="))?.split("=")[1] ?? "anthropic/claude-sonnet-4-6";
 const iterations = parseInt(
   args.find((a) => a.startsWith("--iterations="))?.split("=")[1] ?? "1",
   10
@@ -47,16 +49,39 @@ if (!apiKey) {
 }
 
 const openrouterApiKey = process.env.OPENROUTER_API_KEY;
-if (!openrouterApiKey) {
-  console.error("OPENROUTER_API_KEY is required (used for the judge model)");
-  process.exit(1);
+const anthropicApiKey = process.env.ANTHROPIC_API_KEY;
+
+// Judge provider selection:
+// 1. anthropic/ prefix + ANTHROPIC_API_KEY → use @ai-sdk/anthropic directly
+// 2. anthropic/ prefix + OPENROUTER_API_KEY → use OpenRouter
+// 3. other models → use Together AI
+function getJudgeModel() {
+  if (judgeModel.startsWith("anthropic/")) {
+    const modelId = judgeModel.replace("anthropic/", "");
+    if (anthropicApiKey) {
+      return createAnthropic({ apiKey: anthropicApiKey })(modelId);
+    }
+    if (openrouterApiKey) {
+      return createOpenAI({
+        apiKey: openrouterApiKey,
+        baseURL: "https://openrouter.ai/api/v1",
+        compatibility: "compatible",
+      })(judgeModel);
+    }
+    throw new Error("anthropic/ judge requires ANTHROPIC_API_KEY or OPENROUTER_API_KEY");
+  }
+  return createTogetherAI({ apiKey: apiKey })(judgeModel);
 }
 
-// OpenRouter client (OpenAI-compatible)
-const openrouter = createOpenAI({
-  apiKey: openrouterApiKey,
-  baseURL: "https://openrouter.ai/api/v1",
-});
+async function judge(prompt: string): Promise<string> {
+  const r = await generateText({
+    model: getJudgeModel(),
+    temperature: 0,
+    maxOutputTokens: 1024,
+    prompt,
+  });
+  return r.text;
+}
 
 // ── Types ───────────────────────────────────────────────
 
@@ -189,9 +214,7 @@ async function judgeQuestion(
 ): Promise<{ correct: boolean; explanation: string; expectedAnswer?: string }> {
   const questionContext = buildQuestionContext(q);
 
-  const result = await generateText({
-    model: openrouter(judgeModel),
-    prompt: `You are an answer-correctness judge. Given a question, its answer, and the source content the question was derived from, determine if the answer is CORRECT.
+  const resultText = await judge(`You are an answer-correctness judge. Given a question, its answer, and the source content the question was derived from, determine if the answer is CORRECT.
 
 ${questionContext}
 
@@ -215,12 +238,11 @@ Respond ONLY with JSON:
 {"correct": true, "explanation": "Brief reason"}
 
 Or if wrong:
-{"correct": false, "explanation": "What's wrong", "expectedAnswer": "What the correct answer should be"}`,
-  });
+{"correct": false, "explanation": "What's wrong", "expectedAnswer": "What the correct answer should be"}`);
 
-  const firstVerdict = parseJudgeResponse(result.text);
+  const firstVerdict = parseJudgeResponse(resultText);
   if (!firstVerdict) {
-    console.warn(`  ⚠️  Judge parse failed. Raw: ${result.text.substring(0, 200)}`);
+    console.warn(`  ⚠️  Judge parse failed. Raw: ${resultText.substring(0, 200)}`);
     return { correct: false, explanation: "Judge failed to parse response" };
   }
 
@@ -230,9 +252,7 @@ Or if wrong:
   }
 
   // Re-judge failures with a verification pass to catch self-contradictions
-  const verifyResult = await generateText({
-    model: openrouter(judgeModel),
-    prompt: `A judge evaluated a question and marked the answer as INCORRECT. Review the judge's reasoning and determine if the verdict is actually right.
+  const verifyText = await judge(`A judge evaluated a question and marked the answer as INCORRECT. Review the judge's reasoning and determine if the verdict is actually right.
 
 Question details:
 ${questionContext}
@@ -250,10 +270,9 @@ Based on the source content and the judge's own reasoning:
 Respond ONLY with JSON:
 {"correct": true, "explanation": "The answer is actually correct because..."}
 or
-{"correct": false, "explanation": "The answer is genuinely incorrect because..."}`,
-  });
+{"correct": false, "explanation": "The answer is genuinely incorrect because..."}`);
 
-  const verifyVerdict = parseJudgeResponse(verifyResult.text);
+  const verifyVerdict = parseJudgeResponse(verifyText);
   if (verifyVerdict) {
     return verifyVerdict;
   }
@@ -271,20 +290,10 @@ async function processFile(filePath: string): Promise<FileResult> {
 
   const { content, ocrTimeMs } = await getContent(filePath);
 
-  const maxChars = 20000;
-  const truncated =
-    content.length > maxChars
-      ? content.substring(0, maxChars) + "\n\n[Content truncated]"
-      : content;
-
-  if (content.length > maxChars) {
-    console.log(`  Truncated: ${content.length} → ${maxChars} chars`);
-  }
-
   // Generate course
   const genStart = Date.now();
   const course = await createCourse({
-    content: truncated,
+    content,
     apiKey: apiKey!,
     model,
     validateStructure: true,
@@ -330,7 +339,7 @@ async function processFile(filePath: string): Promise<FileResult> {
         content: lesson.data.content,
         slots: lesson.data.slots,
       },
-      truncated
+      content
     );
 
     return {

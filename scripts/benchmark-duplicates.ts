@@ -68,16 +68,9 @@ async function processPdf(filePath: string): Promise<CourseResult> {
 
   console.log(`  📄 OCR done: ${ocrResult.successfulPages} pages, ${content.length} chars (${((Date.now() - ocrStart) / 1000).toFixed(1)}s)`);
 
-  // Truncate to keep costs reasonable
-  const maxChars = 20000;
-  const truncated =
-    content.length > maxChars
-      ? content.substring(0, maxChars) + "\n\n[Content truncated]"
-      : content;
-
   const courseStart = Date.now();
   const course = await createCourse({
-    content: truncated,
+    content,
     apiKey: apiKey!,
     validateStructure: true,
     validateContent: true,
@@ -210,14 +203,75 @@ async function main() {
     }
   }
 
-  // Flatten all iterations
-  const results = allIterationResults.flat();
   const totalTimeMs = Date.now() - startTime;
 
-  // Collect all questions
-  const allQuestions = results.flatMap((r) => r.questions);
-  const totalLessons = results.reduce((s, r) => s + r.totalLessons, 0);
-  const totalSuccessful = results.reduce((s, r) => s + r.successfulLessons, 0);
+  // Compute per-iteration stats (duplicates only within each single run)
+  interface IterationStats {
+    totalQuestions: number;
+    uniqueQuestions: number;
+    duplicateGroups: number;
+    questionsInDuplicateGroups: number;
+    duplicationRate: number;
+    withinCourseDupeGroups: number;
+    crossCourseDupeGroups: number;
+    perCourse: { file: string; totalLessons: number; successfulLessons: number; questions: Question[]; duplicates: DuplicateGroup[] }[];
+    allDuplicates: DuplicateGroup[];
+    crossCourseDuplicates: DuplicateGroup[];
+  }
+
+  const iterationStats: IterationStats[] = [];
+
+  for (let iter = 0; iter < allIterationResults.length; iter++) {
+    const results = allIterationResults[iter];
+    const iterQuestions = results.flatMap((r) => r.questions);
+
+    // Within-course duplicates
+    let withinCourseDupeGroups = 0;
+    for (const result of results) {
+      withinCourseDupeGroups += findDuplicates(result.questions).length;
+    }
+
+    // Cross-course duplicates (within this iteration only)
+    const allDupes = findDuplicates(iterQuestions);
+    const crossFileDupes = allDupes.filter((g) => {
+      const files = new Set(g.occurrences.map((o) => o.file));
+      return files.size > 1;
+    });
+
+    const questionsInDupeGroups = allDupes.reduce((s, g) => s + g.occurrences.length, 0);
+    const uniqueQuestions = iterQuestions.length - questionsInDupeGroups + allDupes.length;
+
+    iterationStats.push({
+      totalQuestions: iterQuestions.length,
+      uniqueQuestions,
+      duplicateGroups: allDupes.length,
+      questionsInDuplicateGroups: questionsInDupeGroups,
+      duplicationRate: iterQuestions.length > 0 ? (questionsInDupeGroups / iterQuestions.length) * 100 : 0,
+      withinCourseDupeGroups,
+      crossCourseDupeGroups: crossFileDupes.length,
+      perCourse: results.map((r) => ({
+        file: r.file,
+        totalLessons: r.totalLessons,
+        successfulLessons: r.successfulLessons,
+        questions: r.questions,
+        duplicates: findDuplicates(r.questions),
+      })),
+      allDuplicates: allDupes,
+      crossCourseDuplicates: crossFileDupes,
+    });
+  }
+
+  // Aggregate across iterations
+  const allResults = allIterationResults.flat();
+  const totalLessons = allResults.reduce((s, r) => s + r.totalLessons, 0);
+  const totalSuccessful = allResults.reduce((s, r) => s + r.successfulLessons, 0);
+  const totalQuestions = iterationStats.reduce((s, it) => s + it.totalQuestions, 0);
+  const avgDuplicationRate = iterationStats.length > 0
+    ? iterationStats.reduce((s, it) => s + it.duplicationRate, 0) / iterationStats.length
+    : 0;
+  const totalDupeGroups = iterationStats.reduce((s, it) => s + it.duplicateGroups, 0);
+  const totalWithinCourseDupes = iterationStats.reduce((s, it) => s + it.withinCourseDupeGroups, 0);
+  const totalCrossCourseDupes = iterationStats.reduce((s, it) => s + it.crossCourseDupeGroups, 0);
 
   console.log("\n" + "═".repeat(60));
   console.log(`RESULTS SUMMARY${iterations > 1 ? ` (${iterations} iterations)` : ""}`);
@@ -226,51 +280,63 @@ async function main() {
   if (iterations > 1) console.log(`  Iterations:       ${iterations}`);
   console.log(`  Total lessons:    ${totalLessons}`);
   console.log(`  Successful:       ${totalSuccessful}`);
-  console.log(`  Total questions:  ${allQuestions.length}`);
+  console.log(`  Total questions:  ${totalQuestions}`);
 
-  // --- Per-course duplicate analysis ---
+  // --- Per-iteration duplicate analysis ---
+  if (iterations > 1) {
+    console.log("\n" + "─".repeat(60));
+    console.log("PER-ITERATION DUPLICATE RATES");
+    console.log("─".repeat(60));
+    for (let i = 0; i < iterationStats.length; i++) {
+      const it = iterationStats[i];
+      console.log(`  Iteration ${i + 1}: ${it.totalQuestions} questions — ${it.duplicateGroups} dupe groups — rate: ${it.duplicationRate.toFixed(1)}%`);
+    }
+  }
+
+  // --- Per-course duplicate analysis (show details from each iteration) ---
   console.log("\n" + "─".repeat(60));
   console.log("PER-COURSE DUPLICATE ANALYSIS");
   console.log("─".repeat(60));
 
-  let totalWithinCourseDupes = 0;
+  for (let iter = 0; iter < allIterationResults.length; iter++) {
+    if (iterations > 1) {
+      console.log(`\n  --- Iteration ${iter + 1} ---`);
+    }
+    for (const result of allIterationResults[iter]) {
+      const dupes = findDuplicates(result.questions);
+      const dupeCount = dupes.reduce((s, g) => s + g.occurrences.length, 0);
 
-  for (const result of results) {
-    const dupes = findDuplicates(result.questions);
-    const dupeCount = dupes.reduce((s, g) => s + g.occurrences.length, 0);
-    totalWithinCourseDupes += dupes.length;
-
-    if (dupes.length > 0) {
-      console.log(`\n  📕 ${result.file} — ${dupes.length} duplicate group(s) (${dupeCount} questions involved)`);
-      for (const group of dupes) {
-        console.log(`    🔁 "${group.question.substring(0, 80)}${group.question.length > 80 ? "..." : ""}"`);
-        for (const occ of group.occurrences) {
-          console.log(`       └─ Module ${occ.moduleIndex + 1} "${occ.moduleTitle}" / Lesson ${occ.lessonIndex + 1} (${occ.questionType})`);
+      if (dupes.length > 0) {
+        console.log(`\n  📕 ${result.file} — ${dupes.length} duplicate group(s) (${dupeCount} questions involved)`);
+        for (const group of dupes) {
+          console.log(`    🔁 "${group.question.substring(0, 80)}${group.question.length > 80 ? "..." : ""}"`);
+          for (const occ of group.occurrences) {
+            console.log(`       └─ Module ${occ.moduleIndex + 1} "${occ.moduleTitle}" / Lesson ${occ.lessonIndex + 1} (${occ.questionType})`);
+          }
         }
+      } else {
+        console.log(`\n  ✅ ${result.file} — no duplicates within course`);
       }
-    } else {
-      console.log(`\n  ✅ ${result.file} — no duplicates within course`);
     }
   }
 
-  // --- Cross-course duplicate analysis ---
+  // --- Cross-course duplicate analysis (within each iteration) ---
   console.log("\n" + "─".repeat(60));
   console.log("CROSS-COURSE DUPLICATE ANALYSIS");
   console.log("─".repeat(60));
 
-  const crossDupes = findDuplicates(allQuestions);
-  // Filter to only groups spanning multiple files
-  const crossFileDupes = crossDupes.filter((g) => {
-    const files = new Set(g.occurrences.map((o) => o.file));
-    return files.size > 1;
-  });
-
-  if (crossFileDupes.length > 0) {
-    console.log(`  Found ${crossFileDupes.length} duplicate group(s) across files:`);
-    for (const group of crossFileDupes) {
-      console.log(`\n    🔁 "${group.question.substring(0, 80)}${group.question.length > 80 ? "..." : ""}"`);
-      for (const occ of group.occurrences) {
-        console.log(`       └─ ${occ.file} / Module "${occ.moduleTitle}" (${occ.questionType})`);
+  const anyCrossDupes = iterationStats.some((it) => it.crossCourseDupeGroups > 0);
+  if (anyCrossDupes) {
+    for (let i = 0; i < iterationStats.length; i++) {
+      const it = iterationStats[i];
+      if (it.crossCourseDuplicates.length > 0) {
+        console.log(`\n  Iteration ${i + 1}: ${it.crossCourseDuplicates.length} cross-course group(s):`);
+        for (const group of it.crossCourseDuplicates) {
+          console.log(`    🔁 "${group.question.substring(0, 80)}${group.question.length > 80 ? "..." : ""}"`);
+          for (const occ of group.occurrences) {
+            console.log(`       └─ ${occ.file} / Module "${occ.moduleTitle}" (${occ.questionType})`);
+          }
+        }
       }
     }
   } else {
@@ -282,26 +348,26 @@ async function main() {
   console.log("DUPLICATE STATS");
   console.log("═".repeat(60));
 
-  const allDupes = findDuplicates(allQuestions);
-  const questionsInDupeGroups = allDupes.reduce((s, g) => s + g.occurrences.length, 0);
-  const uniqueQuestions = allQuestions.length - questionsInDupeGroups + allDupes.length;
-
-  console.log(`  Total questions generated:    ${allQuestions.length}`);
-  console.log(`  Unique questions:             ${uniqueQuestions}`);
-  console.log(`  Duplicate groups:             ${allDupes.length}`);
-  console.log(`  Questions in duplicate groups: ${questionsInDupeGroups}`);
-  console.log(`  Duplication rate:             ${((questionsInDupeGroups / allQuestions.length) * 100).toFixed(1)}%`);
+  console.log(`  Total questions generated:    ${totalQuestions}`);
+  console.log(`  Avg duplication rate:         ${avgDuplicationRate.toFixed(1)}%`);
+  console.log(`  Total duplicate groups:       ${totalDupeGroups}`);
   console.log(`  Within-course dupe groups:    ${totalWithinCourseDupes}`);
-  console.log(`  Cross-course dupe groups:     ${crossFileDupes.length}`);
+  console.log(`  Cross-course dupe groups:     ${totalCrossCourseDupes}`);
+  if (iterations > 1) {
+    console.log(`  Per-iteration rates:          ${iterationStats.map((it) => `${it.duplicationRate.toFixed(1)}%`).join(", ")}`);
+  }
 
   // --- List ALL questions for review ---
   console.log("\n" + "─".repeat(60));
   console.log("ALL QUESTIONS GENERATED");
   console.log("─".repeat(60));
-  for (const result of results) {
-    console.log(`\n  📕 ${result.file}`);
-    for (const q of result.questions) {
-      console.log(`    [M${q.moduleIndex + 1}L${q.lessonIndex + 1}] (${q.questionType.padEnd(16)}) ${q.question}`);
+  for (let iter = 0; iter < allIterationResults.length; iter++) {
+    if (iterations > 1) console.log(`\n  --- Iteration ${iter + 1} ---`);
+    for (const result of allIterationResults[iter]) {
+      console.log(`\n  📕 ${result.file}`);
+      for (const q of result.questions) {
+        console.log(`    [M${q.moduleIndex + 1}L${q.lessonIndex + 1}] (${q.questionType.padEnd(16)}) ${q.question}`);
+      }
     }
   }
 
@@ -321,23 +387,24 @@ async function main() {
       totalPdfs: pdfFiles.length,
       totalLessons,
       totalSuccessful,
-      totalQuestions: allQuestions.length,
-      uniqueQuestions,
-      duplicateGroups: allDupes.length,
-      questionsInDuplicateGroups: questionsInDupeGroups,
-      duplicationRate: `${((questionsInDupeGroups / allQuestions.length) * 100).toFixed(1)}%`,
+      totalQuestions,
+      avgDuplicationRate: `${avgDuplicationRate.toFixed(1)}%`,
+      totalDuplicateGroups: totalDupeGroups,
       withinCourseDupeGroups: totalWithinCourseDupes,
-      crossCourseDupeGroups: crossFileDupes.length,
+      crossCourseDupeGroups: totalCrossCourseDupes,
     },
-    perCourse: results.map((r) => ({
-      file: r.file,
-      totalLessons: r.totalLessons,
-      successfulLessons: r.successfulLessons,
-      questions: r.questions,
-      duplicates: findDuplicates(r.questions),
+    perIteration: iterationStats.map((it, i) => ({
+      iteration: i + 1,
+      totalQuestions: it.totalQuestions,
+      uniqueQuestions: it.uniqueQuestions,
+      duplicateGroups: it.duplicateGroups,
+      duplicationRate: `${it.duplicationRate.toFixed(1)}%`,
+      withinCourseDupeGroups: it.withinCourseDupeGroups,
+      crossCourseDupeGroups: it.crossCourseDupeGroups,
+      perCourse: it.perCourse,
+      allDuplicates: it.allDuplicates,
+      crossCourseDuplicates: it.crossCourseDuplicates,
     })),
-    allDuplicates: allDupes,
-    crossCourseDuplicates: crossFileDupes,
   };
 
   writeFileSync(outputPath, JSON.stringify(output, null, 2));
