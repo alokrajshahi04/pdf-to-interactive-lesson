@@ -84,18 +84,29 @@ export async function createLessons({
 
   const standardLessonPrompt = `Analyse the following content and create 3 lessons for the module "${module.title}".
 Respond ONLY with a JSON object. No other text.
+
+CRITICAL: Every fact, claim, and detail in your lessons MUST come directly from the source content below. Do NOT infer, elaborate, or add information not explicitly stated in the source. Do NOT reference the source as "the article", "the passage", or "the brief" — write as if the lesson stands alone.
 ${moduleContext}${dedupContext}
+Each lesson must be SELF-SUFFICIENT: the "content" field must teach the specific facts needed to answer its own question. A student who only sees that lesson content should have enough information to answer correctly.
+
 You must create exactly ONE lesson for EACH question type:
-1. "short-answer" - answer is a text string. The answer must be a fact EXPLICITLY stated in the source content. Do NOT ask about exact URLs, code snippets, or strings that may have formatting issues. Do NOT embed unverified claims or translations in the question itself — only state facts from the source.
+1. "short-answer" - answer is a text string. The answer must be a fact EXPLICITLY stated in the source content. Do NOT ask about exact URLs, code snippets, or strings that may have formatting issues. Do NOT embed unverified claims or translations in the question itself — only state facts from the source. The lesson content must explicitly include the answer-bearing fact, not just surrounding context.
 2. "true-false" - answer is true or false (boolean). The statement MUST be clearly and unambiguously true or false based solely on the source content. Avoid nuanced, debatable, or misleading phrasing. Do NOT use double negatives. Do NOT paraphrase the source in a way that subtly changes meaning.
-3. "multiple-choice" - answer is index 0-3, must include 4 choices
+3. "multiple-choice" - answer is ALWAYS 0. Put the CORRECT answer as the FIRST choice (index 0), then 3 wrong choices. The correct answer AND all distractor choices must be grounded in or directly related to the source content. Do NOT invent plausible-sounding facts for distractors. The lesson content must include enough specific detail to distinguish the correct choice from the distractors.
+
+Content-writing rules:
+- Write 4-6 sentences, not 2-3.
+- Include the exact names, numbers, categories, or sequence labels needed for the question when the question depends on them.
+- Avoid vague summaries. If a question asks "which", "what percentage", "what order", or "which technique", the content must explicitly mention the relevant compared items.
+- For multiple-choice, mention the distinguishing detail that makes the correct option correct.
+- Write the content first, then derive the question from that content.
 
 Return this exact JSON structure:
 {
   "lessons": [
     {
       "title": "Lesson Title",
-      "content": "Lesson content, about 3 sentences long.",
+      "content": "Lesson content, 4-6 sentences long and sufficient to answer the question.",
       "info": "A quick one sentence key fact",
       "question": "A question to test understanding",
       "questionType": "short-answer",
@@ -103,7 +114,7 @@ Return this exact JSON structure:
     },
     {
       "title": "Lesson Title",
-      "content": "Lesson content, about 3 sentences long.",
+      "content": "Lesson content, 4-6 sentences long and sufficient to answer the question.",
       "info": "A quick one sentence key fact",
       "question": "A true or false statement",
       "questionType": "true-false",
@@ -111,7 +122,7 @@ Return this exact JSON structure:
     },
     {
       "title": "Lesson Title",
-      "content": "Lesson content, about 3 sentences long.",
+      "content": "Lesson content, 4-6 sentences long and sufficient to answer the question.",
       "info": "A quick one sentence key fact",
       "question": "A multiple choice question",
       "questionType": "multiple-choice",
@@ -270,6 +281,9 @@ ${content}`;
 ${failed.error.reason}
 ${failed.error.details?.join("\n") || ""}
 
+IMPORTANT: All facts must come ONLY from the source content. Do NOT infer or add information not in the source.
+The corrected lesson must be SELF-SUFFICIENT: its content must include the specific facts needed to answer its own question. If the question depends on names, numbers, categories, techniques, or an order of steps, explicitly include those in the content.
+
 Module: "${module.title}"
 Original lesson: ${JSON.stringify(failed.data, null, 2)}
 
@@ -414,7 +428,7 @@ Flow nodes: ${nodeLabels.map((l, i) => `${i + 1}. ${l}`).join(", ")}
 Respond ONLY with JSON:
 {
   "title": "Lesson Title",
-  "content": "Brief 2-3 sentence explanation of the process",
+  "content": "A 4-6 sentence explanation of the process that explicitly names the steps used in the ordering question",
   "info": "One key fact about this process",
   "question": "What is the correct order of steps in [specific process name]?",
   "choices": ["Step A", "Step B", "Step C"],
@@ -428,6 +442,7 @@ Rules:
 - Slots = "First", "Second", "Third"
 - Answer = array of 3 indices (0-2) mapping slot→choice. [0,2,1] means First→choice0, Second→choice2, Third→choice1
 - The question MUST be specific to this process — mention the actual process or topic by name. Do NOT use generic phrasing like "Put the following steps in the correct order"
+- The content MUST explicitly mention all 3 selected step names and make their order clear enough that a student can solve the question from the content alone.
 
 Source content:
 ${content}`,
@@ -510,6 +525,8 @@ Validation Criteria:
 3. ANSWER: Is the answer correct based on the source content?
 4. CHOICES (if multiple-choice): Are all choices plausible? Is the correct answer index accurate?
 5. INFO: Does the highlighted info fact come from the lesson content?
+6. GROUNDING: Are ALL facts and claims in the lesson content, answer, and choices EXPLICITLY stated in or directly supported by the source? Flag any claims that appear plausible but are NOT in the source (hallucination).
+7. SUFFICIENCY: Does the lesson content itself teach enough information for a student to answer the question correctly without seeing the source? Fail if the content is too generic, omits the key names/numbers/categories/steps needed for the question, or does not distinguish the correct answer from alternatives.
 
 Return:
 {"isValid": true, "explanation": "Brief assessment"}
