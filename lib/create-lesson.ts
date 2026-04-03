@@ -18,7 +18,11 @@ import {
   flowQuestionSchema,
   validationResultSchema,
 } from "./schemas";
-import { createTogetherClient, DEFAULT_MODEL } from "./utils/together";
+import {
+  createTogetherClient,
+  DEFAULT_MODEL,
+  getTogetherProviderOptions,
+} from "./utils/together";
 import { parseJSON } from "./utils/json";
 
 export interface LessonProgressCallback {
@@ -60,6 +64,26 @@ export interface ValidationResult {
   };
 }
 
+/**
+ * Shuffles multiple-choice options in-place and updates the answer index.
+ * The prompt instructs the model to always place the correct answer at index 0,
+ * so we use choices[0] as the source of truth regardless of what answer index
+ * the model outputs. This eliminates wrong-index errors.
+ */
+function shuffleMultipleChoice(lesson: any): void {
+  const choices = lesson.choices as (string | number)[];
+  const correctChoice = choices[0];
+
+  // Fisher-Yates shuffle
+  for (let i = choices.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [choices[i], choices[j]] = [choices[j], choices[i]];
+  }
+
+  // Update the answer index to where the correct choice ended up
+  lesson.answer = choices.indexOf(correctChoice);
+}
+
 export async function createLessons({
   module,
   content,
@@ -72,6 +96,7 @@ export async function createLessons({
 }: CreateLessonsInput): Promise<ModuleWithLessons> {
   onProgress?.("lesson-start", `Generating lessons for "${module.title}"...`);
   const together = createTogetherClient(apiKey);
+  const providerOptions = getTogetherProviderOptions(model);
 
   // Build deduplication context for the prompt
   const moduleContext = allModuleTitles.length > 0
@@ -126,8 +151,8 @@ Return this exact JSON structure:
       "info": "A quick one sentence key fact",
       "question": "A multiple choice question",
       "questionType": "multiple-choice",
-      "answer": 1,
-      "choices": ["Option A", "Option B (correct)", "Option C", "Option D"],
+      "answer": 0,
+      "choices": ["Correct answer", "Wrong option B", "Wrong option C", "Wrong option D"],
       "explanation": "Why the correct answer is right"
     }
   ]
@@ -141,6 +166,7 @@ ${content}`;
   // Start both standard lesson generation and flow generation concurrently
   const standardLessonsPromise = generateText({
     model: together(model),
+    providerOptions,
     prompt: standardLessonPrompt,
   });
 
@@ -179,6 +205,7 @@ ${content}`;
 
     const retryResult = await generateText({
       model: together(model),
+      providerOptions,
       prompt: standardLessonPrompt,
     });
     validated = standardLessonsSchema.safeParse(parseJSON(retryResult.text));
@@ -193,6 +220,13 @@ ${content}`;
   // Track failures by lesson index
   const failuresByIndex = new Map<number, FailedLesson>();
   const lessons: any[] = validated.data.lessons.map((lesson) => ({ ...lesson }));
+
+  // Shuffle multiple-choice options so the correct answer isn't always first
+  for (const lesson of lessons) {
+    if (lesson.questionType === "multiple-choice" && Array.isArray(lesson.choices) && lesson.choices.length === 4) {
+      shuffleMultipleChoice(lesson);
+    }
+  }
 
   // Run LLM-based content validation if requested (concurrently)
   if (validateContent) {
@@ -277,6 +311,7 @@ ${content}`;
         try {
           const fixResult = await generateText({
             model: together(model),
+            providerOptions,
             prompt: `Fix this lesson that failed validation. The problem was:
 ${failed.error.reason}
 ${failed.error.details?.join("\n") || ""}
@@ -293,12 +328,16 @@ ${content}
 Generate a corrected version. Respond ONLY with JSON matching this structure:
 ${failed.data.questionType === "short-answer" ? '{"title":"...","content":"...","info":"...","question":"...","questionType":"short-answer","answer":"..."}' : ""}
 ${failed.data.questionType === "true-false" ? '{"title":"...","content":"...","info":"...","question":"...","questionType":"true-false","answer":true}' : ""}
-${failed.data.questionType === "multiple-choice" ? '{"title":"...","content":"...","info":"...","question":"...","questionType":"multiple-choice","answer":1,"choices":["A","B","C","D"],"explanation":"..."}' : ""}`,
+${failed.data.questionType === "multiple-choice" ? '{"title":"...","content":"...","info":"...","question":"...","questionType":"multiple-choice","answer":0,"choices":["Correct answer","Wrong B","Wrong C","Wrong D"],"explanation":"..."}' : ""}`,
           });
           const parsed = parseJSON(fixResult.text);
           const revalidated = singleLessonSchema.safeParse(parsed);
           if (revalidated.success) {
-            lessons[index] = { ...revalidated.data };
+            const fixed = { ...revalidated.data };
+            if (fixed.questionType === "multiple-choice" && Array.isArray(fixed.choices) && fixed.choices.length === 4) {
+              shuffleMultipleChoice(fixed);
+            }
+            lessons[index] = fixed;
             failuresByIndex.delete(index);
           }
         } catch {
@@ -342,12 +381,15 @@ async function generateFlowDiagram({
   model?: string;
 }): Promise<{ hasFlow: boolean; flowConfig?: FlowConfig } | null> {
   const together = createTogetherClient(apiKey);
+  const providerOptions = getTogetherProviderOptions(model);
 
   try {
     const result = await generateText({
       model: together(model),
+      providerOptions,
       prompt: `Analyze the following content for the module "${moduleTitle}".
 Determine if this content describes a PROCESS, SYSTEM, or SEQUENTIAL FLOW suitable for a flow diagram.
+Only include processes and steps that are EXPLICITLY described in the source content. Do NOT invent or infer steps.
 
 Good candidates: step-by-step processes, system architectures, cause-and-effect chains, workflows, state transitions.
 
@@ -416,11 +458,13 @@ async function generateFlowQuestion({
   model?: string;
 }): Promise<FlowDiagramLesson | null> {
   const together = createTogetherClient(apiKey);
+  const providerOptions = getTogetherProviderOptions(model);
   const nodeLabels = flowConfig.nodes.map((n) => n.label);
 
   try {
     const result = await generateText({
       model: together(model),
+      providerOptions,
       prompt: `Given this flow diagram for the module "${moduleTitle}", create a drag-and-drop ordering question.
 
 Flow nodes: ${nodeLabels.map((l, i) => `${i + 1}. ${l}`).join(", ")}
@@ -443,6 +487,9 @@ Rules:
 - Answer = array of 3 indices (0-2) mapping slot→choice. [0,2,1] means First→choice0, Second→choice2, Third→choice1
 - The question MUST be specific to this process — mention the actual process or topic by name. Do NOT use generic phrasing like "Put the following steps in the correct order"
 - The content MUST explicitly mention all 3 selected step names and make their order clear enough that a student can solve the question from the content alone.
+- All content, info, and question text must come from the source content. Do NOT add facts not in the source.
+- The content MUST explicitly mention all 3 selected step names and make their order clear enough that a student can solve the question from the content alone.
+- All content, info, and question text must come from the source content. Do NOT add facts not in the source.
 
 Source content:
 ${content}`,
@@ -487,6 +534,7 @@ export async function validateLesson({
   model = DEFAULT_MODEL,
 }: ValidateLessonInput): Promise<ValidationResult> {
   const together = createTogetherClient(apiKey);
+  const providerOptions = getTogetherProviderOptions(model);
 
   const lessonData = {
     title: lesson.title,
@@ -508,6 +556,7 @@ export async function validateLesson({
 
   const result = await generateText({
     model: together(model),
+    providerOptions,
     prompt: `You are a lesson quality validator. Validate the following lesson against the source content.
 Respond ONLY with JSON. No other text.
 
