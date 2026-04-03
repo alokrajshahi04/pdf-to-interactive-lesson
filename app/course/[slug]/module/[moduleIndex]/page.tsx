@@ -181,6 +181,7 @@ export default function LessonPage() {
     currentLesson,
     moduleProgressData,
     step,
+    moduleIndex: currentModuleIndex,
     lessonIndex,
     userAnswer,
     showResult,
@@ -207,7 +208,7 @@ export default function LessonPage() {
           showNavLinks={true}
           courseTitle={course?.title}
           course={course}
-          currentModuleIndex={isNaN(moduleIndexParam) ? 0 : moduleIndexParam}
+          currentModuleIndex={currentModuleIndex}
           onModuleSelect={(moduleIndex) => {
             router.push(`/course/${slug}/module/${moduleIndex}`);
           }}
@@ -266,7 +267,7 @@ export default function LessonPage() {
         showNavLinks={true}
         courseTitle={course?.title}
         course={course}
-        currentModuleIndex={isNaN(moduleIndexParam) ? 0 : moduleIndexParam}
+        currentModuleIndex={currentModuleIndex}
         onModuleSelect={(moduleIndex) => {
           router.push(`/course/${slug}/module/${moduleIndex}`);
         }}
@@ -277,11 +278,11 @@ export default function LessonPage() {
         {step === "module-complete" ? (
           <div className={shouldAnimatePage ? "animate-fadeIn" : undefined}>
             <ModuleCompleteScreen
-              moduleIndex={isNaN(moduleIndexParam) ? 0 : moduleIndexParam}
+              moduleIndex={currentModuleIndex}
               moduleTitle={currentModule.title}
               moduleStats={moduleStats}
               successfulLessons={successfulLessons}
-              hasNextModule={!isNaN(moduleIndexParam) && moduleIndexParam < course.modules.length - 1}
+              hasNextModule={currentModuleIndex < course.modules.length - 1}
               onContinue={handleContinue}
               onBackToModules={handleBackToModules}
             />
@@ -290,7 +291,7 @@ export default function LessonPage() {
           <div className={shouldAnimatePage ? "animate-fadeIn" : undefined}>
             <LessonScreen
               step={step}
-              moduleIndex={isNaN(moduleIndexParam) ? 0 : moduleIndexParam}
+              moduleIndex={currentModuleIndex}
               moduleTitle={currentModule.title}
               lessonData={data}
               successfulLessonsCount={successfulLessons.length}
