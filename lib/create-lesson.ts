@@ -104,7 +104,7 @@ export async function createLessons({
     : "";
 
   const dedupContext = previousQuestions.length > 0
-    ? `\nIMPORTANT — AVOID DUPLICATE QUESTIONS: The following questions have already been used in other modules of this course. You MUST NOT ask the same or similar questions. Each question must test a DIFFERENT fact or concept.\nAlready used:\n${previousQuestions.map((q, i) => `${i + 1}. "${q}"`).join("\n")}\n`
+    ? `\nIMPORTANT — AVOID DUPLICATE QUESTIONS: The following questions have already been used in other modules of this course. You MUST NOT ask the same or similar questions. Each question must test a DIFFERENT fact or concept.\nThis means: do NOT ask about the same topic even with different wording. For example, if a previous question asks about "continued pretraining phases", do NOT ask another question about continued pretraining phases in different words.\nAlready used:\n${previousQuestions.map((q, i) => `${i + 1}. "${q}"`).join("\n")}\n`
     : "";
 
   const standardLessonPrompt = `Analyse the following content and create 3 lessons for the module "${module.title}".
@@ -175,6 +175,7 @@ ${content}`;
     content,
     apiKey,
     model,
+    previousQuestions,
   });
 
   // Wait for both to complete
@@ -192,6 +193,7 @@ ${content}`;
           content,
           apiKey,
           model,
+          previousQuestions,
         })
       : Promise.resolve(null);
 
@@ -374,14 +376,20 @@ async function generateFlowDiagram({
   content,
   apiKey,
   model = DEFAULT_MODEL,
+  previousQuestions = [],
 }: {
   moduleTitle: string;
   content: string;
   apiKey: string;
   model?: string;
+  previousQuestions?: string[];
 }): Promise<{ hasFlow: boolean; flowConfig?: FlowConfig } | null> {
   const together = createTogetherClient(apiKey);
   const providerOptions = getTogetherProviderOptions(model);
+
+  const flowDedupContext = previousQuestions.length > 0
+    ? `\nIMPORTANT: The following questions have already been used in earlier modules. You must find a DIFFERENT process or flow unique to this module's topic "${moduleTitle}". Do NOT model the same process already covered.\nAlready used questions:\n${previousQuestions.map((q, i) => `${i + 1}. "${q}"`).join("\n")}\n`
+    : "";
 
   try {
     const result = await generateText({
@@ -390,6 +398,8 @@ async function generateFlowDiagram({
       prompt: `Analyze the following content for the module "${moduleTitle}".
 Determine if this content describes a PROCESS, SYSTEM, or SEQUENTIAL FLOW suitable for a flow diagram.
 Only include processes and steps that are EXPLICITLY described in the source content. Do NOT invent or infer steps.
+The flow MUST be specific to the topic of this module ("${moduleTitle}") — not a general overview of the entire document.
+${flowDedupContext}
 
 Good candidates: step-by-step processes, system architectures, cause-and-effect chains, workflows, state transitions.
 
@@ -450,16 +460,22 @@ async function generateFlowQuestion({
   content,
   apiKey,
   model = DEFAULT_MODEL,
+  previousQuestions = [],
 }: {
   flowConfig: FlowConfig;
   moduleTitle: string;
   content: string;
   apiKey: string;
   model?: string;
+  previousQuestions?: string[];
 }): Promise<FlowDiagramLesson | null> {
   const together = createTogetherClient(apiKey);
   const providerOptions = getTogetherProviderOptions(model);
   const nodeLabels = flowConfig.nodes.map((n) => n.label);
+
+  const flowQDedupContext = previousQuestions.length > 0
+    ? `\nIMPORTANT — AVOID DUPLICATE QUESTIONS: These questions already exist in other modules. Your question MUST ask about a DIFFERENT process or aspect. Do NOT rephrase an existing question.\nAlready used:\n${previousQuestions.map((q, i) => `${i + 1}. "${q}"`).join("\n")}\n`
+    : "";
 
   try {
     const result = await generateText({
@@ -468,6 +484,7 @@ async function generateFlowQuestion({
       prompt: `Given this flow diagram for the module "${moduleTitle}", create a drag-and-drop ordering question.
 
 Flow nodes: ${nodeLabels.map((l, i) => `${i + 1}. ${l}`).join(", ")}
+${flowQDedupContext}
 
 Respond ONLY with JSON:
 {
