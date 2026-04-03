@@ -18,7 +18,11 @@ import {
   flowQuestionSchema,
   validationResultSchema,
 } from "./schemas";
-import { createTogetherClient, DEFAULT_MODEL } from "./utils/together";
+import {
+  createTogetherClient,
+  DEFAULT_MODEL,
+  getTogetherProviderOptions,
+} from "./utils/together";
 import { parseJSON } from "./utils/json";
 
 export interface LessonProgressCallback {
@@ -92,6 +96,7 @@ export async function createLessons({
 }: CreateLessonsInput): Promise<ModuleWithLessons> {
   onProgress?.("lesson-start", `Generating lessons for "${module.title}"...`);
   const together = createTogetherClient(apiKey);
+  const providerOptions = getTogetherProviderOptions(model);
 
   // Build deduplication context for the prompt
   const moduleContext = allModuleTitles.length > 0
@@ -152,6 +157,7 @@ ${content}`;
   // Start both standard lesson generation and flow generation concurrently
   const standardLessonsPromise = generateText({
     model: together(model),
+    providerOptions,
     prompt: standardLessonPrompt,
   });
 
@@ -190,6 +196,7 @@ ${content}`;
 
     const retryResult = await generateText({
       model: together(model),
+      providerOptions,
       prompt: standardLessonPrompt,
     });
     validated = standardLessonsSchema.safeParse(parseJSON(retryResult.text));
@@ -295,6 +302,7 @@ ${content}`;
         try {
           const fixResult = await generateText({
             model: together(model),
+            providerOptions,
             prompt: `Fix this lesson that failed validation. The problem was:
 ${failed.error.reason}
 ${failed.error.details?.join("\n") || ""}
@@ -363,10 +371,12 @@ async function generateFlowDiagram({
   model?: string;
 }): Promise<{ hasFlow: boolean; flowConfig?: FlowConfig } | null> {
   const together = createTogetherClient(apiKey);
+  const providerOptions = getTogetherProviderOptions(model);
 
   try {
     const result = await generateText({
       model: together(model),
+      providerOptions,
       prompt: `Analyze the following content for the module "${moduleTitle}".
 Determine if this content describes a PROCESS, SYSTEM, or SEQUENTIAL FLOW suitable for a flow diagram.
 Only include processes and steps that are EXPLICITLY described in the source content. Do NOT invent or infer steps.
@@ -438,11 +448,13 @@ async function generateFlowQuestion({
   model?: string;
 }): Promise<FlowDiagramLesson | null> {
   const together = createTogetherClient(apiKey);
+  const providerOptions = getTogetherProviderOptions(model);
   const nodeLabels = flowConfig.nodes.map((n) => n.label);
 
   try {
     const result = await generateText({
       model: together(model),
+      providerOptions,
       prompt: `Given this flow diagram for the module "${moduleTitle}", create a drag-and-drop ordering question.
 
 Flow nodes: ${nodeLabels.map((l, i) => `${i + 1}. ${l}`).join(", ")}
@@ -509,6 +521,7 @@ export async function validateLesson({
   model = DEFAULT_MODEL,
 }: ValidateLessonInput): Promise<ValidationResult> {
   const together = createTogetherClient(apiKey);
+  const providerOptions = getTogetherProviderOptions(model);
 
   const lessonData = {
     title: lesson.title,
@@ -530,6 +543,7 @@ export async function validateLesson({
 
   const result = await generateText({
     model: together(model),
+    providerOptions,
     prompt: `You are a lesson quality validator. Validate the following lesson against the source content.
 Respond ONLY with JSON. No other text.
 

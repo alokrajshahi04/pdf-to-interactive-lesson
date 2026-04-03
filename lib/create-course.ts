@@ -2,7 +2,11 @@ import { generateText } from "ai";
 import type { CourseStructure, ModuleWithLessons } from "./types";
 import { courseStructureSchema } from "./schemas";
 import { createLessons } from "./create-lesson";
-import { createTogetherClient, DEFAULT_MODEL } from "./utils/together";
+import {
+  createTogetherClient,
+  DEFAULT_MODEL,
+  getTogetherProviderOptions,
+} from "./utils/together";
 import { parseJSON } from "./utils/json";
 
 export interface CourseProgressCallback {
@@ -57,6 +61,7 @@ export async function createModules({
     try {
       const result = await generateText({
         model: together(model),
+        providerOptions: getTogetherProviderOptions(model),
         prompt: `Analyse the following content and create a course structure with 3 modules.
 Respond ONLY with JSON. No other text.
 
