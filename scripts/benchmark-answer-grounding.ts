@@ -15,18 +15,17 @@
  *
  * If no files given, runs all PDFs in data/pdfs/.
  * --model   sets the generation model (default: MiniMaxAI/MiniMax-M2.5)
- * --judge   sets the judge model (default: anthropic/claude-opus-4-6). Use --judge=claude to use Claude Code CLI.
+ * --judge   sets the judge model (default: anthropic/claude-opus-4-6).
+ *           Use anthropic/, openrouter/, or ollama/ prefixes to force a provider.
  * --tag     label for the output file (default: grounding)
  */
 
 import { createCourse } from "../lib/create-course";
 import { generateText } from "ai";
-import { createOpenAI } from "@ai-sdk/openai";
-import { createTogetherAI } from "@ai-sdk/togetherai";
-import { createAnthropic } from "@ai-sdk/anthropic";
 import { ocr } from "../lib/ocr";
 import { DEFAULT_MODEL } from "../lib/utils/together";
 import { parseJSON } from "../lib/utils/json";
+import { getJudgeModel } from "../lib/utils/judge-model";
 import { readdirSync, writeFileSync, mkdirSync, existsSync } from "fs";
 import { resolve, basename, extname, dirname } from "path";
 import { fileURLToPath } from "url";
@@ -60,32 +59,17 @@ if (!apiKey) {
 
 const openrouterApiKey = process.env.OPENROUTER_API_KEY;
 const anthropicApiKey = process.env.ANTHROPIC_API_KEY;
-
-// Judge provider selection:
-// 1. anthropic/ prefix + ANTHROPIC_API_KEY → use @ai-sdk/anthropic directly
-// 2. anthropic/ prefix + OPENROUTER_API_KEY → use OpenRouter
-// 3. other models → use Together AI
-function getJudgeModel() {
-  if (judgeModel.startsWith("anthropic/")) {
-    const modelId = judgeModel.replace("anthropic/", "");
-    if (anthropicApiKey) {
-      return createAnthropic({ apiKey: anthropicApiKey })(modelId);
-    }
-    if (openrouterApiKey) {
-      return createOpenAI({
-        apiKey: openrouterApiKey,
-        baseURL: "https://openrouter.ai/api/v1",
-        compatibility: "compatible",
-      })(judgeModel);
-    }
-    throw new Error("anthropic/ judge requires ANTHROPIC_API_KEY or OPENROUTER_API_KEY");
-  }
-  return createTogetherAI({ apiKey: apiKey })(judgeModel);
-}
+const ollamaBaseUrl = process.env.OLLAMA_BASE_URL;
 
 async function judge(prompt: string): Promise<string> {
   const r = await generateText({
-    model: getJudgeModel(),
+    model: getJudgeModel({
+      judgeModel,
+      togetherApiKey: apiKey,
+      anthropicApiKey,
+      openrouterApiKey,
+      ollamaBaseUrl,
+    }),
     temperature: 0,
     maxOutputTokens: 1024,
     prompt,
