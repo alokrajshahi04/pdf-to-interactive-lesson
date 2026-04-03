@@ -40,16 +40,15 @@ function LessonScreen({
 }: LessonScreenProps) {
   const hasPlayedInitialAnimation = useRef(false);
   const shouldAnimateOnLoad = !hasPlayedInitialAnimation.current;
-  const [showFlowHint, setShowFlowHint] = useState(false);
+  const [showHint, setShowHint] = useState(false);
 
   useEffect(() => {
     hasPlayedInitialAnimation.current = true;
   }, []);
 
-  // Reset flow hint when step changes
   useEffect(() => {
     if (step !== "question") {
-      setShowFlowHint(false);
+      setShowHint(false);
     }
   }, [step]);
 
@@ -150,23 +149,54 @@ function LessonScreen({
           <h1 className={`text-2xl font-bold text-neutral-900 ${animateClass(!showResult)}`}>
             {lessonData.title}
           </h1>
-          <p
-            className={`text-lg text-neutral-800 leading-relaxed ${animateClass(!showResult)}`}
-            style={!showResult ? { animationDelay: "0.1s" } : {}}
-          >
-            {lessonData.content}
-          </p>
-          <div
-            className={`bg-pink-50 border border-pink-200 rounded-2xl p-6 ${animateClass(!showResult)}`}
-            style={!showResult ? { animationDelay: "0.2s" } : {}}
-          >
-            <p className="text-neutral-800 leading-relaxed">{lessonData.info}</p>
-          </div>
+
+          {/* Hint button — reveals the info one-liner */}
+          {!showResult && !showHint && (
+            <div className={animateClass(!showResult)} style={!showResult ? { animationDelay: "0.1s" } : {}}>
+              <button
+                onClick={() => setShowHint(true)}
+                className="px-4 py-2 bg-pink-50 text-pink-700 border border-pink-200 rounded-lg hover:bg-pink-100 transition-colors text-sm font-medium flex items-center gap-2"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                </svg>
+                Show Hint
+              </button>
+            </div>
+          )}
+          {showHint && !showResult && (
+            <div className="bg-pink-50 border border-pink-200 rounded-2xl p-6">
+              <div className="flex items-center justify-between">
+                <p className="text-neutral-800 leading-relaxed">{lessonData.info}</p>
+                <button
+                  onClick={() => setShowHint(false)}
+                  className="ml-4 text-xs text-neutral-500 hover:text-neutral-700 flex-shrink-0 flex items-center gap-1"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                  Hide
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* After answering, show the full content for review */}
+          {showResult && (
+            <>
+              <p className="text-lg text-neutral-800 leading-relaxed">
+                {lessonData.content}
+              </p>
+              <div className="bg-pink-50 border border-pink-200 rounded-2xl p-6">
+                <p className="text-neutral-800 leading-relaxed">{lessonData.info}</p>
+              </div>
+            </>
+          )}
 
           <div className="pt-4">
             <p
               className={`text-lg font-medium text-neutral-900 mb-6 ${animateClass(!showResult)}`}
-              style={!showResult ? { animationDelay: "0.3s" } : {}}
+              style={!showResult ? { animationDelay: "0.2s" } : {}}
             >
               {lessonData.question}
             </p>
@@ -176,7 +206,7 @@ function LessonScreen({
               lessonData.choices && (
                 <div
                   className={`space-y-3 ${animateClass(!showResult)}`}
-                  style={!showResult ? { animationDelay: "0.4s" } : {}}
+                  style={!showResult ? { animationDelay: "0.3s" } : {}}
                 >
                   {lessonData.choices.map((choice, idx) => (
                     <button
@@ -230,7 +260,7 @@ function LessonScreen({
             {lessonData.questionType === "true-false" && (
               <div
                 className={`space-y-3 ${animateClass(!showResult)}`}
-                style={!showResult ? { animationDelay: "0.4s" } : {}}
+                style={!showResult ? { animationDelay: "0.3s" } : {}}
               >
                 {[true, false].map((value) => (
                   <button
@@ -272,7 +302,7 @@ function LessonScreen({
             {lessonData.questionType === "short-answer" && (
               <div
                 className={animateClass(!showResult)}
-                style={!showResult ? { animationDelay: "0.4s" } : {}}
+                style={!showResult ? { animationDelay: "0.3s" } : {}}
               >
                 <textarea
                   value={(userAnswer as string) || ""}
@@ -325,7 +355,7 @@ function LessonScreen({
               lessonData.slots && (
                 <div
                   className={animateClass(!showResult)}
-                  style={!showResult ? { animationDelay: "0.4s" } : {}}
+                  style={!showResult ? { animationDelay: "0.3s" } : {}}
                 >
                   <DragDropQuestion
                     choices={lessonData.choices}
@@ -346,33 +376,18 @@ function LessonScreen({
               lessonData.slots && (
                 <div
                   className={animateClass(!showResult)}
-                  style={!showResult ? { animationDelay: "0.4s" } : {}}
+                  style={!showResult ? { animationDelay: "0.3s" } : {}}
                 >
-                  {/* Flow Visualization Hint */}
-                  {!showResult && !showFlowHint && (
-                    <div className="mb-6">
-                      <button
-                        onClick={() => setShowFlowHint(true)}
-                        className="px-4 py-2 bg-blue-50 text-blue-700 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors text-sm font-medium flex items-center gap-2"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        Show Flow Diagram (Hint)
-                      </button>
-                    </div>
-                  )}
-
                   {/* Flow Visualization (shown as hint or after answer) */}
-                  {(showFlowHint || showResult) && (
+                  {(showHint || showResult) && (
                     <div className="mb-8 bg-neutral-50 border-2 border-neutral-200 rounded-xl p-6">
                       <div className="flex items-center justify-between mb-4">
                         <h3 className="text-sm font-semibold text-neutral-700">
                           Process Flow:
                         </h3>
-                        {!showResult && showFlowHint && (
+                        {!showResult && showHint && (
                           <button
-                            onClick={() => setShowFlowHint(false)}
+                            onClick={() => setShowHint(false)}
                             className="text-xs text-neutral-500 hover:text-neutral-700 flex items-center gap-1"
                           >
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -388,7 +403,6 @@ function LessonScreen({
                     </div>
                   )}
 
-                  {/* Drag-Drop Question */}
                   <DragDropQuestion
                     choices={lessonData.choices}
                     slots={lessonData.slots}
