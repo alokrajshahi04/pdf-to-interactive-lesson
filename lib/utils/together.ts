@@ -9,6 +9,21 @@ export function createTogetherClient(apiKey: string) {
   });
 }
 
+export function getTogetherProviderOptions(model: string) {
+  if (
+    model === "moonshotai/Kimi-K2.5" ||
+    model === "Qwen/Qwen3.5-397B-A17B"
+  ) {
+    return {
+      togetherai: {
+        reasoning: { enabled: false },
+      },
+    };
+  }
+
+  return undefined;
+}
+
 /**
  * Default model for course and lesson generation
  */
