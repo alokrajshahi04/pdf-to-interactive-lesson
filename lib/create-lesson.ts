@@ -117,13 +117,14 @@ Each lesson must be SELF-SUFFICIENT: the "content" field must teach the specific
 You must create exactly ONE lesson for EACH question type:
 1. "short-answer" - answer is a text string. The answer must be a fact EXPLICITLY stated in the source content. Do NOT ask about exact URLs, code snippets, or strings that may have formatting issues. Do NOT embed unverified claims or translations in the question itself — only state facts from the source. The lesson content must explicitly include the answer-bearing fact, not just surrounding context.
 2. "true-false" - answer is true or false (boolean). The statement MUST be clearly and unambiguously true or false based solely on the source content. Avoid nuanced, debatable, or misleading phrasing. Do NOT use double negatives. Do NOT paraphrase the source in a way that subtly changes meaning.
-3. "multiple-choice" - answer is ALWAYS 0. Put the CORRECT answer as the FIRST choice (index 0), then 3 wrong choices. The correct answer AND all distractor choices must be grounded in or directly related to the source content. Do NOT invent plausible-sounding facts for distractors. The lesson content must include enough specific detail to distinguish the correct choice from the distractors.
+3. "multiple-choice" - answer is ALWAYS 0. Put the CORRECT answer as the FIRST choice (index 0), then 3 wrong choices. The correct answer AND all distractor choices must be grounded in or directly related to the source content. Do NOT invent plausible-sounding facts for distractors. The lesson content must include enough specific detail to distinguish the correct choice from the distractors. Do NOT write negation-based questions such as "Which is NOT...", "Which is NOT mentioned...", "All of the following EXCEPT...", or any question where the student must pick the absent option.
 
 Content-writing rules:
 - Write 4-6 sentences, not 2-3.
 - Include the exact names, numbers, categories, or sequence labels needed for the question when the question depends on them.
 - Avoid vague summaries. If a question asks "which", "what percentage", "what order", or "which technique", the content must explicitly mention the relevant compared items.
 - For multiple-choice, mention the distinguishing detail that makes the correct option correct.
+- For multiple-choice, ask for the supported/correct option, not the unsupported option.
 - Write the content first, then derive the question from that content.
 
 Return this exact JSON structure:
@@ -589,7 +590,7 @@ Validation Criteria:
 1. CONTENT: Is the lesson content factually accurate based on the source?
 2. QUESTION: Is the question clear, relevant, and properly tests understanding?
 3. ANSWER: Is the answer correct based on the source content?
-4. CHOICES (if multiple-choice): Are all choices plausible? Is the correct answer index accurate?
+4. CHOICES (if multiple-choice): Are all choices plausible? Is the correct answer index accurate? Fail any multiple-choice question that uses negation or exclusion wording such as "NOT", "EXCEPT", "least likely", or asks the student to identify the absent option.
 5. INFO: Does the highlighted info fact come from the lesson content?
 6. GROUNDING: Are ALL facts and claims in the lesson content, answer, and choices EXPLICITLY stated in or directly supported by the source? Flag any claims that appear plausible but are NOT in the source (hallucination).
 7. SUFFICIENCY: Does the lesson content itself teach enough information for a student to answer the question correctly without seeing the source? Fail if the content is too generic, omits the key names/numbers/categories/steps needed for the question, or does not distinguish the correct answer from alternatives.
