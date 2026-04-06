@@ -231,6 +231,24 @@ ${content}`;
     }
   }
 
+  // Reject true-false questions that are actually open-ended (asking "which", "what", etc.)
+  const openEndedPattern = /\b(which|what|who|where|when|how|why|name|list|describe|explain)\b.*\?$/i;
+  for (let i = 0; i < lessons.length; i++) {
+    const lesson = lessons[i];
+    if (lesson.questionType === "true-false" && openEndedPattern.test(lesson.question)) {
+      console.error(`  ❌ True-false question is open-ended, rejecting: "${lesson.question.substring(0, 80)}..."`);
+      failuresByIndex.set(i, {
+        success: false,
+        data: lesson,
+        error: {
+          validationType: "content",
+          reason: "True-false question must be a statement, not an open-ended question. Rewrite as a clear declarative statement that can be judged true or false.",
+          details: [`Question "${lesson.question}" contains interrogative wording incompatible with true-false format.`],
+        },
+      });
+    }
+  }
+
   // Run LLM-based content validation if requested (concurrently)
   if (validateContent) {
     const validationPromises = lessons.map(async (lesson: any, i: number) => {
@@ -369,6 +387,32 @@ ${failed.data.questionType === "multiple-choice" ? '{"title":"...","content":"..
   return moduleResult;
 }
 
+function topologicalSort(flowConfig: FlowConfig): string[] {
+  const { nodes, edges } = flowConfig;
+  const ids = nodes.map((n) => n.id);
+  const inDegree = new Map(ids.map((id) => [id, 0]));
+  const adj = new Map(ids.map((id) => [id, [] as string[]]));
+
+  for (const [from, to] of edges) {
+    adj.get(from)?.push(to);
+    inDegree.set(to, (inDegree.get(to) ?? 0) + 1);
+  }
+
+  const queue = ids.filter((id) => inDegree.get(id) === 0);
+  const order: string[] = [];
+
+  while (queue.length > 0) {
+    const current = queue.shift()!;
+    order.push(current);
+    for (const next of adj.get(current) ?? []) {
+      inDegree.set(next, (inDegree.get(next) ?? 0) - 1);
+      if (inDegree.get(next) === 0) queue.push(next);
+    }
+  }
+
+  return order;
+}
+
 /**
  * Analyzes module content for flow/process diagrams.
  */
@@ -493,19 +537,13 @@ Respond ONLY with JSON:
   "content": "A 4-6 sentence explanation of the process that explicitly names the steps used in the ordering question",
   "info": "One key fact about this process",
   "question": "What is the correct order of steps in [specific process name]?",
-  "choices": ["Step A", "Step B", "Step C"],
-  "slots": ["First", "Second", "Third"],
-  "answer": [0, 2, 1]
+  "stepsInOrder": ["First step", "Second step", "Third step"]
 }
 
 Rules:
 - Select 3 important sequential nodes from the flow
-- Choices = actual node labels from the flow
-- Slots = "First", "Second", "Third"
-- Answer = array of 3 indices (0-2) mapping slot→choice. [0,2,1] means First→choice0, Second→choice2, Third→choice1
+- stepsInOrder = 3 node labels listed in their CORRECT chronological order (first step first, last step last)
 - The question MUST be specific to this process — mention the actual process or topic by name. Do NOT use generic phrasing like "Put the following steps in the correct order"
-- The content MUST explicitly mention all 3 selected step names and make their order clear enough that a student can solve the question from the content alone.
-- All content, info, and question text must come from the source content. Do NOT add facts not in the source.
 - The content MUST explicitly mention all 3 selected step names and make their order clear enough that a student can solve the question from the content alone.
 - All content, info, and question text must come from the source content. Do NOT add facts not in the source.
 
@@ -522,10 +560,28 @@ ${content}`,
     }
 
     const q = validated.data;
-    if (new Set(q.answer).size !== 3) {
-      console.error(`  ❌ Invalid flow answer: not a permutation`);
-      return null;
+
+    // Re-sort stepsInOrder using the flow diagram's topological order as source of truth
+    // (the model sometimes returns steps in the wrong sequence)
+    const topoOrder = topologicalSort(flowConfig);
+    const labelToPosition = new Map<string, number>();
+    for (let i = 0; i < topoOrder.length; i++) {
+      const node = flowConfig.nodes.find((n) => n.id === topoOrder[i]);
+      if (node) labelToPosition.set(node.label, i);
     }
+    const sortedSteps = [...q.stepsInOrder].sort((a, b) => {
+      const posA = labelToPosition.get(a) ?? Infinity;
+      const posB = labelToPosition.get(b) ?? Infinity;
+      return posA - posB;
+    });
+    const correctOrder = sortedSteps;
+    const choices = [...correctOrder];
+    for (let i = choices.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [choices[i], choices[j]] = [choices[j], choices[i]];
+    }
+    const slots = ["First", "Second", "Third"];
+    const answer = correctOrder.map((step) => choices.indexOf(step));
 
     return {
       title: q.title,
@@ -534,9 +590,9 @@ ${content}`,
       question: q.question,
       questionType: QuestionType.FlowDiagram,
       flowConfig,
-      choices: q.choices,
-      slots: q.slots,
-      answer: q.answer,
+      choices,
+      slots,
+      answer,
     };
   } catch (error) {
     console.error(`  ❌ Error generating flow question for "${moduleTitle}":`, error);

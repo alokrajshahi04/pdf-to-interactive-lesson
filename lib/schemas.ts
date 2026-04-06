@@ -119,20 +119,10 @@ export const flowQuestionSchema = z.object({
   question: z
     .string()
     .describe("The ordering question, e.g. 'Put the following steps in the correct order'"),
-  choices: z
+  stepsInOrder: z
     .array(z.string())
     .length(3)
-    .describe("3 node labels from the flow to order"),
-  slots: z
-    .array(z.string())
-    .length(3)
-    .describe('3 ordinal slots, e.g. ["First", "Second", "Third"]'),
-  answer: z
-    .array(z.number().int().min(0).max(2))
-    .length(3)
-    .describe(
-      "Array of 3 indices: position=slot, value=choice index. E.g. [0,2,1] means slot 0→choice 0, slot 1→choice 2, slot 2→choice 1"
-    ),
+    .describe("The 3 steps listed in their correct chronological order"),
 });
 
 export type FlowQuestionOutput = z.infer<typeof flowQuestionSchema>;
