@@ -14,6 +14,7 @@ interface ModulesScreenProps {
   onJumpToLesson?: (moduleIndex: number, lessonIndex: number) => void;
   completedModules: number[];
   currentModuleIndex: number;
+  allComplete?: boolean;
 }
 
 function ModulesScreen({
@@ -23,6 +24,7 @@ function ModulesScreen({
   onJumpToLesson,
   completedModules,
   currentModuleIndex,
+  allComplete = false,
 }: ModulesScreenProps) {
   const [copied, setCopied] = useState(false);
   const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
@@ -73,12 +75,12 @@ function ModulesScreen({
           {/* Left Column - Course Overview */}
           <div className="flex flex-col justify-center lg:pr-16">
             <h2 className="text-5xl font-bold text-neutral-900 mb-6 leading-tight">
-              We built your course!
+              {allComplete ? "Course complete!" : "We built your course!"}
             </h2>
             <p className="text-lg text-neutral-600 mb-12 leading-relaxed">
-              Explore the {totalModules} bite-sized modules — each one turns a
-              dense textbook section into a five-minute mini-lesson with
-              hands-on questions!
+              {allComplete
+                ? `You've completed all ${totalModules} modules. Nice work!`
+                : `Explore the ${totalModules} bite-sized modules — each one turns a dense textbook section into a five-minute mini-lesson with hands-on questions!`}
             </p>
 
             {/* Action Buttons */}
@@ -87,7 +89,7 @@ function ModulesScreen({
                 onClick={() => onStartModule(currentModuleIndex)}
                 className="w-full max-w-sm py-4 gradient-border-button bg-neutral-900 text-white font-semibold hover:bg-neutral-800 transition-all flex items-center justify-center gap-2 cursor-pointer"
               >
-                Begin Module {currentModuleIndex + 1}
+                {allComplete ? "Revisit" : "Begin"} Module {currentModuleIndex + 1}
                 <svg
                   className="w-5 h-5"
                   fill="none"
@@ -118,7 +120,7 @@ function ModulesScreen({
             {course.modules.map((module, index) => {
               const successfulLessons = module.lessons.filter((l) => l.success);
               const isCompleted = completedModules.includes(index);
-              const isCurrent = currentModuleIndex === index;
+              const isCurrent = !allComplete && currentModuleIndex === index;
               // Module is unlocked if: it's the first module, OR the previous module is completed
               const isLocked = index > 0 && !completedModules.includes(index - 1);
 

@@ -115,6 +115,7 @@ export default function CoursePage() {
   }
 
   const effectiveModuleIndex = deriveCurrentModuleIndex(completedModules, course.modules.length);
+  const allComplete = course.modules.length > 0 && completedModules.length >= course.modules.length;
 
   return (
     <ModulesScreen
@@ -124,6 +125,7 @@ export default function CoursePage() {
       onJumpToLesson={handleJumpToLesson}
       completedModules={completedModules}
       currentModuleIndex={effectiveModuleIndex}
+      allComplete={allComplete}
     />
   );
 }
