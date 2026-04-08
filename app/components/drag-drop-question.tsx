@@ -576,8 +576,8 @@ export function DragDropQuestion({
           <h3 className="text-base font-medium text-neutral-900">
             Drag and drop the colored pills to their correct spot
           </h3>
-          {!showResult && (
-            <div className="flex items-center gap-2">
+          {
+            <div className={`flex items-center gap-2 ${showResult ? "invisible" : ""}`}>
               <button
                 onClick={handleUndo}
                 disabled={historyIndex === 0}
@@ -629,7 +629,7 @@ export function DragDropQuestion({
                 </svg>
               </button>
             </div>
-          )}
+          }
         </div>
       </div>
       <div className="p-3 md:p-6 relative">
