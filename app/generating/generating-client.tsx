@@ -24,7 +24,7 @@ export function GeneratingPageContent() {
   const [lastUpload, setLastUpload] = useState<{ url: string; fileName: string } | null>(null);
   const [isApiKeyDialogOpen, setIsApiKeyDialogOpen] = useState(false);
   const hasStarted = useRef(false);
-  const logoFadeIn = useImageFadeIn("/logo.svg");
+  const logoFadeIn = useImageFadeIn("/logo.png");
   const creatingGuyFadeIn = useImageFadeIn("/creating-guy.svg");
   const footerFadeIn = useImageFadeIn("/landing-footer-powered-by.svg");
 
@@ -274,11 +274,11 @@ export function GeneratingPageContent() {
             <Link href="/">
               <img
                 ref={logoFadeIn.imgRef}
-                src="/logo.svg"
+                src="/logo.png"
                 alt="Logo"
                 onLoad={logoFadeIn.handleLoad}
                 onError={logoFadeIn.handleError}
-                className={`h-6 w-auto transition-opacity duration-700 ease-out ${logoFadeIn.isLoaded ? 'opacity-100' : 'opacity-0'}`}
+                className={`h-7 w-7 object-contain transition-opacity duration-700 ease-out ${logoFadeIn.isLoaded ? 'opacity-100' : 'opacity-0'}`}
               />
             </Link>
           </div>

@@ -9,7 +9,7 @@ import { ApiKeyDialog } from "./api-key-dialog";
 import { Github, Twitter } from "lucide-react";
 import Link from "next/link";
 import { Loader } from "@/components/ai-elements/loader";
-import { LogoSvg, LandingHeroPoweredBySvg, LandingFooterPoweredBySvg, LandingBgSvg } from "./svg-icons";
+import { LandingBgSvg } from "./svg-icons";
 import type { Course } from "@/lib/types";
 import { HeaderActions } from "./header-actions";
 import demoCourse from "@/lib/demo/transformer-course.json";
@@ -296,7 +296,7 @@ function LandingScreen() {
       <header className="sticky top-0 z-50 border-b-[0.5px] border-neutral-200 bg-white">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <LogoSvg className="h-6 w-auto" aria-label="Logo" />
+            <img src="/logo.png" alt="Logo" className="h-7 w-7 object-contain" />
           </div>
           <HeaderActions showCoursesLink={hasCourses} />
         </div>
@@ -306,15 +306,18 @@ function LandingScreen() {
       <main className="max-w-7xl mx-auto px-6 py-20">
         {/* Badge */}
         <div className="flex justify-center mb-12">
-          <a 
-            href="https://together.ai" 
-            target="_blank" 
+          <a
+            href="https://together.ai"
+            target="_blank"
             rel="noopener noreferrer"
-            className="inline-block"
+            aria-label="Made & powered by together.ai"
+            className="inline-flex items-center gap-2 px-4 h-8 rounded-full bg-neutral-900 border border-neutral-800 hover:bg-neutral-800 transition-colors"
           >
-            <LandingHeroPoweredBySvg 
-              className="h-8 w-auto"
-              aria-label="Made & powered by together.ai"
+            <span className="text-sm font-medium text-white">Made &amp; powered by</span>
+            <img
+              src="/together-ai-new-logo.png"
+              alt="Together AI"
+              className="h-4 w-auto object-contain"
             />
           </a>
         </div>
@@ -554,15 +557,18 @@ function LandingScreen() {
 
       {/* Footer */}
       <footer className="fixed bottom-4 left-4 z-10">
-        <a 
-          href="https://together.ai" 
-          target="_blank" 
+        <a
+          href="https://together.ai"
+          target="_blank"
           rel="noopener noreferrer"
-          className="inline-block"
+          aria-label="Powered by together.ai"
+          className="inline-flex items-center gap-1.5 px-3 h-6 rounded-full bg-neutral-900 border border-neutral-800 hover:bg-neutral-800 transition-colors"
         >
-          <LandingFooterPoweredBySvg 
-            className="h-6 w-auto"
-            aria-label="Powered by together.ai"
+          <span className="text-xs font-medium text-white">Powered by</span>
+          <img
+            src="/together-ai-new-logo.png"
+            alt="Together AI"
+            className="h-3 w-auto object-contain"
           />
         </a>
       </footer>
