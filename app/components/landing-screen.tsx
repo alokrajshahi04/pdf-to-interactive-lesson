@@ -9,7 +9,7 @@ import { ApiKeyDialog } from "./api-key-dialog";
 import { Github, Twitter } from "lucide-react";
 import Link from "next/link";
 import { Loader } from "@/components/ai-elements/loader";
-import { LandingBgSvg } from "./svg-icons";
+import { LogoSvg, LandingBgSvg } from "./svg-icons";
 import type { Course } from "@/lib/types";
 import { HeaderActions } from "./header-actions";
 import demoCourse from "@/lib/demo/transformer-course.json";
@@ -296,7 +296,7 @@ function LandingScreen() {
       <header className="sticky top-0 z-50 border-b-[0.5px] border-neutral-200 bg-white">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <img src="/logo.png" alt="Logo" className="h-7 w-7 object-contain" />
+            <LogoSvg className="h-6 w-auto" aria-label="Logo" />
           </div>
           <HeaderActions showCoursesLink={hasCourses} />
         </div>

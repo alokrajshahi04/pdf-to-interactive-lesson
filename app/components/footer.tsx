@@ -2,9 +2,20 @@ function Footer() {
   return (
     <div className="w-full py-6">
       <div className="max-w-7xl mx-auto px-6 flex items-center justify-between">
-      <div className="text-sm text-neutral-600">
-      Powered by <span className="font-semibold">together.ai</span>
-      </div>
+      <a
+        href="https://together.ai"
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label="Powered by together.ai"
+        className="inline-flex items-center gap-1.5 px-3 h-6 rounded-full bg-neutral-900 border border-neutral-800 hover:bg-neutral-800 transition-colors"
+      >
+        <span className="text-xs font-medium text-white">Powered by</span>
+        <img
+          src="/together-ai-new-logo.png"
+          alt="Together AI"
+          className="h-3 w-auto object-contain"
+        />
+      </a>
       <div className="flex items-center gap-2">
         <a
           href="https://github.com"

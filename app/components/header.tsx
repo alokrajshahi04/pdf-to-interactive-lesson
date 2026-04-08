@@ -21,7 +21,7 @@ interface HeaderProps {
 }
 
 function Header({ showProgressBar, moduleProgress, showCoursesLink, courseTitle, course, onModuleSelect, currentModuleIndex, completedModules }: HeaderProps) {
-  const logoFadeIn = useImageFadeIn("/logo.png");
+  const logoFadeIn = useImageFadeIn("/logo.svg");
 
   return (
     <div className="sticky top-0 z-50 bg-white border-b border-neutral-200">
@@ -31,11 +31,11 @@ function Header({ showProgressBar, moduleProgress, showCoursesLink, courseTitle,
             {/* eslint-disable react-hooks/refs */}
             <img
               ref={logoFadeIn.imgRef}
-              src="/logo.png"
+              src="/logo.svg"
               alt="Logo"
               onLoad={logoFadeIn.handleLoad}
               onError={logoFadeIn.handleError}
-              className={`h-7 w-7 object-contain transition-opacity duration-700 ease-out ${logoFadeIn.isLoaded ? 'opacity-100' : 'opacity-0'}`}
+              className={`h-6 w-auto transition-opacity duration-700 ease-out ${logoFadeIn.isLoaded ? 'opacity-100' : 'opacity-0'}`}
             />
             {/* eslint-enable react-hooks/refs */}
           </Link>
