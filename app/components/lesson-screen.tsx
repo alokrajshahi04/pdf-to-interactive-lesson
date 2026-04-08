@@ -41,14 +41,18 @@ function LessonScreen({
   const hasPlayedInitialAnimation = useRef(false);
   const shouldAnimateOnLoad = !hasPlayedInitialAnimation.current;
   const [showHint, setShowHint] = useState(false);
+  const [showAnswer, setShowAnswer] = useState(false);
 
   useEffect(() => {
     hasPlayedInitialAnimation.current = true;
   }, []);
 
   useEffect(() => {
-    if (step !== "question") {
+    if (step !== "question" && step !== "answer") {
       setShowHint(false);
+    }
+    if (step !== "answer") {
+      setShowAnswer(false);
     }
   }, [step]);
 
@@ -150,7 +154,7 @@ function LessonScreen({
             {lessonData.title}
           </h1>
 
-          {/* Hint button — reveals the info one-liner */}
+          {/* Hint button — reveals the info one-liner (before answering) */}
           {!showResult && !showHint && (
             <div className={animateClass(!showResult)} style={!showResult ? { animationDelay: "0.1s" } : {}}>
               <button
@@ -181,8 +185,24 @@ function LessonScreen({
             </div>
           )}
 
-          {/* After answering, show the full content for review */}
-          {showResult && (
+          {/* Show Answer button — replaces hint button after answering */}
+          {showResult && !showAnswer && (
+            <div>
+              <button
+                onClick={() => setShowAnswer(true)}
+                className="px-4 py-2 bg-blue-50 text-blue-700 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors text-sm font-medium flex items-center gap-2"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                </svg>
+                Show Answer
+              </button>
+            </div>
+          )}
+
+          {/* After answering and clicking Show Answer, show the full content for review */}
+          {showResult && showAnswer && (
             <>
               <p className="text-lg text-neutral-800 leading-relaxed">
                 {lessonData.content}
@@ -245,6 +265,7 @@ function LessonScreen({
             {/* Multiple Choice Explanation */}
             {lessonData.questionType === "multiple-choice" &&
               showResult &&
+              showAnswer &&
               lessonData.explanation && (
                 <div className="mt-4 p-5 bg-blue-50 border border-blue-200 rounded-xl">
                   <p className="text-sm font-semibold text-neutral-700 mb-2">
@@ -336,7 +357,7 @@ function LessonScreen({
                     )}
                   </div>
                 )}
-                {showResult && !isGrading && !gradingError && (
+                {showResult && showAnswer && !isGrading && !gradingError && (
                   <div className="mt-4 p-5 bg-blue-50 border border-blue-200 rounded-xl">
                     <p className="text-sm font-semibold text-neutral-700 mb-2">
                       Answer:
@@ -365,7 +386,7 @@ function LessonScreen({
                     showResult={showResult}
                     onAnswerChange={onAnswerChange}
                   />
-                  {renderIncorrectSlots()}
+                  {showAnswer && renderIncorrectSlots()}
                 </div>
               )}
 
@@ -379,7 +400,7 @@ function LessonScreen({
                   style={!showResult ? { animationDelay: "0.3s" } : {}}
                 >
                   {/* Flow Visualization (shown as hint or after answer) */}
-                  {(showHint || showResult) && (
+                  {(showHint || (showResult && showAnswer)) && (
                     <div className="mb-8 bg-neutral-50 border-2 border-neutral-200 rounded-xl p-6">
                       <div className="flex items-center justify-between mb-4">
                         <h3 className="text-sm font-semibold text-neutral-700">
@@ -411,7 +432,7 @@ function LessonScreen({
                     showResult={showResult}
                     onAnswerChange={onAnswerChange}
                   />
-                  {renderIncorrectSlots()}
+                  {showAnswer && renderIncorrectSlots()}
                 </div>
               )}
           </div>
