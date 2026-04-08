@@ -1,8 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Link from "next/link";
-import { useCredits } from "../hooks/use-credits";
 import { ApiKeyDialog } from "./api-key-dialog";
 
 interface HeaderActionsProps {
@@ -10,20 +9,12 @@ interface HeaderActionsProps {
 }
 
 function HeaderActions({ showCoursesLink }: HeaderActionsProps) {
-  const credits = useCredits();
   const [showApiKeyDialog, setShowApiKeyDialog] = useState(false);
-  const [ready, setReady] = useState(false);
-
-  useEffect(() => {
-    if (!credits) return;
-    const timer = setTimeout(() => setReady(true), 200);
-    return () => clearTimeout(timer);
-  }, [credits]);
 
   return (
     <>
       <ApiKeyDialog open={showApiKeyDialog} onOpenChange={setShowApiKeyDialog} />
-      <div className={`flex items-center gap-2 flex-shrink-0 transition-opacity duration-200 ${ready ? 'opacity-100' : 'opacity-0'}`}>
+      <div className="flex items-center gap-2 flex-shrink-0">
         {showCoursesLink && (
           <Link
             href="/courses"
@@ -34,14 +25,6 @@ function HeaderActions({ showCoursesLink }: HeaderActionsProps) {
             </svg>
             Courses
           </Link>
-        )}
-        {credits && (
-          <span className="flex items-center gap-1.5 h-9 px-3 bg-neutral-50 border border-neutral-200 rounded-full text-neutral-500 text-xs tabular-nums">
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5z" />
-            </svg>
-            {credits.coursesRemaining} courses · {credits.gradingsRemaining} gradings left
-          </span>
         )}
         <button
           onClick={() => setShowApiKeyDialog(true)}
