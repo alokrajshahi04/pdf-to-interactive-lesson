@@ -26,7 +26,7 @@ export const GRADER_MODEL = "openai/gpt-oss-20b";
 export const MODEL_CONFIG = {
   "minimax-m2.5": {
     fullName: "MiniMaxAI/MiniMax-M2.5",
-    pricing: { input: 0.30, output: 1.10 },
+    pricing: { input: 0.30, output: 1.20 },
   },
   "gpt-oss-20b": {
     fullName: "openai/gpt-oss-20b",
