@@ -127,9 +127,30 @@ export default function LessonPage() {
     }
   }, [course, navigation.currentModule]);
 
-  // Smooth scroll to top when reaching module-complete
+  // Track scroll position to prevent unwanted scroll jumps on answer submit
+  const scrollPositionRef = useRef<number>(0);
+
+  const handleContinueWithScroll = () => {
+    // Save scroll position before submitting an answer
+    if (navigation.step === "question") {
+      scrollPositionRef.current = window.scrollY;
+    }
+    navigation.handleContinue();
+  };
+
+  // Manage scroll position on step transitions
   useEffect(() => {
-    if (navigation.step === "module-complete") {
+    if (navigation.step === "answer") {
+      // Restore scroll position after showing result — use rAF to ensure it
+      // happens after React has committed the DOM changes
+      const savedPosition = scrollPositionRef.current;
+      requestAnimationFrame(() => {
+        window.scrollTo(0, savedPosition);
+      });
+    } else if (navigation.step === "module-complete") {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    } else if (navigation.step === "content" || navigation.step === "module-intro") {
+      // Scroll to top when starting a new lesson or module
       window.scrollTo({ top: 0, behavior: "smooth" });
     }
   }, [navigation.step]);
@@ -301,7 +322,7 @@ export default function LessonPage() {
               gradingError={gradingError}
               onAnswerChange={setUserAnswer}
               canContinue={canContinue()}
-              onContinue={handleContinue}
+              onContinue={handleContinueWithScroll}
               onRetryGrading={handleRetryGrading}
               getButtonText={getButtonText}
             />

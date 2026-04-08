@@ -166,9 +166,7 @@ function DroppableSlot({
         backgroundColor,
         touchAction: hasAssignedChoice && !showResult ? "none" : undefined,
       }}
-      className={`w-full p-3 md:p-4 rounded-2xl flex flex-col items-center transition-all relative select-none ${
-        showResult ? "h-[110px] md:h-[140px]" : "h-[90px] md:h-[120px]"
-      } ${
+      className={`w-full p-3 md:p-4 rounded-2xl flex flex-col items-center transition-all relative select-none h-[90px] md:h-[120px] ${
         hasAssignedChoice && !showResult
           ? isDragging
             ? "opacity-0"
