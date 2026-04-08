@@ -31,7 +31,7 @@ function Dashboard() {
   const [progress, setProgress] = useState("");
   const [isApiKeyDialogOpen, setIsApiKeyDialogOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const logoFadeIn = useImageFadeIn("/logo.svg");
+  const logoFadeIn = useImageFadeIn("/logo.png");
   const footerFadeIn = useImageFadeIn("/landing-footer-powered-by.svg");
 
   useEffect(() => {
@@ -208,13 +208,13 @@ function Dashboard() {
         <div className="w-full px-8 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Link href="/">
-              <img 
+              <img
                 ref={logoFadeIn.imgRef}
-                src="/logo.svg" 
+                src="/logo.png"
                 alt="Logo"
                 onLoad={logoFadeIn.handleLoad}
                 onError={logoFadeIn.handleError}
-                className={`h-6 w-auto transition-opacity duration-700 ease-out ${logoFadeIn.isLoaded ? 'opacity-100' : 'opacity-0'}`}
+                className={`h-7 w-7 object-contain transition-opacity duration-700 ease-out ${logoFadeIn.isLoaded ? 'opacity-100' : 'opacity-0'}`}
               />
             </Link>
           </div>
