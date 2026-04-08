@@ -30,7 +30,7 @@ export const MODEL_CONFIG = {
   },
   "gpt-oss-20b": {
     fullName: "openai/gpt-oss-20b",
-    pricing: { input: 0.05, output: 0.15 },
+    pricing: { input: 0.05, output: 0.20 },
   },
   "gpt-oss-120b": {
     fullName: "openai/gpt-oss-120b",
