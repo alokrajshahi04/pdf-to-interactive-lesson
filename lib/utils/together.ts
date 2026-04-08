@@ -15,6 +15,11 @@ export function createTogetherClient(apiKey: string) {
 export const DEFAULT_MODEL = "MiniMaxAI/MiniMax-M2.5";
 
 /**
+ * Model used for grading short-answer responses
+ */
+export const GRADER_MODEL = "openai/gpt-oss-20b";
+
+/**
  * Single source of truth for model configuration
  * Pricing is per 1M tokens (input, output in USD)
  */
@@ -22,6 +27,10 @@ export const MODEL_CONFIG = {
   "minimax-m2.5": {
     fullName: "MiniMaxAI/MiniMax-M2.5",
     pricing: { input: 0.30, output: 1.10 },
+  },
+  "gpt-oss-20b": {
+    fullName: "openai/gpt-oss-20b",
+    pricing: { input: 0.05, output: 0.15 },
   },
   "gpt-oss-120b": {
     fullName: "openai/gpt-oss-120b",

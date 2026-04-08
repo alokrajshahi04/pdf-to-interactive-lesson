@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { generateText } from "ai";
-import { createTogetherClient, DEFAULT_MODEL } from "@/lib/utils/together";
+import { createTogetherClient, GRADER_MODEL } from "@/lib/utils/together";
 import { parseJSON } from "@/lib/utils/json";
 import { debugLog } from "@/lib/utils/debug";
 import {
@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
     // Use LLM to evaluate if the user's answer demonstrates understanding
     const llmStartTime = Date.now();
     const result = await generateText({
-      model: together(DEFAULT_MODEL),
+      model: together(GRADER_MODEL),
       prompt: `You are an educational assessment evaluator. Evaluate whether a student's answer to a short-answer question demonstrates understanding of the material.
 
 Lesson Content:
