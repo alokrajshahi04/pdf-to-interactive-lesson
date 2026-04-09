@@ -65,6 +65,39 @@ export interface ValidationResult {
 }
 
 /**
+ * Ensures every lesson has a non-empty `info` field. MiniMax intermittently
+ * drops this field; rather than fail the entire module, we derive it from the
+ * first sentence of the lesson content.
+ */
+function ensureInfo(lesson: any): any {
+  if (!lesson.info || typeof lesson.info !== "string" || lesson.info.trim() === "") {
+    const content: string = lesson.content ?? "";
+    const match = content.match(/^[^.!?\n]+[.!?]/);
+    lesson.info = match ? match[0].trim() : content.substring(0, 120).trim();
+  }
+  return lesson;
+}
+
+/**
+ * Sorts the 3 generated lessons into canonical order:
+ *   [0] short-answer, [1] true-false, [2] multiple-choice.
+ * The model occasionally emits them in a different order; rather than fail,
+ * we accept any order and reorder here.
+ */
+function sortLessonsByType(lessons: any[]): any[] {
+  const order: Record<string, number> = {
+    "short-answer": 0,
+    "true-false": 1,
+    "multiple-choice": 2,
+  };
+  return [...lessons].sort((a, b) => {
+    const ao = order[a.questionType] ?? 99;
+    const bo = order[b.questionType] ?? 99;
+    return ao - bo;
+  });
+}
+
+/**
  * Shuffles multiple-choice options in-place and updates the answer index.
  * The prompt instructs the model to always place the correct answer at index 0,
  * so we use choices[0] as the source of truth regardless of what answer index
@@ -199,30 +232,81 @@ ${content}`;
       : Promise.resolve(null);
 
   // Parse JSON and validate with Zod, retrying on structural failures (truncation, wrong types)
-  const maxStructureRetries = 3;
-  let validated = standardLessonsSchema.safeParse(parseJSON(result.text));
+  // Wraps parseJSON so JSON parse errors trigger retry the same way Zod errors do.
+  const maxStructureRetries = 5;
 
-  for (let attempt = 1; attempt <= maxStructureRetries && !validated.success; attempt++) {
-    const issues = validated.error.issues.map(i => `${i.path.join(".")}: ${i.message}`).join(", ");
-    console.warn(`  ⚠️  Zod validation failed for "${module.title}" (attempt ${attempt}/${maxStructureRetries}): ${issues}`);
+  function tryParse(text: string):
+    | { ok: true; data: any }
+    | { ok: false; error: string } {
+    try {
+      const parsed = parseJSON(text);
+      const validated = standardLessonsSchema.safeParse(parsed);
+      if (validated.success) return { ok: true, data: validated };
+      return {
+        ok: false,
+        error: validated.error.issues
+          .map((i) => `${i.path.join(".") || "(root)"}: ${i.message}`)
+          .join("\n  • "),
+      };
+    } catch (err: any) {
+      return { ok: false, error: `JSON parse failed: ${err.message}` };
+    }
+  }
+
+  let parseResult = tryParse(result.text);
+  let lastError = parseResult.ok ? "" : parseResult.error;
+
+  for (let attempt = 1; attempt <= maxStructureRetries && !parseResult.ok; attempt++) {
+    console.warn(
+      `  ⚠️  Validation failed for "${module.title}" (attempt ${attempt}/${maxStructureRetries}):\n  • ${lastError}`
+    );
+
+    // Put the corrective feedback at the TOP so the model sees it first,
+    // then the full standard prompt below.
+    const retryPrompt = `YOUR PREVIOUS RESPONSE FAILED VALIDATION. READ THIS CAREFULLY BEFORE YOU RESPOND.
+
+Errors from your previous attempt:
+  • ${lastError}
+
+MANDATORY RULES — do not violate any of these:
+1. Respond with ONLY a JSON object. No prose, no markdown fences, no trailing text.
+2. The root object has ONE key: "lessons" — an array of EXACTLY 3 objects, in this EXACT order:
+     [0] { "title", "content", "info", "question", "questionType": "short-answer",   "answer": <string> }
+     [1] { "title", "content", "info", "question", "questionType": "true-false",     "answer": <boolean true or false — NOT a string, NOT a number> }
+     [2] { "title", "content", "info", "question", "questionType": "multiple-choice", "answer": 0, "choices": [<4 strings or numbers>], "explanation": <string> }
+3. EVERY lesson MUST include the "info" field — a one-sentence key fact. Do NOT omit it.
+4. Do NOT include more than 3 lessons. Do NOT include fewer than 3 lessons.
+5. Do NOT swap the order of question types. Short-answer FIRST, true-false SECOND, multiple-choice THIRD.
+6. Ensure the JSON is syntactically valid: balanced braces, balanced brackets, commas between fields, double-quoted keys and strings.
+
+Now generate the corrected response following all of the instructions below.
+
+──────────────────────────────────────────────────────
+
+${standardLessonPrompt}`;
 
     const retryResult = await generateText({
       model: together(model),
       providerOptions,
-      prompt: standardLessonPrompt,
+      prompt: retryPrompt,
     });
-    validated = standardLessonsSchema.safeParse(parseJSON(retryResult.text));
+    parseResult = tryParse(retryResult.text);
+    if (!parseResult.ok) lastError = parseResult.error;
   }
 
-  if (!validated.success) {
-    console.error("Zod validation failed for module:", module.title);
-    console.error("Issues:", validated.error.issues.map(i => `${i.path.join(".")}: ${i.message}`).join(", "));
-    throw new Error(`Structured output validation failed after ${maxStructureRetries} retries: ${validated.error.issues.map(i => i.message).join(", ")}`);
+  if (!parseResult.ok) {
+    console.error(`Validation failed for module "${module.title}" after ${maxStructureRetries} retries:\n  • ${lastError}`);
+    throw new Error(`Structured output validation failed after ${maxStructureRetries} retries: ${lastError}`);
   }
+
+  const validated = parseResult.data as { success: true; data: { lessons: any[] } };
 
   // Track failures by lesson index
   const failuresByIndex = new Map<number, FailedLesson>();
-  const lessons: any[] = validated.data.lessons.map((lesson) => ({ ...lesson }));
+  // Normalize: clone, sort into canonical order, and fill in any missing `info` fields.
+  const lessons: any[] = sortLessonsByType(
+    validated.data.lessons.map((lesson) => ensureInfo({ ...lesson }))
+  );
 
   // Shuffle multiple-choice options so the correct answer isn't always first
   for (const lesson of lessons) {
@@ -354,7 +438,7 @@ ${failed.data.questionType === "multiple-choice" ? '{"title":"...","content":"..
           const parsed = parseJSON(fixResult.text);
           const revalidated = singleLessonSchema.safeParse(parsed);
           if (revalidated.success) {
-            const fixed = { ...revalidated.data };
+            const fixed = ensureInfo({ ...revalidated.data });
             if (fixed.questionType === "multiple-choice" && Array.isArray(fixed.choices) && fixed.choices.length === 4) {
               shuffleMultipleChoice(fixed);
             }
@@ -522,11 +606,7 @@ async function generateFlowQuestion({
     ? `\nIMPORTANT — AVOID DUPLICATE QUESTIONS: These questions already exist in other modules. Your question MUST ask about a DIFFERENT process or aspect. Do NOT rephrase an existing question.\nAlready used:\n${previousQuestions.map((q, i) => `${i + 1}. "${q}"`).join("\n")}\n`
     : "";
 
-  try {
-    const result = await generateText({
-      model: together(model),
-      providerOptions,
-      prompt: `Given this flow diagram for the module "${moduleTitle}", create a drag-and-drop ordering question.
+  const flowQuestionPrompt = `Given this flow diagram for the module "${moduleTitle}", create a drag-and-drop ordering question.
 
 Flow nodes: ${nodeLabels.map((l, i) => `${i + 1}. ${l}`).join(", ")}
 ${flowQDedupContext}
@@ -548,18 +628,72 @@ Rules:
 - All content, info, and question text must come from the source content. Do NOT add facts not in the source.
 
 Source content:
-${content}`,
+${content}`;
+
+  // Parses the model's flow question response, returning a typed result so
+  // JSON parse errors and Zod errors are both handled by the retry loop.
+  function tryParseFlowQuestion(
+    text: string
+  ): { ok: true; data: any } | { ok: false; error: string } {
+    try {
+      const parsed = parseJSON(text);
+      const validated = flowQuestionSchema.safeParse(parsed);
+      if (validated.success) return { ok: true, data: validated.data };
+      return {
+        ok: false,
+        error: validated.error.issues
+          .map((i) => `${i.path.join(".") || "(root)"}: ${i.message}`)
+          .join("\n  • "),
+      };
+    } catch (err: any) {
+      return { ok: false, error: `JSON parse failed: ${err.message}` };
+    }
+  }
+
+  try {
+    const maxFlowRetries = 3;
+    let result = await generateText({
+      model: together(model),
+      providerOptions,
+      prompt: flowQuestionPrompt,
     });
 
-    const parsed = parseJSON(result.text);
-    const validated = flowQuestionSchema.safeParse(parsed);
+    let flowParse = tryParseFlowQuestion(result.text);
+    let flowLastError = flowParse.ok ? "" : flowParse.error;
 
-    if (!validated.success) {
-      console.error(`  ❌ Flow question validation failed:`, validated.error.issues.map(i => i.message).join(", "));
+    for (
+      let attempt = 1;
+      attempt <= maxFlowRetries && !flowParse.ok;
+      attempt++
+    ) {
+      console.warn(
+        `  ⚠️  Flow question parse failed for "${moduleTitle}" (attempt ${attempt}/${maxFlowRetries}):\n  • ${flowLastError}`
+      );
+      const retryPrompt = `YOUR PREVIOUS RESPONSE FAILED VALIDATION. Errors:
+  • ${flowLastError}
+
+Respond with ONLY a JSON object. No prose, no markdown fences, no trailing text.
+The JSON must have: title, content, info, question, stepsInOrder (array of exactly 3 strings).
+Ensure the JSON is syntactically valid with balanced braces and brackets.
+
+${flowQuestionPrompt}`;
+      result = await generateText({
+        model: together(model),
+        providerOptions,
+        prompt: retryPrompt,
+      });
+      flowParse = tryParseFlowQuestion(result.text);
+      if (!flowParse.ok) flowLastError = flowParse.error;
+    }
+
+    if (!flowParse.ok) {
+      console.error(
+        `  ❌ Flow question generation failed for "${moduleTitle}" after ${maxFlowRetries} retries:\n  • ${flowLastError}`
+      );
       return null;
     }
 
-    const q = validated.data;
+    const q = flowParse.data;
 
     // Re-sort stepsInOrder using the flow diagram's topological order as source of truth
     // (the model sometimes returns steps in the wrong sequence)

@@ -23,10 +23,13 @@ export type CourseStructureOutput = z.infer<typeof courseStructureSchema>;
 
 // --- Standard lessons (short-answer, true-false, multiple-choice) ---
 
+// `info` is optional at parse time and filled in post-hoc from the lesson
+// content if the model omits it. This eliminates a recurring class of
+// hard-failure where MiniMax drops the field entirely.
 const shortAnswerLessonSchema = z.object({
   title: z.string().describe("Lesson title"),
   content: z.string().describe("Lesson content, about 3 sentences long"),
-  info: z.string().describe("A quick one sentence fact to highlight a key point"),
+  info: z.string().optional().describe("A quick one sentence fact to highlight a key point"),
   question: z.string().describe("A question to test understanding"),
   questionType: z.literal("short-answer"),
   answer: z.string().describe("The answer to the question"),
@@ -35,7 +38,7 @@ const shortAnswerLessonSchema = z.object({
 const trueFalseLessonSchema = z.object({
   title: z.string().describe("Lesson title"),
   content: z.string().describe("Lesson content, about 3 sentences long"),
-  info: z.string().describe("A quick one sentence fact to highlight a key point"),
+  info: z.string().optional().describe("A quick one sentence fact to highlight a key point"),
   question: z.string().describe("A statement that is either true or false"),
   questionType: z.literal("true-false"),
   answer: z.boolean().describe("true or false"),
@@ -44,7 +47,7 @@ const trueFalseLessonSchema = z.object({
 const multipleChoiceLessonSchema = z.object({
   title: z.string().describe("Lesson title"),
   content: z.string().describe("Lesson content, about 3 sentences long"),
-  info: z.string().describe("A quick one sentence fact to highlight a key point"),
+  info: z.string().optional().describe("A quick one sentence fact to highlight a key point"),
   question: z.string().describe("A multiple choice question"),
   questionType: z.literal("multiple-choice"),
   answer: z
@@ -69,11 +72,15 @@ export const singleLessonSchema = z.discriminatedUnion("questionType", [
   multipleChoiceLessonSchema,
 ]);
 
+// Array (not tuple) so the model can emit the 3 lessons in any order.
+// create-lesson.ts sorts them into canonical order after parsing, which
+// eliminates the recurring "wrong questionType at index N" class of failure.
 export const standardLessonsSchema = z.object({
   lessons: z
-    .tuple([shortAnswerLessonSchema, trueFalseLessonSchema, multipleChoiceLessonSchema])
+    .array(singleLessonSchema)
+    .length(3)
     .describe(
-      "Exactly 3 lessons: one short-answer, one true-false, one multiple-choice"
+      "Exactly 3 lessons: one short-answer, one true-false, one multiple-choice (in any order)"
     ),
 });
 

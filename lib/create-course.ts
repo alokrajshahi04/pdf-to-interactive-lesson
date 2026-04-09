@@ -1,7 +1,7 @@
 import { generateText } from "ai";
 import type { CourseStructure, ModuleWithLessons } from "./types";
 import { courseStructureSchema } from "./schemas";
-import { createLessons } from "./create-lesson";
+import { createLessons, type CreateLessonsInput } from "./create-lesson";
 import {
   createTogetherClient,
   DEFAULT_MODEL,
@@ -119,6 +119,97 @@ ${content}`,
 }
 
 /**
+ * Detects transient errors from Together AI that should be retried at the
+ * module level (not at the Zod-retry level). This includes request aborts,
+ * rate-limit responses, 5xx server errors, and network connection failures.
+ * Zod validation errors already have their own retry loop inside createLessons,
+ * so they bypass this wrapper.
+ */
+function isTransientError(err: any): boolean {
+  if (!err) return false;
+  const name: string = err.name ?? "";
+  const code: string = err.code ?? "";
+  const msg: string = err.message ?? "";
+  if (name === "AbortError" || code === "ABORT_ERR") return true;
+  // Network-level errors from Node fetch/undici
+  if (
+    code === "ECONNRESET" ||
+    code === "ENOTFOUND" ||
+    code === "ETIMEDOUT" ||
+    code === "ECONNREFUSED" ||
+    code === "EAI_AGAIN" ||
+    code === "UND_ERR_SOCKET"
+  ) {
+    return true;
+  }
+  if (
+    /aborted|service unavailable|too many requests|rate.?limit|network error|timeout|internal server error|unable to connect|fetch failed|socket hang up|connection (?:reset|closed)|502|503|504|500/i.test(
+      msg
+    )
+  ) {
+    return true;
+  }
+  // AI SDK wraps transient errors — check the inner cause chain.
+  if (err.cause && isTransientError(err.cause)) return true;
+  return false;
+}
+
+/**
+ * Calls createLessons with a small retry loop for transient network errors
+ * (aborts, rate limits, 5xx, connection failures). A short backoff gives
+ * the provider time to recover.
+ */
+async function createLessonsWithTransientRetry(
+  input: CreateLessonsInput,
+  maxRetries = 3
+): Promise<ModuleWithLessons> {
+  let lastError: any;
+  for (let attempt = 1; attempt <= maxRetries + 1; attempt++) {
+    try {
+      return await createLessons(input);
+    } catch (err: any) {
+      lastError = err;
+      if (!isTransientError(err) || attempt > maxRetries) throw err;
+      const delay = 2000 * attempt;
+      console.warn(
+        `  ⚠️  Transient error for module "${input.module.title}" (attempt ${attempt}/${maxRetries + 1}): ${err.message?.substring(0, 120) ?? err} — retrying in ${delay}ms`
+      );
+      await new Promise((r) => setTimeout(r, delay));
+    }
+  }
+  throw lastError;
+}
+
+/**
+ * Calls createModules with a transient retry wrapper. The inner createModules
+ * already has its own 3-attempt retry loop for validation errors, but that
+ * loop doesn't distinguish transient network errors from parse/Zod errors.
+ * When Together AI has a bad burst (500s, connection drops), 3 attempts can
+ * be exhausted in seconds. This outer wrapper adds backoff on transient
+ * errors specifically.
+ */
+async function createModulesWithTransientRetry(
+  input: CreateModulesInput,
+  maxRetries = 3
+): Promise<CourseStructure> {
+  let lastError: any;
+  for (let attempt = 1; attempt <= maxRetries + 1; attempt++) {
+    try {
+      return await createModules(input);
+    } catch (err: any) {
+      lastError = err;
+      if (!isTransientError(err) || attempt > maxRetries) throw err;
+      const delay = 2000 * attempt;
+      console.warn(
+        `  ⚠️  Transient error generating course structure (attempt ${attempt}/${maxRetries + 1}): ${err.message?.substring(0, 120) ?? err} — retrying in ${delay}ms`
+      );
+      await new Promise((r) => setTimeout(r, delay));
+    }
+  }
+  throw lastError;
+}
+
+/**
  * Generate a complete course with modules and lessons
  */
 export async function createCourse({
@@ -131,7 +222,7 @@ export async function createCourse({
   maxRetries = 3,
   onProgress,
 }: CreateCourseInput): Promise<CourseOutput> {
-  const courseStructure = await createModules({
+  const courseStructure = await createModulesWithTransientRetry({
     content,
     apiKey,
     model,
@@ -164,7 +255,7 @@ export async function createCourse({
       }
     );
 
-    const result = await createLessons({
+    const result = await createLessonsWithTransientRetry({
       module,
       content,
       apiKey,
