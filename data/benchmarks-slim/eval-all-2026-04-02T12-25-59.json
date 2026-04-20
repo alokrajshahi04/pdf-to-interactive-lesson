@@ -1,0 +1,35 @@
+{
+  "tag": "eval-all",
+  "timestamp": "2026-04-02T12:25:59.752Z",
+  "generationModel": "MiniMaxAI/MiniMax-M2.5",
+  "judgeModel": "anthropic/claude-sonnet-4-6",
+  "totalTimeMs": 86405,
+  "aggregate": {
+    "structural": {
+      "totalLessons": 0,
+      "successfulLessons": 0,
+      "firstPassSuccess": 0,
+      "successRate": "N/A",
+      "firstPassRate": "N/A"
+    },
+    "correctness": {
+      "totalGraded": 0,
+      "correct": 0,
+      "accuracy": "N/A"
+    },
+    "grounding": {
+      "totalGraded": 0,
+      "fullyGrounded": "0/0 (N/A)",
+      "selfContained": "0/0 (N/A)",
+      "concrete": "0/0 (N/A)",
+      "grounded": "0/0 (N/A)"
+    },
+    "duplicates": {
+      "duplicateGroups": 0,
+      "questionsInDupes": 0,
+      "duplicationRate": "N/A"
+    },
+    "byQuestionType": {}
+  },
+  "perFile": []
+}

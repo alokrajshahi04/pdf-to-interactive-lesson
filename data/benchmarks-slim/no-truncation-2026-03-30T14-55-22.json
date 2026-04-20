@@ -1,0 +1,73 @@
+{
+  "tag": "no-truncation",
+  "timestamp": "2026-03-30T14:55:22.192Z",
+  "generationModel": "MiniMaxAI/MiniMax-M2.5",
+  "judgeModel": "anthropic/claude-sonnet-4-6",
+  "iterations": 5,
+  "totalTimeMs": 2368926,
+  "aggregate": {
+    "totalGraded": 223,
+    "correct": 216,
+    "incorrect": 7,
+    "accuracy": "97%",
+    "byQuestionType": {
+      "short-answer": {
+        "correct": 66,
+        "total": 66,
+        "accuracy": "100%"
+      },
+      "true-false": {
+        "correct": 65,
+        "total": 65,
+        "accuracy": "100%"
+      },
+      "multiple-choice": {
+        "correct": 59,
+        "total": 66,
+        "accuracy": "89%"
+      },
+      "flow-diagram": {
+        "correct": 26,
+        "total": 26,
+        "accuracy": "100%"
+      }
+    }
+  },
+  "perFile": [
+    {
+      "file": "Rise-and-Fall-of-the-Roman-Empire.pdf",
+      "total": 43,
+      "success": 42,
+      "firstPass": 0,
+      "rate": 0.9767
+    },
+    {
+      "file": "How we built our multi-agent research system _ Anthropic.pdf",
+      "total": 37,
+      "success": 37,
+      "firstPass": 0,
+      "rate": 1
+    },
+    {
+      "file": "together-embeddings-blog.pdf",
+      "total": 53,
+      "success": 50,
+      "firstPass": 0,
+      "rate": 0.9434
+    },
+    {
+      "file": "Composer2.pdf",
+      "total": 44,
+      "success": 41,
+      "firstPass": 0,
+      "rate": 0.9318
+    },
+    {
+      "file": "Claude Code Best Practices _ Anthropic.pdf",
+      "total": 55,
+      "success": 53,
+      "firstPass": 0,
+      "rate": 0.9636
+    }
+  ]
+}

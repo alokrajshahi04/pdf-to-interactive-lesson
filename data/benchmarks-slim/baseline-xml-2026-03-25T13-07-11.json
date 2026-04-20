@@ -1,0 +1,23 @@
+{
+  "tag": "baseline-xml",
+  "timestamp": "2026-03-25T13:07:11.517Z",
+  "model": "openai/gpt-oss-120b",
+  "aggregate": {
+    "totalTimeMs": 67522,
+    "totalLessons": 12,
+    "firstPassSuccess": 11,
+    "firstPassRate": 92,
+    "finalSuccess": 11,
+    "finalRate": 92,
+    "finalFailed": 1
+  },
+  "perFile": [
+    {
+      "file": "attention-excerpt",
+      "total": 12,
+      "success": 11,
+      "firstPass": 11,
+      "rate": 0.9167
+    }
+  ]
+}

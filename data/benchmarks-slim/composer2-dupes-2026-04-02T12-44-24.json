@@ -1,0 +1,70 @@
+{
+  "tag": "composer2-dupes",
+  "timestamp": "2026-04-02T12:44:24.528Z",
+  "generationModel": "MiniMaxAI/MiniMax-M2.5",
+  "judgeModel": "anthropic/claude-sonnet-4-6",
+  "iterations": 10,
+  "batchSize": 5,
+  "totalTimeMs": 291484,
+  "dimensions": [
+    "structural",
+    "duplicates"
+  ],
+  "aggregate": {
+    "structural": {
+      "totalLessons": 103,
+      "successfulLessons": 100,
+      "firstPassSuccess": 100,
+      "successRate": "97%",
+      "firstPassRate": "97%"
+    },
+    "correctness": {
+      "totalGraded": 100,
+      "correct": 100,
+      "accuracy": "100%"
+    },
+    "grounding": {
+      "totalGraded": 100,
+      "fullyGrounded": "100/100 (100%)",
+      "selfContained": "100/100 (100%)",
+      "concrete": "100/100 (100%)",
+      "grounded": "100/100 (100%)"
+    },
+    "duplicates": {
+      "duplicateGroups": 5,
+      "questionsInDupes": 11,
+      "duplicationRate": "11%"
+    },
+    "byQuestionType": {
+      "short-answer": {
+        "total": 27,
+        "correct": "27/27",
+        "fullyGrounded": "27/27"
+      },
+      "true-false": {
+        "total": 27,
+        "correct": "27/27",
+        "fullyGrounded": "27/27"
+      },
+      "multiple-choice": {
+        "total": 27,
+        "correct": "27/27",
+        "fullyGrounded": "27/27"
+      },
+      "flow-diagram": {
+        "total": 19,
+        "correct": "19/19",
+        "fullyGrounded": "19/19"
+      }
+    }
+  },
+  "perFile": [
+    {
+      "file": "Composer2.pdf",
+      "total": 103,
+      "success": 100,
+      "firstPass": 100,
+      "rate": 0.9709
+    }
+  ]
+}

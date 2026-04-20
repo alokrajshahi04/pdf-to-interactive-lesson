@@ -1,0 +1,53 @@
+{
+  "tag": "grounding",
+  "timestamp": "2026-03-30T17:48:11.827Z",
+  "generationModel": "MiniMaxAI/MiniMax-M2.5",
+  "judgeModel": "anthropic/claude-opus-4-6",
+  "iterations": 5,
+  "totalTimeMs": 1740469,
+  "aggregate": {
+    "totalGraded": 0,
+    "selfContained": "0/0 (N/A)",
+    "concrete": "0/0 (N/A)",
+    "grounded": "0/0 (N/A)",
+    "overallPass": "0/0 (N/A)",
+    "byQuestionType": {}
+  },
+  "perFile": [
+    {
+      "file": "Rise-and-Fall-of-the-Roman-Empire.pdf",
+      "total": 0,
+      "success": 0,
+      "firstPass": 0,
+      "rate": null
+    },
+    {
+      "file": "How we built our multi-agent research system _ Anthropic.pdf",
+      "total": 0,
+      "success": 0,
+      "firstPass": 0,
+      "rate": null
+    },
+    {
+      "file": "together-embeddings-blog.pdf",
+      "total": 0,
+      "success": 0,
+      "firstPass": 0,
+      "rate": null
+    },
+    {
+      "file": "Composer2.pdf",
+      "total": 0,
+      "success": 0,
+      "firstPass": 0,
+      "rate": null
+    },
+    {
+      "file": "Claude Code Best Practices _ Anthropic.pdf",
+      "total": 0,
+      "success": 0,
+      "firstPass": 0,
+      "rate": null
+    }
+  ]
+}

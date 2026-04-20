@@ -1,0 +1,113 @@
+{
+  "tag": "all-pdfs-fix2c",
+  "timestamp": "2026-04-08T20:39:30.360Z",
+  "generationModel": "MiniMaxAI/MiniMax-M2.5",
+  "judgeModel": "anthropic/claude-sonnet-4-6",
+  "iterations": 10,
+  "batchSize": 10,
+  "totalTimeMs": 1132742,
+  "dimensions": [
+    "structural"
+  ],
+  "aggregate": {
+    "structural": {
+      "totalLessons": 623,
+      "successfulLessons": 590,
+      "firstPassSuccess": 590,
+      "successRate": "95%",
+      "firstPassRate": "95%"
+    },
+    "correctness": {
+      "totalGraded": 590,
+      "correct": 590,
+      "accuracy": "100%"
+    },
+    "grounding": {
+      "totalGraded": 590,
+      "fullyGrounded": "590/590 (100%)",
+      "selfContained": "590/590 (100%)",
+      "concrete": "590/590 (100%)",
+      "grounded": "590/590 (100%)"
+    },
+    "sufficiency": {
+      "totalGraded": 590,
+      "sufficient": 590,
+      "rate": "100%"
+    },
+    "duplicates": {
+      "duplicateGroups": 0,
+      "questionsInDupes": 0,
+      "duplicationRate": "0%"
+    },
+    "byQuestionType": {
+      "short-answer": {
+        "total": 165,
+        "correct": "165/165",
+        "fullyGrounded": "165/165",
+        "sufficient": "165/165"
+      },
+      "true-false": {
+        "total": 163,
+        "correct": "163/163",
+        "fullyGrounded": "163/163",
+        "sufficient": "163/163"
+      },
+      "multiple-choice": {
+        "total": 164,
+        "correct": "164/164",
+        "fullyGrounded": "164/164",
+        "sufficient": "164/164"
+      },
+      "flow-diagram": {
+        "total": 98,
+        "correct": "98/98",
+        "fullyGrounded": "98/98",
+        "sufficient": "98/98"
+      }
+    }
+  },
+  "perFile": [
+    {
+      "file": "How does image compression work_ _ Lee Robinson.pdf",
+      "total": 119,
+      "success": 108,
+      "firstPass": 108,
+      "rate": 0.9076
+    },
+    {
+      "file": "How we built our multi-agent research system _ Anthropic.pdf",
+      "total": 107,
+      "success": 103,
+      "firstPass": 103,
+      "rate": 0.9626
+    },
+    {
+      "file": "together-embeddings-blog.pdf",
+      "total": 112,
+      "success": 107,
+      "firstPass": 107,
+      "rate": 0.9554
+    },
+    {
+      "file": "Composer2.pdf",
+      "total": 116,
+      "success": 111,
+      "firstPass": 111,
+      "rate": 0.9569
+    },
+    {
+      "file": "Claude Code Best Practices _ Anthropic.pdf",
+      "total": 114,
+      "success": 110,
+      "firstPass": 110,
+      "rate": 0.9649
+    },
+    {
+      "file": "Rise-and-Fall-of-the-Roman-Empire.pdf",
+      "total": 55,
+      "success": 51,
+      "firstPass": 51,
+      "rate": 0.9273
+    }
+  ]
+}

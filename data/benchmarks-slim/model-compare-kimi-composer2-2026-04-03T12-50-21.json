@@ -1,0 +1,82 @@
+{
+  "tag": "model-compare-kimi-composer2",
+  "timestamp": "2026-04-03T12:50:21.905Z",
+  "generationModel": "moonshotai/Kimi-K2.5",
+  "judgeModel": "openrouter/google/gemini-3.1-flash-lite-preview",
+  "iterations": 1,
+  "batchSize": 1,
+  "totalTimeMs": 119038,
+  "dimensions": [
+    "structural",
+    "correctness",
+    "grounding",
+    "duplicates",
+    "sufficiency"
+  ],
+  "aggregate": {
+    "structural": {
+      "totalLessons": 11,
+      "successfulLessons": 10,
+      "firstPassSuccess": 10,
+      "successRate": "91%",
+      "firstPassRate": "91%"
+    },
+    "correctness": {
+      "totalGraded": 10,
+      "correct": 10,
+      "accuracy": "100%"
+    },
+    "grounding": {
+      "totalGraded": 10,
+      "fullyGrounded": "10/10 (100%)",
+      "selfContained": "10/10 (100%)",
+      "concrete": "10/10 (100%)",
+      "grounded": "10/10 (100%)"
+    },
+    "sufficiency": {
+      "totalGraded": 10,
+      "sufficient": 10,
+      "rate": "100%"
+    },
+    "duplicates": {
+      "duplicateGroups": 0,
+      "questionsInDupes": 0,
+      "duplicationRate": "0%"
+    },
+    "byQuestionType": {
+      "short-answer": {
+        "total": 3,
+        "correct": "3/3",
+        "fullyGrounded": "3/3",
+        "sufficient": "3/3"
+      },
+      "true-false": {
+        "total": 3,
+        "correct": "3/3",
+        "fullyGrounded": "3/3",
+        "sufficient": "3/3"
+      },
+      "multiple-choice": {
+        "total": 3,
+        "correct": "3/3",
+        "fullyGrounded": "3/3",
+        "sufficient": "3/3"
+      },
+      "flow-diagram": {
+        "total": 1,
+        "correct": "1/1",
+        "fullyGrounded": "1/1",
+        "sufficient": "1/1"
+      }
+    }
+  },
+  "perFile": [
+    {
+      "file": "Composer2.pdf",
+      "total": 11,
+      "success": 10,
+      "firstPass": 10,
+      "rate": 0.9091
+    }
+  ]
+}

@@ -1,0 +1,82 @@
+{
+  "tag": "baseline-all-composer2-gemini31-flash-lite-3x1",
+  "timestamp": "2026-04-03T12:21:12.818Z",
+  "generationModel": "MiniMaxAI/MiniMax-M2.5",
+  "judgeModel": "openrouter/google/gemini-3.1-flash-lite-preview",
+  "iterations": 3,
+  "batchSize": 1,
+  "totalTimeMs": 322880,
+  "dimensions": [
+    "structural",
+    "correctness",
+    "grounding",
+    "duplicates",
+    "sufficiency"
+  ],
+  "aggregate": {
+    "structural": {
+      "totalLessons": 36,
+      "successfulLessons": 33,
+      "firstPassSuccess": 33,
+      "successRate": "92%",
+      "firstPassRate": "92%"
+    },
+    "correctness": {
+      "totalGraded": 33,
+      "correct": 31,
+      "accuracy": "94%"
+    },
+    "grounding": {
+      "totalGraded": 33,
+      "fullyGrounded": "30/33 (91%)",
+      "selfContained": "33/33 (100%)",
+      "concrete": "33/33 (100%)",
+      "grounded": "30/33 (91%)"
+    },
+    "sufficiency": {
+      "totalGraded": 33,
+      "sufficient": 31,
+      "rate": "94%"
+    },
+    "duplicates": {
+      "duplicateGroups": 0,
+      "questionsInDupes": 0,
+      "duplicationRate": "0%"
+    },
+    "byQuestionType": {
+      "short-answer": {
+        "total": 9,
+        "correct": "9/9",
+        "fullyGrounded": "8/9",
+        "sufficient": "8/9"
+      },
+      "true-false": {
+        "total": 9,
+        "correct": "9/9",
+        "fullyGrounded": "9/9",
+        "sufficient": "9/9"
+      },
+      "multiple-choice": {
+        "total": 9,
+        "correct": "8/9",
+        "fullyGrounded": "7/9",
+        "sufficient": "8/9"
+      },
+      "flow-diagram": {
+        "total": 6,
+        "correct": "5/6",
+        "fullyGrounded": "6/6",
+        "sufficient": "6/6"
+      }
+    }
+  },
+  "perFile": [
+    {
+      "file": "Composer2.pdf",
+      "total": 36,
+      "success": 33,
+      "firstPass": 33,
+      "rate": 0.9167
+    }
+  ]
+}

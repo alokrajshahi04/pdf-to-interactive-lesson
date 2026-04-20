@@ -1,0 +1,40 @@
+{
+  "tag": "answers",
+  "timestamp": "2026-03-31T09:50:46.611Z",
+  "generationModel": "MiniMaxAI/MiniMax-M2.5",
+  "judgeModel": "anthropic/claude-sonnet-4-20250514",
+  "iterations": 1,
+  "totalTimeMs": 202471,
+  "aggregate": {
+    "totalGraded": 9,
+    "correct": 9,
+    "incorrect": 0,
+    "accuracy": "100%",
+    "byQuestionType": {
+      "short-answer": {
+        "correct": 3,
+        "total": 3,
+        "accuracy": "100%"
+      },
+      "true-false": {
+        "correct": 3,
+        "total": 3,
+        "accuracy": "100%"
+      },
+      "multiple-choice": {
+        "correct": 3,
+        "total": 3,
+        "accuracy": "100%"
+      }
+    }
+  },
+  "perFile": [
+    {
+      "file": "together-embeddings-blog.pdf",
+      "total": 11,
+      "success": 9,
+      "firstPass": 0,
+      "rate": 0.8182
+    }
+  ]
+}

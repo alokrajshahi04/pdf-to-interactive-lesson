@@ -1,0 +1,45 @@
+{
+  "tag": "json-zod",
+  "timestamp": "2026-03-25T13:32:19.745Z",
+  "model": "openai/gpt-oss-120b",
+  "aggregate": {
+    "totalTimeMs": 172061,
+    "totalCourseTimeMs": 172061,
+    "totalLessons": 46,
+    "firstPassSuccess": 46,
+    "firstPassRate": 100,
+    "finalSuccess": 46,
+    "finalRate": 100,
+    "finalFailed": 0
+  },
+  "perFile": [
+    {
+      "file": "Rise-and-Fall-of-the-Roman-Empire.ocr",
+      "total": 10,
+      "success": 10,
+      "firstPass": 10,
+      "rate": 1
+    },
+    {
+      "file": "together-embeddings-blog.ocr",
+      "total": 12,
+      "success": 12,
+      "firstPass": 12,
+      "rate": 1
+    },
+    {
+      "file": "Claude Code Best Practices _ Anthropic.ocr",
+      "total": 12,
+      "success": 12,
+      "firstPass": 12,
+      "rate": 1
+    },
+    {
+      "file": "How we built our multi-agent research system _ Anthropic.ocr",
+      "total": 12,
+      "success": 12,
+      "firstPass": 12,
+      "rate": 1
+    }
+  ]
+}

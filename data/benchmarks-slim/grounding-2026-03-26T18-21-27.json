@@ -1,0 +1,81 @@
+{
+  "tag": "grounding",
+  "timestamp": "2026-03-26T18:21:27.751Z",
+  "generationModel": "MiniMaxAI/MiniMax-M2.5",
+  "judgeModel": "anthropic/claude-sonnet-4",
+  "totalTimeMs": 360602,
+  "aggregate": {
+    "totalGraded": 31,
+    "selfContained": "29/31 (94%)",
+    "concrete": "30/31 (97%)",
+    "grounded": "21/31 (68%)",
+    "overallPass": "20/31 (65%)",
+    "byQuestionType": {
+      "short-answer": {
+        "total": 9,
+        "selfContained": "7/9",
+        "concrete": "8/9",
+        "grounded": "6/9",
+        "overall": "5/9"
+      },
+      "true-false": {
+        "total": 9,
+        "selfContained": "9/9",
+        "concrete": "9/9",
+        "grounded": "7/9",
+        "overall": "7/9"
+      },
+      "multiple-choice": {
+        "total": 9,
+        "selfContained": "9/9",
+        "concrete": "9/9",
+        "grounded": "5/9",
+        "overall": "5/9"
+      },
+      "flow-diagram": {
+        "total": 4,
+        "selfContained": "4/4",
+        "concrete": "4/4",
+        "grounded": "3/4",
+        "overall": "3/4"
+      }
+    }
+  },
+  "perFile": [
+    {
+      "file": "Rise-and-Fall-of-the-Roman-Empire.pdf",
+      "total": 0,
+      "success": 0,
+      "firstPass": 0,
+      "rate": null
+    },
+    {
+      "file": "How we built our multi-agent research system _ Anthropic.pdf",
+      "total": 10,
+      "success": 10,
+      "firstPass": 0,
+      "rate": 1
+    },
+    {
+      "file": "together-embeddings-blog.pdf",
+      "total": 0,
+      "success": 0,
+      "firstPass": 0,
+      "rate": null
+    },
+    {
+      "file": "Composer2.pdf",
+      "total": 11,
+      "success": 11,
+      "firstPass": 0,
+      "rate": 1
+    },
+    {
+      "file": "Claude Code Best Practices _ Anthropic.pdf",
+      "total": 11,
+      "success": 10,
+      "firstPass": 0,
+      "rate": 0.9091
+    }
+  ]
+}

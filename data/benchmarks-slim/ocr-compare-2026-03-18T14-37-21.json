@@ -1,0 +1,13 @@
+{
+  "tag": "ocr-compare",
+  "timestamp": "2026-03-18T14:37:21.603Z",
+  "perFile": [
+    {
+      "file": "unknown",
+      "total": 0,
+      "success": 0,
+      "firstPass": 0,
+      "rate": null
+    }
+  ]
+}

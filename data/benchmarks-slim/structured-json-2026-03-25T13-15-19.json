@@ -1,0 +1,23 @@
+{
+  "tag": "structured-json",
+  "timestamp": "2026-03-25T13:15:19.688Z",
+  "model": "openai/gpt-oss-120b",
+  "aggregate": {
+    "totalTimeMs": 26711,
+    "totalLessons": 12,
+    "firstPassSuccess": 10,
+    "firstPassRate": 83,
+    "finalSuccess": 10,
+    "finalRate": 83,
+    "finalFailed": 2
+  },
+  "perFile": [
+    {
+      "file": "attention-excerpt",
+      "total": 12,
+      "success": 10,
+      "firstPass": 10,
+      "rate": 0.8333
+    }
+  ]
+}

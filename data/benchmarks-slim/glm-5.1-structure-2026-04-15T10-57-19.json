@@ -1,0 +1,24 @@
+{
+  "tag": "glm-5.1-structure",
+  "timestamp": "2026-04-15T10:57:19.273Z",
+  "model": "zai-org/GLM-5.1",
+  "aggregate": {
+    "totalTimeMs": 0,
+    "totalCourseTimeMs": 0,
+    "totalLessons": 0,
+    "firstPassSuccess": 0,
+    "firstPassRate": 0,
+    "finalSuccess": 0,
+    "finalRate": 0,
+    "finalFailed": 0
+  },
+  "perFile": [
+    {
+      "file": "1706.03762v7.md",
+      "total": 0,
+      "success": 0,
+      "firstPass": 0,
+      "rate": null
+    }
+  ]
+}

@@ -1,0 +1,76 @@
+{
+  "tag": "model-compare-qwen-composer2",
+  "timestamp": "2026-04-03T12:54:05.635Z",
+  "generationModel": "Qwen/Qwen3.5-397B-A17B",
+  "judgeModel": "openrouter/google/gemini-3.1-flash-lite-preview",
+  "iterations": 1,
+  "batchSize": 1,
+  "totalTimeMs": 152988,
+  "dimensions": [
+    "structural",
+    "correctness",
+    "grounding",
+    "duplicates",
+    "sufficiency"
+  ],
+  "aggregate": {
+    "structural": {
+      "totalLessons": 12,
+      "successfulLessons": 9,
+      "firstPassSuccess": 9,
+      "successRate": "75%",
+      "firstPassRate": "75%"
+    },
+    "correctness": {
+      "totalGraded": 9,
+      "correct": 9,
+      "accuracy": "100%"
+    },
+    "grounding": {
+      "totalGraded": 9,
+      "fullyGrounded": "9/9 (100%)",
+      "selfContained": "9/9 (100%)",
+      "concrete": "9/9 (100%)",
+      "grounded": "9/9 (100%)"
+    },
+    "sufficiency": {
+      "totalGraded": 9,
+      "sufficient": 9,
+      "rate": "100%"
+    },
+    "duplicates": {
+      "duplicateGroups": 0,
+      "questionsInDupes": 0,
+      "duplicationRate": "0%"
+    },
+    "byQuestionType": {
+      "short-answer": {
+        "total": 3,
+        "correct": "3/3",
+        "fullyGrounded": "3/3",
+        "sufficient": "3/3"
+      },
+      "true-false": {
+        "total": 3,
+        "correct": "3/3",
+        "fullyGrounded": "3/3",
+        "sufficient": "3/3"
+      },
+      "multiple-choice": {
+        "total": 3,
+        "correct": "3/3",
+        "fullyGrounded": "3/3",
+        "sufficient": "3/3"
+      }
+    }
+  },
+  "perFile": [
+    {
+      "file": "Composer2.pdf",
+      "total": 12,
+      "success": 9,
+      "firstPass": 9,
+      "rate": 0.75
+    }
+  ]
+}

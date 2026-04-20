@@ -1,0 +1,31 @@
+{
+  "tag": "kimi-k2.5",
+  "timestamp": "2026-03-25T13:44:13.548Z",
+  "model": "moonshotai/Kimi-K2.5",
+  "aggregate": {
+    "totalTimeMs": 0,
+    "totalCourseTimeMs": 0,
+    "totalLessons": 0,
+    "firstPassSuccess": 0,
+    "firstPassRate": 0,
+    "finalSuccess": 0,
+    "finalRate": 0,
+    "finalFailed": 0
+  },
+  "perFile": [
+    {
+      "file": "attention-excerpt.md",
+      "total": 0,
+      "success": 0,
+      "firstPass": 0,
+      "rate": null
+    },
+    {
+      "file": "together-embeddings-blog.ocr.md",
+      "total": 0,
+      "success": 0,
+      "firstPass": 0,
+      "rate": null
+    }
+  ]
+}

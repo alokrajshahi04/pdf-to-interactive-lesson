@@ -1,0 +1,18 @@
+{
+  "timestamp": "2026-03-28T20:10:03.081Z",
+  "iterations": 5,
+  "totalTimeMs": 106739231,
+  "summary": {
+    "totalPdfs": 5,
+    "totalLessons": 163,
+    "totalSuccessful": 160,
+    "totalQuestions": 160,
+    "uniqueQuestions": 144,
+    "duplicateGroups": 15,
+    "questionsInDuplicateGroups": 31,
+    "duplicationRate": "19.4%",
+    "withinCourseDupeGroups": 0,
+    "crossCourseDupeGroups": 0
+  },
+  "perFile": []
+}

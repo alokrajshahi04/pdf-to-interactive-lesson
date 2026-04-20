@@ -1,0 +1,24 @@
+{
+  "tag": "baseline",
+  "timestamp": "2026-03-18T14:27:03.669Z",
+  "model": "openai/gpt-oss-120b",
+  "iterations": 1,
+  "summary": {
+    "avgTotalTime": 99606,
+    "avgFirstPassRate": 0.5277777777777778,
+    "avgFinalSuccessRate": 0.9629629629629629,
+    "avgOcrTime": 19489.333333333332,
+    "avgCourseTime": 80111,
+    "totalFixAttempts": 17,
+    "totalFixSuccesses": 12
+  },
+  "perFile": [
+    {
+      "file": "unknown",
+      "total": 0,
+      "success": 0,
+      "firstPass": 0,
+      "rate": null
+    }
+  ]
+}

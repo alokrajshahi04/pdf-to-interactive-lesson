@@ -1,0 +1,78 @@
+{
+  "tag": "ollama-gemma4-sufficiency-composer2",
+  "timestamp": "2026-04-02T17:36:00.644Z",
+  "generationModel": "MiniMaxAI/MiniMax-M2.5",
+  "judgeModel": "ollama/gemma4:e2b",
+  "iterations": 1,
+  "batchSize": 1,
+  "totalTimeMs": 147194,
+  "dimensions": [
+    "sufficiency"
+  ],
+  "aggregate": {
+    "structural": {
+      "totalLessons": 11,
+      "successfulLessons": 10,
+      "firstPassSuccess": 10,
+      "successRate": "91%",
+      "firstPassRate": "91%"
+    },
+    "correctness": {
+      "totalGraded": 10,
+      "correct": 10,
+      "accuracy": "100%"
+    },
+    "grounding": {
+      "totalGraded": 10,
+      "fullyGrounded": "0/10 (0%)",
+      "selfContained": "0/10 (0%)",
+      "concrete": "10/10 (100%)",
+      "grounded": "10/10 (100%)"
+    },
+    "sufficiency": {
+      "totalGraded": 10,
+      "sufficient": 10,
+      "rate": "100%"
+    },
+    "duplicates": {
+      "duplicateGroups": 0,
+      "questionsInDupes": 0,
+      "duplicationRate": "0%"
+    },
+    "byQuestionType": {
+      "short-answer": {
+        "total": 3,
+        "correct": "3/3",
+        "fullyGrounded": "0/3",
+        "sufficient": "3/3"
+      },
+      "true-false": {
+        "total": 3,
+        "correct": "3/3",
+        "fullyGrounded": "0/3",
+        "sufficient": "3/3"
+      },
+      "multiple-choice": {
+        "total": 3,
+        "correct": "3/3",
+        "fullyGrounded": "0/3",
+        "sufficient": "3/3"
+      },
+      "flow-diagram": {
+        "total": 1,
+        "correct": "1/1",
+        "fullyGrounded": "0/1",
+        "sufficient": "1/1"
+      }
+    }
+  },
+  "perFile": [
+    {
+      "file": "Composer2.pdf",
+      "total": 11,
+      "success": 10,
+      "firstPass": 10,
+      "rate": 0.9091
+    }
+  ]
+}

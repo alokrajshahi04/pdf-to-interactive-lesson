@@ -1,0 +1,51 @@
+{
+  "tag": "glm5",
+  "timestamp": "2026-03-26T11:41:19.919Z",
+  "generationModel": "zhipu-ai/GLM-5-0131",
+  "judgeModel": "anthropic/claude-opus-4-6",
+  "totalTimeMs": 15711,
+  "aggregate": {
+    "totalGraded": 0,
+    "correct": 0,
+    "incorrect": 0,
+    "accuracy": "0%",
+    "byQuestionType": {}
+  },
+  "perFile": [
+    {
+      "file": "Rise-and-Fall-of-the-Roman-Empire.pdf",
+      "total": 0,
+      "success": 0,
+      "firstPass": 0,
+      "rate": null
+    },
+    {
+      "file": "How we built our multi-agent research system _ Anthropic.pdf",
+      "total": 0,
+      "success": 0,
+      "firstPass": 0,
+      "rate": null
+    },
+    {
+      "file": "together-embeddings-blog.pdf",
+      "total": 0,
+      "success": 0,
+      "firstPass": 0,
+      "rate": null
+    },
+    {
+      "file": "Composer2.pdf",
+      "total": 0,
+      "success": 0,
+      "firstPass": 0,
+      "rate": null
+    },
+    {
+      "file": "Claude Code Best Practices _ Anthropic.pdf",
+      "total": 0,
+      "success": 0,
+      "firstPass": 0,
+      "rate": null
+    }
+  ]
+}

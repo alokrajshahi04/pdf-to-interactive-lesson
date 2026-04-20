@@ -1,0 +1,78 @@
+{
+  "tag": "together-glm5-sufficiency-composer2",
+  "timestamp": "2026-04-02T16:05:21.780Z",
+  "generationModel": "MiniMaxAI/MiniMax-M2.5",
+  "judgeModel": "zai-org/GLM-5",
+  "iterations": 1,
+  "batchSize": 1,
+  "totalTimeMs": 90548,
+  "dimensions": [
+    "sufficiency"
+  ],
+  "aggregate": {
+    "structural": {
+      "totalLessons": 10,
+      "successfulLessons": 10,
+      "firstPassSuccess": 10,
+      "successRate": "100%",
+      "firstPassRate": "100%"
+    },
+    "correctness": {
+      "totalGraded": 10,
+      "correct": 10,
+      "accuracy": "100%"
+    },
+    "grounding": {
+      "totalGraded": 10,
+      "fullyGrounded": "10/10 (100%)",
+      "selfContained": "10/10 (100%)",
+      "concrete": "10/10 (100%)",
+      "grounded": "10/10 (100%)"
+    },
+    "sufficiency": {
+      "totalGraded": 10,
+      "sufficient": 7,
+      "rate": "70%"
+    },
+    "duplicates": {
+      "duplicateGroups": 0,
+      "questionsInDupes": 0,
+      "duplicationRate": "0%"
+    },
+    "byQuestionType": {
+      "short-answer": {
+        "total": 3,
+        "correct": "3/3",
+        "fullyGrounded": "3/3",
+        "sufficient": "2/3"
+      },
+      "true-false": {
+        "total": 3,
+        "correct": "3/3",
+        "fullyGrounded": "3/3",
+        "sufficient": "3/3"
+      },
+      "multiple-choice": {
+        "total": 3,
+        "correct": "3/3",
+        "fullyGrounded": "3/3",
+        "sufficient": "2/3"
+      },
+      "flow-diagram": {
+        "total": 1,
+        "correct": "1/1",
+        "fullyGrounded": "1/1",
+        "sufficient": "0/1"
+      }
+    }
+  },
+  "perFile": [
+    {
+      "file": "Composer2.pdf",
+      "total": 10,
+      "success": 10,
+      "firstPass": 10,
+      "rate": 1
+    }
+  ]
+}

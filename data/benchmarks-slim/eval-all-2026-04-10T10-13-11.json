@@ -1,0 +1,78 @@
+{
+  "tag": "eval-all",
+  "timestamp": "2026-04-10T10:13:11.196Z",
+  "generationModel": "MiniMaxAI/MiniMax-M2.5",
+  "judgeModel": "openrouter/google/gemini-3.1-flash-lite-preview",
+  "iterations": 20,
+  "batchSize": 5,
+  "totalTimeMs": 1023081,
+  "dimensions": [
+    "structural"
+  ],
+  "aggregate": {
+    "structural": {
+      "totalLessons": 239,
+      "successfulLessons": 223,
+      "firstPassSuccess": 223,
+      "successRate": "93%",
+      "firstPassRate": "93%"
+    },
+    "correctness": {
+      "totalGraded": 223,
+      "correct": 223,
+      "accuracy": "100%"
+    },
+    "grounding": {
+      "totalGraded": 223,
+      "fullyGrounded": "223/223 (100%)",
+      "selfContained": "223/223 (100%)",
+      "concrete": "223/223 (100%)",
+      "grounded": "223/223 (100%)"
+    },
+    "sufficiency": {
+      "totalGraded": 223,
+      "sufficient": 223,
+      "rate": "100%"
+    },
+    "duplicates": {
+      "duplicateGroups": 0,
+      "questionsInDupes": 0,
+      "duplicationRate": "0%"
+    },
+    "byQuestionType": {
+      "short-answer": {
+        "total": 60,
+        "correct": "60/60",
+        "fullyGrounded": "60/60",
+        "sufficient": "60/60"
+      },
+      "true-false": {
+        "total": 60,
+        "correct": "60/60",
+        "fullyGrounded": "60/60",
+        "sufficient": "60/60"
+      },
+      "multiple-choice": {
+        "total": 60,
+        "correct": "60/60",
+        "fullyGrounded": "60/60",
+        "sufficient": "60/60"
+      },
+      "flow-diagram": {
+        "total": 43,
+        "correct": "43/43",
+        "fullyGrounded": "43/43",
+        "sufficient": "43/43"
+      }
+    }
+  },
+  "perFile": [
+    {
+      "file": "How does image compression work_ _ Lee Robinson.pdf",
+      "total": 239,
+      "success": 223,
+      "firstPass": 223,
+      "rate": 0.9331
+    }
+  ]
+}

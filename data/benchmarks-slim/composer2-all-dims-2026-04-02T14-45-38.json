@@ -1,0 +1,82 @@
+{
+  "tag": "composer2-all-dims",
+  "timestamp": "2026-04-02T14:45:38.080Z",
+  "generationModel": "MiniMaxAI/MiniMax-M2.5",
+  "judgeModel": "anthropic/claude-sonnet-4-6",
+  "iterations": 10,
+  "batchSize": 5,
+  "totalTimeMs": 341079,
+  "dimensions": [
+    "structural",
+    "correctness",
+    "grounding",
+    "duplicates",
+    "sufficiency"
+  ],
+  "aggregate": {
+    "structural": {
+      "totalLessons": 24,
+      "successfulLessons": 24,
+      "firstPassSuccess": 24,
+      "successRate": "100%",
+      "firstPassRate": "100%"
+    },
+    "correctness": {
+      "totalGraded": 24,
+      "correct": 24,
+      "accuracy": "100%"
+    },
+    "grounding": {
+      "totalGraded": 24,
+      "fullyGrounded": "24/24 (100%)",
+      "selfContained": "24/24 (100%)",
+      "concrete": "24/24 (100%)",
+      "grounded": "24/24 (100%)"
+    },
+    "sufficiency": {
+      "totalGraded": 24,
+      "sufficient": 19,
+      "rate": "79%"
+    },
+    "duplicates": {
+      "duplicateGroups": 1,
+      "questionsInDupes": 2,
+      "duplicationRate": "8%"
+    },
+    "byQuestionType": {
+      "short-answer": {
+        "total": 6,
+        "correct": "6/6",
+        "fullyGrounded": "6/6",
+        "sufficient": "5/6"
+      },
+      "true-false": {
+        "total": 6,
+        "correct": "6/6",
+        "fullyGrounded": "6/6",
+        "sufficient": "5/6"
+      },
+      "multiple-choice": {
+        "total": 6,
+        "correct": "6/6",
+        "fullyGrounded": "6/6",
+        "sufficient": "6/6"
+      },
+      "flow-diagram": {
+        "total": 6,
+        "correct": "6/6",
+        "fullyGrounded": "6/6",
+        "sufficient": "3/6"
+      }
+    }
+  },
+  "perFile": [
+    {
+      "file": "Composer2.pdf",
+      "total": 24,
+      "success": 24,
+      "firstPass": 24,
+      "rate": 1
+    }
+  ]
+}

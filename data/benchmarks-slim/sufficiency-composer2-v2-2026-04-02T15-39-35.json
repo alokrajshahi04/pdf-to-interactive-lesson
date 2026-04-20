@@ -1,0 +1,79 @@
+{
+  "tag": "sufficiency-composer2-v2",
+  "timestamp": "2026-04-02T15:39:35.121Z",
+  "generationModel": "MiniMaxAI/MiniMax-M2.5",
+  "judgeModel": "claude",
+  "iterations": 5,
+  "batchSize": 5,
+  "totalTimeMs": 245174,
+  "dimensions": [
+    "structural",
+    "sufficiency"
+  ],
+  "aggregate": {
+    "structural": {
+      "totalLessons": 21,
+      "successfulLessons": 20,
+      "firstPassSuccess": 20,
+      "successRate": "95%",
+      "firstPassRate": "95%"
+    },
+    "correctness": {
+      "totalGraded": 20,
+      "correct": 20,
+      "accuracy": "100%"
+    },
+    "grounding": {
+      "totalGraded": 20,
+      "fullyGrounded": "20/20 (100%)",
+      "selfContained": "20/20 (100%)",
+      "concrete": "20/20 (100%)",
+      "grounded": "20/20 (100%)"
+    },
+    "sufficiency": {
+      "totalGraded": 20,
+      "sufficient": 16,
+      "rate": "80%"
+    },
+    "duplicates": {
+      "duplicateGroups": 0,
+      "questionsInDupes": 0,
+      "duplicationRate": "0%"
+    },
+    "byQuestionType": {
+      "short-answer": {
+        "total": 6,
+        "correct": "6/6",
+        "fullyGrounded": "6/6",
+        "sufficient": "4/6"
+      },
+      "true-false": {
+        "total": 6,
+        "correct": "6/6",
+        "fullyGrounded": "6/6",
+        "sufficient": "5/6"
+      },
+      "multiple-choice": {
+        "total": 6,
+        "correct": "6/6",
+        "fullyGrounded": "6/6",
+        "sufficient": "5/6"
+      },
+      "flow-diagram": {
+        "total": 2,
+        "correct": "2/2",
+        "fullyGrounded": "2/2",
+        "sufficient": "2/2"
+      }
+    }
+  },
+  "perFile": [
+    {
+      "file": "Composer2.pdf",
+      "total": 21,
+      "success": 20,
+      "firstPass": 20,
+      "rate": 0.9524
+    }
+  ]
+}

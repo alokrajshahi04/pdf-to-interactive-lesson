@@ -1,0 +1,52 @@
+{
+  "tag": "dedup-fix",
+  "timestamp": "2026-03-25T17:06:46.390Z",
+  "model": "openai/gpt-oss-120b",
+  "aggregate": {
+    "totalTimeMs": 244515,
+    "totalCourseTimeMs": 244155,
+    "totalLessons": 40,
+    "firstPassSuccess": 40,
+    "firstPassRate": 100,
+    "finalSuccess": 40,
+    "finalRate": 100,
+    "finalFailed": 0
+  },
+  "perFile": [
+    {
+      "file": "Claude Code Best Practices _ Anthropic",
+      "total": 10,
+      "success": 10,
+      "firstPass": 10,
+      "rate": 1
+    },
+    {
+      "file": "Composer2.pdf",
+      "total": 0,
+      "success": 0,
+      "firstPass": 0,
+      "rate": null
+    },
+    {
+      "file": "How we built our multi-agent research system _ Anthropic",
+      "total": 12,
+      "success": 12,
+      "firstPass": 12,
+      "rate": 1
+    },
+    {
+      "file": "Rise-and-Fall-of-the-Roman-Empire",
+      "total": 9,
+      "success": 9,
+      "firstPass": 9,
+      "rate": 1
+    },
+    {
+      "file": "together-embeddings-blog",
+      "total": 9,
+      "success": 9,
+      "firstPass": 9,
+      "rate": 1
+    }
+  ]
+}

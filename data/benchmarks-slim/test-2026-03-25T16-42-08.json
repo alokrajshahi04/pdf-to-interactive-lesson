@@ -1,0 +1,24 @@
+{
+  "tag": "test",
+  "timestamp": "2026-03-25T16:42:08.902Z",
+  "model": "openai/gpt-oss-120b",
+  "aggregate": {
+    "totalTimeMs": 0,
+    "totalCourseTimeMs": 0,
+    "totalLessons": 0,
+    "firstPassSuccess": 0,
+    "firstPassRate": 0,
+    "finalSuccess": 0,
+    "finalRate": 0,
+    "finalFailed": 0
+  },
+  "perFile": [
+    {
+      "file": "together-embeddings-blog.pdf",
+      "total": 0,
+      "success": 0,
+      "firstPass": 0,
+      "rate": null
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "tag": "minimax-m2.5-structure",
+  "timestamp": "2026-04-15T11:59:29.094Z",
+  "model": "MiniMaxAI/MiniMax-M2.5",
+  "aggregate": {
+    "totalTimeMs": 184507,
+    "totalCourseTimeMs": 184507,
+    "totalLessons": 10,
+    "firstPassSuccess": 9,
+    "firstPassRate": 90,
+    "finalSuccess": 9,
+    "finalRate": 90,
+    "finalFailed": 1
+  },
+  "perFile": [
+    {
+      "file": "1706.03762v7",
+      "total": 10,
+      "success": 9,
+      "firstPass": 9,
+      "rate": 0.9
+    }
+  ]
+}
