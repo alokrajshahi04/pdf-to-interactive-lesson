@@ -47,7 +47,7 @@ console.error = (...args: any[]) => {
 // Models to benchmark (subset of MODEL_CONFIG)
 const BENCHMARK_MODELS: { alias: string; fullName: string }[] = [
   { alias: "gpt-oss-120b", fullName: "openai/gpt-oss-120b" },
-  { alias: "MiniMax-M2.5", fullName: "MiniMaxAI/MiniMax-M2.5" },
+  { alias: "MiniMax-M2.7", fullName: "MiniMaxAI/MiniMax-M2.7" },
   { alias: "GLM-5", fullName: "zai-org/GLM-5" },
   { alias: "Kimi-K2.5", fullName: "moonshotai/Kimi-K2.5" },
   { alias: "Qwen3.5-397B", fullName: "Qwen/Qwen3.5-397B-A17B" },

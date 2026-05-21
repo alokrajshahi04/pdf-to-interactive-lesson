@@ -14,7 +14,7 @@
  *   TOGETHER_API_KEY=... OPENROUTER_API_KEY=... bun scripts/benchmark-answer-grounding.ts [--tag=<name>] [--model=<model>] [--judge=<model>] [file1 file2...]
  *
  * If no files given, runs all PDFs in data/pdfs/.
- * --model   sets the generation model (default: MiniMaxAI/MiniMax-M2.5)
+ * --model   sets the generation model (default: MiniMaxAI/MiniMax-M2.7)
  * --judge   sets the judge model (default: anthropic/claude-opus-4-6).
  *           Use anthropic/, openrouter/, or ollama/ prefixes to force a provider.
  * --tag     label for the output file (default: grounding)

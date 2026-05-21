@@ -27,7 +27,7 @@ export function getTogetherProviderOptions(model: string) {
 /**
  * Default model for course and lesson generation
  */
-export const DEFAULT_MODEL = "MiniMaxAI/MiniMax-M2.5";
+export const DEFAULT_MODEL = "MiniMaxAI/MiniMax-M2.7";
 
 /**
  * Model used for grading short-answer responses
@@ -39,8 +39,8 @@ export const GRADER_MODEL = "openai/gpt-oss-20b";
  * Pricing is per 1M tokens (input, output in USD)
  */
 export const MODEL_CONFIG = {
-  "minimax-m2.5": {
-    fullName: "MiniMaxAI/MiniMax-M2.5",
+  "minimax-m2.7": {
+    fullName: "MiniMaxAI/MiniMax-M2.7",
     pricing: { input: 0.30, output: 1.20 },
   },
   "gpt-oss-20b": {

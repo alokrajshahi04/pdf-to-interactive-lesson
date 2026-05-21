@@ -14,7 +14,7 @@
  *
  * If no files given, runs all PDFs in data/pdfs/.
  * Options:
- *   --model=<model>       Generation model (default: MiniMaxAI/MiniMax-M2.5)
+ *   --model=<model>       Generation model (default: MiniMaxAI/MiniMax-M2.7)
  *   --judge=<model>       Judge model (default: anthropic/claude-sonnet-4-6)
  *                         Prefix with anthropic/, openrouter/, or ollama/ to force provider
  *   --tag=<name>          Label for the output file (default: eval-all)
