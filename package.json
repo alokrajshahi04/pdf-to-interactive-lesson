@@ -31,6 +31,7 @@
     "@types/dagre": "^0.7.53",
     "@upstash/redis": "^1.35.6",
     "@vercel/blob": "^2.0.0",
+    "@vercel/queue": "^0.2.0",
     "@xyflow/react": "^12.9.3",
     "ai": "^5.0.81",
     "class-variance-authority": "^0.7.1",

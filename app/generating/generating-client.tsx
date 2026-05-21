@@ -6,7 +6,6 @@ import { upload } from "@vercel/blob/client";
 import { getApiKey } from "@/lib/api-key-storage";
 import { getPendingFile } from "@/lib/utils/indexed-db-storage";
 import { getOrCreateUserId } from "@/lib/utils/session";
-import type { Course } from "@/lib/types";
 import { HeaderActions } from "../components/header-actions";
 import { ApiKeyDialog } from "../components/api-key-dialog";
 
@@ -119,131 +118,85 @@ export function GeneratingPageContent() {
 
     try {
       const apiKey = getApiKey();
-      
+      const userId = getOrCreateUserId();
+
       const formData = new FormData();
       formData.append("url", url);
 
-      // Prepare headers - only include API key if user has provided one
-      const headers: Record<string, string> = {};
+      // Headers — only include API key if the user has provided one.
+      // Always include X-User-ID so the worker can record course
+      // ownership when saving to Postgres.
+      const headers: Record<string, string> = {
+        "X-User-ID": userId,
+      };
       if (apiKey) {
         headers["X-Together-API-Key"] = apiKey;
       }
 
-      const response = await fetch("/api/generate-course", {
+      const enqueueResponse = await fetch("/api/generate-course", {
         method: "POST",
         headers,
         body: formData,
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        if (response.status === 402) {
-          throw new Error(
-            errorData.message || `Insufficient credits.`
-          );
+      if (!enqueueResponse.ok) {
+        const errorData = await enqueueResponse.json();
+        if (enqueueResponse.status === 402) {
+          throw new Error(errorData.message || `Insufficient credits.`);
         }
         throw new Error(errorData.error || "Failed to generate course");
       }
 
-      // Read the streaming response
-      const reader = response.body?.getReader();
-      const decoder = new TextDecoder();
-
-      if (!reader) {
-        throw new Error("No response body");
+      const { jobId } = (await enqueueResponse.json()) as { jobId: string };
+      if (!jobId) {
+        throw new Error("No jobId returned from server");
       }
 
-      let buffer = "";
-      let courseData: Course | null = null;
-      let courseMetadata: Record<string, unknown> | null = null;
+      const POLL_INTERVAL_MS = 1500;
+      const MAX_POLL_MS = 20 * 60 * 1000;
+      const startedAt = Date.now();
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
+      let courseSlug: string | null = null;
 
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop() || "";
+      while (Date.now() - startedAt < MAX_POLL_MS) {
+        await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
 
-        for (const line of lines) {
-          if (!line.trim()) continue;
+        const statusResponse = await fetch(
+          `/api/generate-course/status?jobId=${encodeURIComponent(jobId)}`,
+          { cache: "no-store" }
+        );
 
-          let event;
-          try {
-            event = JSON.parse(line);
-          } catch (parseError) {
-            // Skip invalid JSON lines
-            console.warn("Failed to parse SSE line:", line);
-            continue;
+        if (!statusResponse.ok) {
+          if (statusResponse.status === 404) {
+            throw new Error("Job expired before completing. Please try again.");
           }
-
-          // Handle parsed event
-          if (event.type === "error") {
-            throw new Error(event.error || "Unknown error occurred during course generation");
-          } else if (event.type === "complete") {
-            courseData = event.data.course;
-            courseMetadata = event.data.metadata || null;
-            break;
-          } else if (event.type === "queued") {
-            setIsQueued(true);
-            if (typeof event.position === "number") {
-              setProgress(
-                event.position <= 1
-                  ? "Starting shortly..."
-                  : `Waiting in line (position ${event.position})`
-              );
-            } else if (event.message) {
-              setProgress(event.message);
-            }
-          } else if (event.type === "queue-acquired") {
-            setIsQueued(false);
-            setProgress(event.message || "Starting generation...");
-          } else if (event.message) {
-            setIsQueued(false);
-            setProgress(event.message);
-          }
-        }
-        if (courseData) break;
-      }
-
-      if (!courseData) {
-        throw new Error("Failed to generate course");
-      }
-
-      // Attach generation metadata to course object (for debug panel)
-      if (courseMetadata) {
-        (courseData as unknown as Record<string, unknown>)._metadata = courseMetadata;
-      }
-
-      setProgress("Course generated successfully! Saving to database...");
-
-      // Save course to database for sharing
-      try {
-        const userId = getOrCreateUserId();
-        const saveResponse = await fetch("/api/courses", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-User-ID": userId,
-          },
-          body: JSON.stringify({ course: courseData }),
-        });
-
-        if (!saveResponse.ok) {
-          const errorData = await saveResponse.json();
-          throw new Error(errorData.error || "Failed to save course");
+          continue;
         }
 
-        const savedCourse = await saveResponse.json();
-        setProgress("Course saved! Redirecting...");
-        
-        // Navigate to the course using the slug from the database
-        router.push(`/course/${savedCourse.slug}`);
-      } catch (saveError) {
-        console.error("Error saving course to database:", saveError);
-        // For now, show error - in production you might want to save locally as fallback
-        throw new Error("Failed to save course to database. Please try again.");
+        const state = await statusResponse.json();
+
+        if (state.status === "queued") {
+          setIsQueued(true);
+          setProgress("Waiting in line...");
+        } else if (state.status === "processing") {
+          setIsQueued(false);
+          if (state.progress) {
+            setProgress(state.progress);
+          }
+        } else if (state.status === "complete") {
+          courseSlug = state.slug;
+          break;
+        } else if (state.status === "error") {
+          throw new Error(state.error || "Unknown error occurred during course generation");
+        }
       }
+
+      if (!courseSlug) {
+        throw new Error("Course generation timed out. Please try again.");
+      }
+
+      setProgress("Course ready! Redirecting...");
+      router.push(`/course/${courseSlug}`);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Failed to process PDF. Please try again.";
 
