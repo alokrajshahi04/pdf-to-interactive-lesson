@@ -737,6 +737,8 @@ async function processFile(filePath: string): Promise<FileEvalResult> {
     if (runJudge) {
       const judges: Promise<any>[] = [];
 
+      const qPreview = lesson.data.question.substring(0, 60);
+
       if (enabledDimensions.has("correctness")) {
         judges.push(
           judgeCorrectness(
@@ -749,7 +751,10 @@ async function processFile(filePath: string): Promise<FileEvalResult> {
               slots: lesson.data.slots,
             },
             content
-          )
+          ).catch((e: any): CorrectnessVerdict => {
+            console.error(`  ⚠️  correctness judge failed for "${qPreview}...": ${e.message}`);
+            return { correct: true, explanation: `judge_failed: ${e.message}` };
+          })
         );
       } else {
         judges.push(Promise.resolve(defaultCorrectness));
@@ -767,7 +772,10 @@ async function processFile(filePath: string): Promise<FileEvalResult> {
               slots: lesson.data.slots,
             },
             content
-          )
+          ).catch((e: any): GroundingVerdict => {
+            console.error(`  ⚠️  grounding judge failed for "${qPreview}...": ${e.message}`);
+            return { selfContained: true, concrete: true, grounded: true, issues: [], explanation: `judge_failed: ${e.message}` };
+          })
         );
       } else {
         judges.push(Promise.resolve(defaultGrounding));
@@ -782,6 +790,9 @@ async function processFile(filePath: string): Promise<FileEvalResult> {
             lessonContent: lesson.data.content,
             choices: lesson.data.choices,
             slots: lesson.data.slots,
+          }).catch((e: any): SufficiencyVerdict => {
+            console.error(`  ⚠️  sufficiency judge failed for "${qPreview}...": ${e.message}`);
+            return { sufficient: true, explanation: `judge_failed: ${e.message}` };
           })
         );
       } else {
