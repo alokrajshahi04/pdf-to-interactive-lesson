@@ -12,7 +12,7 @@ import { Loader } from "@/components/ai-elements/loader";
 import { LogoSvg, LandingBgSvg } from "./svg-icons";
 import type { Course } from "@/lib/types";
 import { HeaderActions } from "./header-actions";
-import demoCourse from "@/lib/demo/transformer-course.json";
+import demoCourse from "@/lib/demo/composer2-course.json";
 
 function LandingScreen() {
   const [isDragging, setIsDragging] = useState(false);
