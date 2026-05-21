@@ -6,6 +6,7 @@ import {
   getRateLimitStatus,
   getClientIdentifier,
 } from "@/lib/utils/rate-limiter";
+import { acquireSlot } from "@/lib/utils/generation-semaphore";
 
 // Force Node.js runtime (not Edge) for native modules like sharp
 export const runtime = "nodejs";
@@ -78,28 +79,48 @@ export async function POST(request: NextRequest) {
       const file = formData.get("file") as File | null;
       const url = formData.get("url") as string | null;
 
-      // Generate course with progress updates
-      const result = await generateCourseFromPdf({
-        file: file || undefined,
-        url: url || undefined,
-        apiKey: apiKey || "",
-        onProgress: sendProgress,
+      const slot = await acquireSlot((position) => {
+        sendProgress(
+          "queued",
+          position === 1
+            ? "Starting shortly..."
+            : `Waiting in line (position ${position})`,
+          { position }
+        );
       });
 
-      // Increment rate limit only if user didn't provide their own API key
-      if (!apiKey) {
-        await incrementRateLimit(clientId);
+      if (slot.waitMs > 0) {
+        sendProgress("queue-acquired", "Starting generation...", {
+          waitMs: slot.waitMs,
+        });
       }
 
-      // Get full status for the client
-      const status = await getRateLimitStatus(clientId);
+      try {
+        // Generate course with progress updates
+        const result = await generateCourseFromPdf({
+          file: file || undefined,
+          url: url || undefined,
+          apiKey: apiKey || "",
+          onProgress: sendProgress,
+        });
 
-      // Send final result with credit info
-      sendComplete({
-        ...result,
-        coursesCreated: status.coursesCreated,
-        gradingsUsed: status.gradingsUsed,
-      });
+        // Increment rate limit only if user didn't provide their own API key
+        if (!apiKey) {
+          await incrementRateLimit(clientId);
+        }
+
+        // Get full status for the client
+        const status = await getRateLimitStatus(clientId);
+
+        // Send final result with credit info
+        sendComplete({
+          ...result,
+          coursesCreated: status.coursesCreated,
+          gradingsUsed: status.gradingsUsed,
+        });
+      } finally {
+        slot.release();
+      }
     } catch (error) {
       console.error("❌ Error generating course:", error);
       sendError(error instanceof Error ? error.message : "Unknown error");

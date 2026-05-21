@@ -21,6 +21,7 @@ export function GeneratingPageContent() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [progress, setProgress] = useState("Initializing...");
   const [error, setError] = useState<string | null>(null);
+  const [isQueued, setIsQueued] = useState(false);
   const [lastUpload, setLastUpload] = useState<{ url: string; fileName: string } | null>(null);
   const [isApiKeyDialogOpen, setIsApiKeyDialogOpen] = useState(false);
   const hasStarted = useRef(false);
@@ -110,6 +111,7 @@ export function GeneratingPageContent() {
       setIsProcessing(true);
     }
     setError(null);
+    setIsQueued(false);
     setProgress("Generating course from PDF...");
     
     // Store the upload info for retry
@@ -182,7 +184,22 @@ export function GeneratingPageContent() {
             courseData = event.data.course;
             courseMetadata = event.data.metadata || null;
             break;
+          } else if (event.type === "queued") {
+            setIsQueued(true);
+            if (typeof event.position === "number") {
+              setProgress(
+                event.position <= 1
+                  ? "Starting shortly..."
+                  : `Waiting in line (position ${event.position})`
+              );
+            } else if (event.message) {
+              setProgress(event.message);
+            }
+          } else if (event.type === "queue-acquired") {
+            setIsQueued(false);
+            setProgress(event.message || "Starting generation...");
           } else if (event.message) {
+            setIsQueued(false);
             setProgress(event.message);
           }
         }
@@ -350,7 +367,7 @@ export function GeneratingPageContent() {
                 <Loader size={48} className="mb-8 text-blue-500 [animation-duration:0.6s]" />
                 <p className="text-neutral-900 font-bold text-4xl mb-6">{progress}</p>
                 <p className="text-sm text-neutral-500">
-                  This may take a few minutes...
+                  {isQueued ? "Your course is queued and will begin as soon as a slot opens." : "This may take a few minutes..."}
                 </p>
               </div>
             )}
@@ -410,4 +427,3 @@ export function GeneratingPageContent() {
     </div>
   );
 }
-
