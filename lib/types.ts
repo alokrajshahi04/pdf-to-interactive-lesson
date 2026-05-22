@@ -80,7 +80,14 @@ export interface FlowDiagramLesson extends LessonBase {
 export type Lesson = ShortAnswerLesson | TrueFalseLesson | MultipleChoiceLesson | DragDropLesson | FlowDiagramLesson;
 
 export interface LessonError {
-  validationType: "structure" | "content";
+  /**
+   * "structure"  — JSON parse / Zod validation failure.
+   * "content"    — LLM-judge content validation failure.
+   * "duplicate"  — semantic duplicate of another lesson in this course;
+   *                regeneration attempted but couldn't produce a distinct
+   *                question. UI / consumers should filter these out.
+   */
+  validationType: "structure" | "content" | "duplicate";
   reason: string;
   details?: string[];
   attempts?: number; // Number of fix attempts made (if retry was enabled)

@@ -4,9 +4,13 @@
  * When modules are generated in parallel (no previousQuestions chain), they
  * sometimes converge on the same question — especially flow-diagram lessons,
  * which tend to all detect the same dominant process in the source. This pass:
- *   1. Detects duplicate questions across modules (Jaccard word overlap >= 0.7).
+ *   1. Detects duplicate questions across modules (Jaccard word overlap ≥ 0.5).
  *   2. Keeps the first instance of each group.
- *   3. Regenerates the rest in parallel, telling the model what to avoid.
+ *   3. Regenerates the rest sequentially, telling the model what to avoid.
+ *   4. Re-detects: any duplicates that survived regeneration get marked as
+ *      `success: false` with `validationType: "duplicate"`. Consumers filter
+ *      these out at render time. Better to ship N-1 grounded lessons than N
+ *      with a visible repeat.
  */
 import { generateText } from "ai";
 import type { CourseOutput } from "../create-course";
@@ -145,17 +149,22 @@ async function regenerateFlow(
 }
 
 /**
- * Mutates the course in place: regenerates duplicate lessons with awareness of
- * the questions already chosen. Returns the number of repairs performed.
+ * Mutates the course in place. Strategy:
+ *   1. Regenerate each duplicate with `previousQuestions` context.
+ *   2. Re-detect any duplicates that survived regeneration.
+ *   3. Mark surviving duplicates as `success: false` with
+ *      `validationType: "duplicate"` so consumers can filter them at render.
+ *
+ * Returns counts for telemetry / tests.
  */
 export async function dedupRepair(
   course: CourseOutput,
   content: string,
   apiKey: string,
   model: string = DEFAULT_MODEL
-): Promise<{ repairs: number; remainingDupes: number }> {
+): Promise<{ repairs: number; dropped: number; remainingDupes: number }> {
   const groups = findDupes(course);
-  if (groups.length === 0) return { repairs: 0, remainingDupes: 0 };
+  if (groups.length === 0) return { repairs: 0, dropped: 0, remainingDupes: 0 };
 
   // Build the "questions already used" set (representatives + non-duped lessons).
   const lockedQuestions: string[] = [];
@@ -194,7 +203,32 @@ export async function dedupRepair(
     repairCount++;
   }
 
-  // Recount dupes after repair.
-  const remaining = findDupes(course).reduce((s, g) => s + g.duplicates.length + 1, 0);
-  return { repairs: repairCount, remainingDupes: remaining };
+  // Re-detect. Anything still in a dupe group means regeneration produced
+  // a question that overlaps with another lesson (either the original
+  // representative, or a newly-regenerated one). Drop those by marking them
+  // as success:false. UI / consumers already filter failed lessons.
+  let dropped = 0;
+  const remainingGroups = findDupes(course);
+  for (const g of remainingGroups) {
+    for (const d of g.duplicates) {
+      const mod = course.modules[d.moduleIndex];
+      const existing = mod.lessons[d.lessonIndex];
+      if (!existing.success) continue;
+      mod.lessons[d.lessonIndex] = {
+        success: false,
+        data: existing.data,
+        error: {
+          validationType: "duplicate",
+          reason: `Question is a semantic duplicate of "${g.representative.question.substring(0, 80)}" (kept at M${g.representative.moduleIndex + 1}L${g.representative.lessonIndex + 1}). Regeneration failed to produce a distinct question.`,
+        },
+      } as LessonResult;
+      dropped++;
+    }
+  }
+
+  const remainingDupes = findDupes(course).reduce(
+    (s, g) => s + g.duplicates.length + 1,
+    0
+  );
+  return { repairs: repairCount, dropped, remainingDupes };
 }
