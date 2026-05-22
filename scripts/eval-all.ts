@@ -63,6 +63,7 @@ const batch = parseInt(
   10
 );
 const noJudge = args.includes("--no-judge");
+const parallelFiles = args.includes("--parallel-files");
 const inputFiles = args
   .filter((a) => !a.startsWith("--"))
   .map((f) => resolve(f));
@@ -941,19 +942,33 @@ async function main() {
     const batchPromises = Array.from({ length: batchSize }, (_, i) => {
       const iterNum = batchStart + i + 1;
       return (async () => {
-        const iterResults: FileEvalResult[] = [];
-        for (const file of files) {
-          if (!existsSync(file)) {
-            console.error(`File not found: ${file}`);
-            continue;
+        const existingFiles = files.filter((f) => {
+          if (!existsSync(f)) {
+            console.error(`File not found: ${f}`);
+            return false;
           }
+          return true;
+        });
+
+        const runOne = async (file: string) => {
           try {
-            const result = await processFile(file);
-            iterResults.push(result);
+            return await processFile(file);
           } catch (error: any) {
             console.error(
               `\n  ❌ FAILED iter ${iterNum} ${basename(file)}: ${error.message}`
             );
+            return null;
+          }
+        };
+
+        const iterResults: FileEvalResult[] = [];
+        if (parallelFiles) {
+          const settled = await Promise.all(existingFiles.map(runOne));
+          for (const r of settled) if (r) iterResults.push(r);
+        } else {
+          for (const file of existingFiles) {
+            const r = await runOne(file);
+            if (r) iterResults.push(r);
           }
         }
         return iterResults;

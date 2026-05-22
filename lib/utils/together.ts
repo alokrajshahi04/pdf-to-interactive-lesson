@@ -1,12 +1,41 @@
 import { createTogetherAI } from "@ai-sdk/togetherai";
 
 /**
+ * Optional global usage tracker. When set, every LanguageModel.doGenerate call
+ * appends its usage stats. Used by scripts/measure-cost.ts. Production calls
+ * leave this untouched.
+ */
+export const __usageTracker: {
+  onCall: ((u: { inputTokens: number; outputTokens: number; durationMs: number }) => void) | null;
+} = { onCall: null };
+
+/**
  * Create a Together AI client with the provided API key
  */
 export function createTogetherClient(apiKey: string) {
-  return createTogetherAI({
-    apiKey,
-  });
+  const inner = createTogetherAI({ apiKey });
+  return (modelId: string) => {
+    const model = inner(modelId);
+    if (!__usageTracker.onCall) return model;
+    return new Proxy(model as any, {
+      get(target, prop) {
+        const v = target[prop];
+        if (prop === "doGenerate" && typeof v === "function") {
+          return async (opts: any) => {
+            const start = Date.now();
+            const r = await v.call(target, opts);
+            __usageTracker.onCall?.({
+              inputTokens: r?.usage?.inputTokens ?? 0,
+              outputTokens: r?.usage?.outputTokens ?? 0,
+              durationMs: Date.now() - start,
+            });
+            return r;
+          };
+        }
+        return typeof v === "function" ? v.bind(target) : v;
+      },
+    });
+  };
 }
 
 export function getTogetherProviderOptions(model: string) {
@@ -25,9 +54,13 @@ export function getTogetherProviderOptions(model: string) {
 }
 
 /**
- * Default model for course and lesson generation
+ * Default model for course and lesson generation.
+ *
+ * Switched from MiniMax-M2.7 to gpt-oss-120b after a model shootout across
+ * 15 serverless Together AI models — gpt-oss-120b was 9× faster with equal or
+ * better lesson quality on the same input. See SPEEDUP_FINDINGS.md.
  */
-export const DEFAULT_MODEL = "MiniMaxAI/MiniMax-M2.7";
+export const DEFAULT_MODEL = "openai/gpt-oss-120b";
 
 /**
  * Model used for grading short-answer responses

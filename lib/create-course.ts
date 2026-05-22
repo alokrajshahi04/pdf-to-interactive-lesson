@@ -1,7 +1,6 @@
 import { generateText } from "ai";
 import type { CourseStructure, ModuleWithLessons } from "./types";
 import { courseStructureSchema } from "./schemas";
-import { createLessons, type CreateLessonsInput } from "./create-lesson";
 import {
   createTogetherClient,
   DEFAULT_MODEL,
@@ -25,9 +24,13 @@ export interface CreateCourseInput {
   content: string;
   apiKey: string;
   model?: string;
+  /** Retained for backward compatibility — see note on createCourse below. */
   validateStructure?: boolean;
+  /** Retained for backward compatibility — see note on createCourse below. */
   validateContent?: boolean;
+  /** Retained for backward compatibility — see note on createCourse below. */
   retryFailures?: boolean;
+  /** Retained for backward compatibility — see note on createCourse below. */
   maxRetries?: number;
   onProgress?: CourseProgressCallback;
 }
@@ -43,7 +46,8 @@ export interface CourseOutput {
 }
 
 /**
- * Generate only the course structure (modules without lessons)
+ * Generate only the course structure (3 module titles, no lessons).
+ * Used by the CLI's `course modules` subcommand.
  */
 export async function createModules({
   content,
@@ -54,14 +58,14 @@ export async function createModules({
 }: CreateModulesInput): Promise<CourseStructure> {
   onProgress?.("modules-start", "Generating course structure...");
   const together = createTogetherClient(apiKey);
+  const providerOptions = getTogetherProviderOptions(model);
 
   let lastError: Error | null = null;
-
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       const result = await generateText({
         model: together(model),
-        providerOptions: getTogetherProviderOptions(model),
+        providerOptions,
         prompt: `Analyse the following content and create a course structure with 3 modules.
 Respond ONLY with JSON. No other text.
 
@@ -80,7 +84,6 @@ ${content}`,
 
       const parsed = parseJSON(result.text);
       const validated = courseStructureSchema.safeParse(parsed);
-
       if (!validated.success) {
         throw new Error(
           `Invalid course structure: ${validated.error.issues.map((i) => i.message).join(", ")}`
@@ -88,13 +91,9 @@ ${content}`,
       }
 
       const modules = validated.data.modules;
-
-      onProgress?.(
-        "modules-complete",
-        `Generated ${modules.length} modules`,
-        { moduleCount: modules.length }
-      );
-
+      onProgress?.("modules-complete", `Generated ${modules.length} modules`, {
+        moduleCount: modules.length,
+      });
       return {
         course: {
           title: validated.data.title,
@@ -112,216 +111,46 @@ ${content}`,
       }
     }
   }
-
   throw new Error(
     `Failed to generate course structure after ${maxRetries} attempts.\nLast error: ${lastError?.message}`
   );
 }
 
 /**
- * Detects transient errors from Together AI that should be retried at the
- * module level (not at the Zod-retry level). This includes request aborts,
- * rate-limit responses, 5xx server errors, and network connection failures.
- * Zod validation errors already have their own retry loop inside createLessons,
- * so they bypass this wrapper.
- */
-function isTransientError(err: any): boolean {
-  if (!err) return false;
-  const name: string = err.name ?? "";
-  const code: string = err.code ?? "";
-  const msg: string = err.message ?? "";
-  if (name === "AbortError" || code === "ABORT_ERR") return true;
-  // Network-level errors from Node fetch/undici
-  if (
-    code === "ECONNRESET" ||
-    code === "ENOTFOUND" ||
-    code === "ETIMEDOUT" ||
-    code === "ECONNREFUSED" ||
-    code === "EAI_AGAIN" ||
-    code === "UND_ERR_SOCKET"
-  ) {
-    return true;
-  }
-  if (
-    /aborted|service unavailable|too many requests|rate.?limit|network error|timeout|internal server error|unable to connect|fetch failed|socket hang up|connection (?:reset|closed)|502|503|504|500/i.test(
-      msg
-    )
-  ) {
-    return true;
-  }
-  // AI SDK wraps transient errors — check the inner cause chain.
-  if (err.cause && isTransientError(err.cause)) return true;
-  return false;
-}
-
-/**
- * Calls createLessons with a small retry loop for transient network errors
- * (aborts, rate limits, 5xx, connection failures). A short backoff gives
- * the provider time to recover.
- */
-async function createLessonsWithTransientRetry(
-  input: CreateLessonsInput,
-  maxRetries = 3
-): Promise<ModuleWithLessons> {
-  let lastError: any;
-  for (let attempt = 1; attempt <= maxRetries + 1; attempt++) {
-    try {
-      return await createLessons(input);
-    } catch (err: any) {
-      lastError = err;
-      if (!isTransientError(err) || attempt > maxRetries) throw err;
-      const delay = 2000 * attempt;
-      console.warn(
-        `  ⚠️  Transient error for module "${input.module.title}" (attempt ${attempt}/${maxRetries + 1}): ${err.message?.substring(0, 120) ?? err} — retrying in ${delay}ms`
-      );
-      await new Promise((r) => setTimeout(r, delay));
-    }
-  }
-  throw lastError;
-}
-
-/**
- * Calls createModules with a transient retry wrapper. The inner createModules
- * already has its own 3-attempt retry loop for validation errors, but that
- * loop doesn't distinguish transient network errors from parse/Zod errors.
- * When Together AI has a bad burst (500s, connection drops), 3 attempts can
- * be exhausted in seconds. This outer wrapper adds backoff on transient
- * errors specifically.
- */
-async function createModulesWithTransientRetry(
-  input: CreateModulesInput,
-  maxRetries = 3
-): Promise<CourseStructure> {
-  let lastError: any;
-  for (let attempt = 1; attempt <= maxRetries + 1; attempt++) {
-    try {
-      return await createModules(input);
-    } catch (err: any) {
-      lastError = err;
-      if (!isTransientError(err) || attempt > maxRetries) throw err;
-      const delay = 2000 * attempt;
-      console.warn(
-        `  ⚠️  Transient error generating course structure (attempt ${attempt}/${maxRetries + 1}): ${err.message?.substring(0, 120) ?? err} — retrying in ${delay}ms`
-      );
-      await new Promise((r) => setTimeout(r, delay));
-    }
-  }
-  throw lastError;
-}
-
-/**
- * Generate a complete course with modules and lessons
+ * Generate a complete course with modules and lessons.
+ *
+ * Pipeline (benchmarks in SPEEDUP_FINDINGS.md):
+ *   1. createModules — one LLM call for the 3 module titles.
+ *   2. assignFlowsToModules — one LLM call picks 3 distinct processes from the
+ *      source, one per module. Eliminates flow-diagram dupes by construction.
+ *   3. All 3 modules generated in PARALLEL: standard lessons + a combined-flow
+ *      lesson (one call, not two) per module.
+ *   4. dedupRepair — Jaccard-similarity detection + serial regeneration of any
+ *      remaining duplicate questions.
+ *
+ * ~9× faster than the previous sequential pipeline on M2.7, with equal or
+ * better lesson quality across structural / correctness / grounding /
+ * sufficiency / duplicates on 6 PDFs × 5 iterations.
+ *
+ * The validateStructure / validateContent / retryFailures / maxRetries options
+ * are retained for backward compatibility but no longer routed — validation
+ * and retries are handled inside the pipeline (Zod structure validation,
+ * transient-error backoff, dedup repair). The LLM-as-judge per-lesson
+ * content validator was removed because it was ~25% of total latency and
+ * the new model + grounding-aware prompts produce equal or better quality
+ * without it.
  */
 export async function createCourse({
   content,
   apiKey,
   model = DEFAULT_MODEL,
-  validateStructure = true,
-  validateContent = true,
-  retryFailures = true,
-  maxRetries = 3,
   onProgress,
 }: CreateCourseInput): Promise<CourseOutput> {
-  const courseStructure = await createModulesWithTransientRetry({
+  const { generateCourse } = await import("./pipeline");
+  return generateCourse({
     content,
     apiKey,
     model,
-    maxRetries,
     onProgress,
   });
-  const totalModules = courseStructure.course.module.length;
-  onProgress?.(
-    "lessons-start",
-    `Generating lessons for ${totalModules} modules...`,
-    { totalModules }
-  );
-
-  // Generate lessons sequentially so each module knows what questions were already
-  // asked in previous modules, preventing duplicate questions across the course.
-  const allModuleTitles = courseStructure.course.module.map((m) => m.title);
-  const allLessons: ModuleWithLessons[] = [];
-  const previousQuestions: string[] = [];
-  let completedModules = 0;
-
-  for (const [index, module] of courseStructure.course.module.entries()) {
-    onProgress?.(
-      "lessons-progress",
-      `Generating lessons for module ${index + 1}/${totalModules}: "${module.title}"`,
-      {
-        completed: completedModules,
-        total: totalModules,
-        currentModule: index + 1,
-        moduleTitle: module.title,
-      }
-    );
-
-    const result = await createLessonsWithTransientRetry({
-      module,
-      content,
-      apiKey,
-      model,
-      validateStructure,
-      validateContent,
-      retryFailures,
-      maxRetries,
-      previousQuestions: [...previousQuestions],
-      allModuleTitles,
-      onProgress: (type, message, data) => {
-        if (type === "lesson-complete") {
-          completedModules++;
-          onProgress?.(
-            "lessons-progress",
-            `Generating lessons (${completedModules}/${totalModules} modules)`,
-            {
-              completed: completedModules,
-              total: totalModules,
-              currentModule: index + 1,
-              moduleTitle: module.title,
-            }
-          );
-        }
-      },
-    });
-
-    allLessons.push(result);
-
-    // Accumulate questions from successful lessons for dedup context
-    for (const lr of result.lessons) {
-      if (lr.success) {
-        previousQuestions.push(lr.data.question);
-      }
-    }
-  }
-
-  let totalLessons = 0;
-  let successfulLessons = 0;
-  let failedLessons = 0;
-
-  allLessons.forEach((module) => {
-    module.lessons.forEach((lessonResult) => {
-      totalLessons++;
-      if (lessonResult.success) {
-        successfulLessons++;
-      } else {
-        failedLessons++;
-      }
-    });
-  });
-
-  onProgress?.(
-    "course-complete",
-    `Course generation complete: ${successfulLessons}/${totalLessons} lessons successful`,
-    {
-      totalModules,
-      totalLessons,
-      successfulLessons,
-      failedLessons,
-      successRate: Math.round((successfulLessons / totalLessons) * 100),
-    }
-  );
-
-  return {
-    title: courseStructure.course.title,
-    modules: allLessons,
-  };
 }

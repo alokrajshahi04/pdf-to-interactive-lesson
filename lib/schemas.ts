@@ -134,6 +134,28 @@ export const flowQuestionSchema = z.object({
 
 export type FlowQuestionOutput = z.infer<typeof flowQuestionSchema>;
 
+// --- Combined flow (experiment: detect flow + emit ordering question in one call) ---
+
+export const combinedFlowSchema = z.discriminatedUnion("hasFlow", [
+  z.object({
+    hasFlow: z.literal(false),
+  }),
+  z.object({
+    hasFlow: z.literal(true),
+    flowConfig: z.object({
+      nodes: z.array(flowNodeSchema).min(3).max(8),
+      edges: z.array(flowEdgeSchema).min(2),
+    }),
+    title: z.string(),
+    content: z.string(),
+    info: z.string(),
+    question: z.string(),
+    stepsInOrder: z.array(z.string()).length(3),
+  }),
+]);
+
+export type CombinedFlowOutput = z.infer<typeof combinedFlowSchema>;
+
 // --- Content validation ---
 
 export const validationResultSchema = z.object({

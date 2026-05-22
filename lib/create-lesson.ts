@@ -43,6 +43,21 @@ export interface CreateLessonsInput {
   previousQuestions?: string[];
   /** All module titles in the course — helps focus questions on this module's scope */
   allModuleTitles?: string[];
+  /**
+   * Experimental: how to generate the optional drag-drop flow lesson.
+   * 'separate' (default) — two LLM calls: detect flow, then write the question.
+   * 'combined'           — one LLM call that emits both.
+   * 'none'               — skip the flow lesson entirely.
+   */
+  flowStrategy?: "separate" | "combined" | "none";
+  /**
+   * Experimental: when flowStrategy is 'combined', force the generator to
+   * focus on this specific process from the source. Used by
+   * pipelineParallelDistinctFlow to prevent cross-module flow collisions.
+   * Set to null to mean "no flow lesson for this module" (overrides
+   * flowStrategy for this one call).
+   */
+  flowFocus?: string | null;
 }
 
 export interface ValidateLessonInput {
@@ -126,6 +141,8 @@ export async function createLessons({
   onProgress,
   previousQuestions = [],
   allModuleTitles = [],
+  flowStrategy = "separate",
+  flowFocus,
 }: CreateLessonsInput): Promise<ModuleWithLessons> {
   onProgress?.("lesson-start", `Generating lessons for "${module.title}"...`);
   const together = createTogetherClient(apiKey);
@@ -197,39 +214,54 @@ For numeric questions, choices can be numbers: [88.3, 91.7, 92.7, 95.0]
 Content:
 ${content}`;
 
-  // Start both standard lesson generation and flow generation concurrently
+  // Start standard lessons + flow generation concurrently. Flow strategy
+  // controls how (or whether) we produce the optional drag-drop flow lesson.
   const standardLessonsPromise = generateText({
     model: together(model),
     providerOptions,
     prompt: standardLessonPrompt,
   });
 
-  const flowGenerationPromise = generateFlowDiagram({
-    moduleTitle: module.title,
-    content,
-    apiKey,
-    model,
-    previousQuestions,
-  });
+  // Lazy-load combined-flow generator only when needed so the production
+  // path doesn't pull in lib/experiments/*.
+  const flowLessonPromise: Promise<any | null> = (async () => {
+    if (flowStrategy === "none") return null;
+    // Explicit "no flow for this module" override from the orchestrator.
+    if (flowFocus === null) return null;
 
-  // Wait for both to complete
-  const [result, flowResult] = await Promise.all([
-    standardLessonsPromise,
-    flowGenerationPromise,
-  ]);
+    if (flowStrategy === "combined") {
+      const { generateFlowLessonCombined } = await import("./pipeline/combined-flow");
+      return generateFlowLessonCombined({
+        moduleTitle: module.title,
+        content,
+        apiKey,
+        model,
+        previousQuestions,
+        flowFocus: flowFocus ?? undefined,
+      });
+    }
 
-  // Start flow question generation early
-  const flowQuestionPromise =
-    flowResult?.hasFlow && flowResult.flowConfig
-      ? generateFlowQuestion({
-          flowConfig: flowResult.flowConfig,
-          moduleTitle: module.title,
-          content,
-          apiKey,
-          model,
-          previousQuestions,
-        })
-      : Promise.resolve(null);
+    // Default: 'separate' — two-call pipeline (detect, then question).
+    const flowResult = await generateFlowDiagram({
+      moduleTitle: module.title,
+      content,
+      apiKey,
+      model,
+      previousQuestions,
+    });
+    if (!flowResult?.hasFlow || !flowResult.flowConfig) return null;
+    return generateFlowQuestion({
+      flowConfig: flowResult.flowConfig,
+      moduleTitle: module.title,
+      content,
+      apiKey,
+      model,
+      previousQuestions,
+    });
+  })();
+
+  // Wait for standard lessons.
+  const result = await standardLessonsPromise;
 
   // Parse JSON and validate with Zod, retrying on structural failures (truncation, wrong types)
   // Wraps parseJSON so JSON parse errors trigger retry the same way Zod errors do.
@@ -396,7 +428,7 @@ ${standardLessonPrompt}`;
   }
 
   // Get flow lesson (was started earlier in parallel)
-  const flowLesson = await flowQuestionPromise;
+  const flowLesson = await flowLessonPromise;
 
   if (flowLesson) {
     if (validateContent) {
