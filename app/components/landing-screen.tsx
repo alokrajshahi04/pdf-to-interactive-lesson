@@ -1,17 +1,20 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { upload } from "@vercel/blob/client";
+import Image from "next/image";
 import { getApiKey } from "@/lib/api-key-storage";
 import { storePendingFile } from "@/lib/utils/indexed-db-storage";
 import { getOrCreateUserId } from "@/lib/utils/session";
 import { ApiKeyDialog } from "./api-key-dialog";
-import { Github, Twitter } from "lucide-react";
-import Link from "next/link";
 import { Loader } from "@/components/ai-elements/loader";
-import { LogoSvg, LandingBgSvg } from "./svg-icons";
-import type { Course } from "@/lib/types";
+import { LogoSvg } from "./svg-icons";
 import { HeaderActions } from "./header-actions";
+import { LandingSteps } from "./landing-steps";
+import { Reveal } from "./reveal";
+import { Footer } from "./footer";
+import { Button } from "./ui/button";
+import { Callout } from "./ui/callout";
+import { Upload, UploadCloud, Sparkles } from "lucide-react";
 import demoCourse from "@/lib/demo/composer2-course.json";
 
 function LandingScreen() {
@@ -27,25 +30,19 @@ function LandingScreen() {
   useEffect(() => {
     const checkCourses = async () => {
       try {
-        const response = await fetch('/api/courses');
+        const response = await fetch("/api/courses");
         if (response.ok) {
           const data = await response.json();
           setHasCourses(data.courses.length > 0);
         }
       } catch (error) {
-        console.error('Failed to fetch courses:', error);
+        console.error("Failed to fetch courses:", error);
       }
     };
-    
-    // Check on mount
+
     checkCourses();
-    
-    // Listen for storage changes (from other tabs)
     window.addEventListener("storage", checkCourses);
-    
-    return () => {
-      window.removeEventListener("storage", checkCourses);
-    };
+    return () => window.removeEventListener("storage", checkCourses);
   }, []);
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -90,18 +87,15 @@ function LandingScreen() {
     setProgress("Reading JSON file...");
 
     try {
-      // Read the JSON file
       const text = await file.text();
       const courseData = JSON.parse(text);
 
-      // Basic validation
       if (!courseData.title || !courseData.modules || !Array.isArray(courseData.modules)) {
         throw new Error("Invalid course JSON format. Must have 'title' and 'modules' array.");
       }
 
       setProgress("Saving course to database...");
 
-      // Save to database
       const userId = getOrCreateUserId();
       const response = await fetch("/api/courses", {
         method: "POST",
@@ -120,7 +114,6 @@ function LandingScreen() {
       const savedCourse = await response.json();
       setProgress("Course saved! Redirecting...");
 
-      // Redirect to the course
       setTimeout(() => {
         window.location.href = `/course/${savedCourse.slug}`;
       }, 500);
@@ -131,9 +124,8 @@ function LandingScreen() {
     }
   };
 
-  const processFileUpload = async (file: File, apiKey: string) => {
-    // Check file size as a rough proxy for page count (most PDFs are ~50-200KB per page)
-    const estimatedPages = Math.ceil(file.size / (100 * 1024)); // Rough estimate
+  const processFileUpload = async (file: File) => {
+    const estimatedPages = Math.ceil(file.size / (100 * 1024));
     if (estimatedPages > 100) {
       setError(
         `This PDF appears to be very large (~${estimatedPages} pages). We currently only support PDFs up to 100 pages. Please upload a shorter document.`
@@ -142,9 +134,7 @@ function LandingScreen() {
     }
 
     try {
-      // Store file in IndexedDB (avoids sessionStorage quota limits)
       await storePendingFile(file);
-      // Redirect immediately to generating page
       window.location.href = "/generating";
     } catch (error) {
       console.error("Failed to store file:", error);
@@ -159,45 +149,38 @@ function LandingScreen() {
       return;
     }
 
-    // Check for API key
     const apiKey = getApiKey();
-    
-    // Check rate limit status (only if no API key)
+
     if (!apiKey) {
       try {
         const response = await fetch("/api/rate-limit-status");
         const rateLimitStatus = await response.json();
-        
+
         if (rateLimitStatus.hasReachedCourseLimit) {
           setError("You've used all 3 free courses! Add your Together AI API key to generate unlimited courses.");
-          setPendingFile(file); // Store the file to upload after API key is saved
+          setPendingFile(file);
           setIsApiKeyDialogOpen(true);
           return;
         }
       } catch (error) {
         console.error("Failed to check rate limit:", error);
-        // Continue with upload on error to be permissive
       }
     }
 
-    // Process the file upload
-    await processFileUpload(file, apiKey || "");
+    await processFileUpload(file);
   };
 
   const handleApiKeySaved = () => {
-    // If there's a pending file and an API key now exists, automatically start the upload
     if (pendingFile) {
       const apiKey = getApiKey();
       if (apiKey) {
         const fileToUpload = pendingFile;
-        setPendingFile(null); // Clear pending file before starting upload
-        setError(null); // Clear any error messages
-        // Small delay to ensure dialog closes smoothly
+        setPendingFile(null);
+        setError(null);
         setTimeout(() => {
-          processFileUpload(fileToUpload, apiKey);
+          processFileUpload(fileToUpload);
         }, 100);
       } else {
-        // Dialog was dismissed without saving - clear pending state
         setPendingFile(null);
         setError(null);
       }
@@ -209,8 +192,7 @@ function LandingScreen() {
       setIsProcessing(true);
       setError(null);
       setProgress("Loading demo course...");
-      
-      // Save the demo course to database via API
+
       const userId = getOrCreateUserId();
       const response = await fetch("/api/courses", {
         method: "POST",
@@ -227,9 +209,8 @@ function LandingScreen() {
       }
 
       const savedCourse = await response.json();
-      
+
       if (savedCourse && savedCourse.slug) {
-        // Navigate to the course using its slug
         window.location.href = `/course/${savedCourse.slug}`;
       } else {
         throw new Error("Failed to retrieve course details");
@@ -241,359 +222,203 @@ function LandingScreen() {
     }
   };
 
-  // Track loading state for large decorative images only
-  const [loadedImages, setLoadedImages] = useState<Set<string>>(new Set());
-  const imageRefs = {
-    left: useRef<HTMLImageElement>(null),
-    right: useRef<HTMLImageElement>(null),
-  };
-
-  const handleImageLoad = (imageName: string) => {
-    setLoadedImages((prev) => new Set(prev).add(imageName));
-  };
-
-  const handleImageError = (imageName: string) => {
-    // If image fails to load, still mark it as "loaded" so it doesn't stay invisible
-    setLoadedImages((prev) => new Set(prev).add(imageName));
-  };
-
-  // Check if images are already loaded (for cached images)
-  useEffect(() => {
-    const checkImageLoaded = (ref: React.RefObject<HTMLImageElement | null>, imageName: string) => {
-      if (ref.current && ref.current.complete && ref.current.naturalWidth > 0) {
-        handleImageLoad(imageName);
-      }
-    };
-
-    // Small delay to ensure refs are set
-    setTimeout(() => {
-      checkImageLoaded(imageRefs.left, 'left');
-      checkImageLoaded(imageRefs.right, 'right');
-    }, 0);
-  }, []);
-
   return (
-    <div className="min-h-screen bg-white relative">
-      {/* Background SVG - inlined for instant render */}
-      <LandingBgSvg 
-        aria-hidden="true"
-        className="fixed -bottom-40 left-0 w-full h-auto z-0 opacity-[0.08] blur-2xl pointer-events-none"
-      />
-      
-      {/* API Key Dialog */}
-      <ApiKeyDialog 
-        open={isApiKeyDialogOpen} 
+    <div className="min-h-screen bg-white relative flex flex-col overflow-x-clip">
+      <ApiKeyDialog
+        open={isApiKeyDialogOpen}
         onOpenChange={(open) => {
           setIsApiKeyDialogOpen(open);
-          if (!open) {
-            // When dialog closes, check if API key was saved and trigger upload
-            handleApiKeySaved();
-          }
+          if (!open) handleApiKeySaved();
         }}
       />
-      
+
       {/* Header */}
-      <header className="sticky top-0 z-50 border-b-[0.5px] border-neutral-200 bg-white">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <LogoSvg className="h-6 w-auto" aria-label="Logo" />
-          </div>
+      <header className="sticky top-0 z-50 h-16 border-b-[0.5px] border-border bg-white/80 backdrop-blur-sm">
+        <div className="h-full max-w-7xl mx-auto px-6 flex items-center justify-between">
+          <LogoSvg className="h-6 w-auto" aria-label="Logo" />
           <HeaderActions showCoursesLink={hasCourses} />
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-6 py-20">
-        {/* Badge */}
-        <div className="flex justify-center mb-12">
-          <a
-            href="https://together.ai"
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label="Made & powered by together.ai"
-            className="inline-flex items-center gap-2 px-4 h-8 rounded-full bg-neutral-900 border border-neutral-800 hover:bg-neutral-800 transition-colors"
-          >
-            <span className="text-sm font-medium text-white">Made &amp; powered by</span>
-            <img
-              src="/together-ai-new-logo.png"
-              alt="Together AI"
-              className="h-4 w-auto object-contain"
-            />
-          </a>
-        </div>
-
-        {/* Hero Section */}
-        <div className="text-center mb-16 relative">
-          {/* Decorative elements - kept as img with fixed dimensions to prevent layout shift */}
-          <img 
-            ref={imageRefs.left}
-            src="/landing-left.svg" 
-            alt="" 
-            width={320}
-            height={320}
-            onLoad={() => handleImageLoad('left')}
-            onError={() => handleImageError('left')}
-            className={`hidden md:block absolute left-0 top-0 w-80 h-80 z-0 transition-opacity duration-500 ease-out ${loadedImages.has('left') ? 'opacity-100' : 'opacity-0'}`}
+      {/* Main */}
+      <main className="relative z-10 flex-1 w-full max-w-7xl mx-auto px-6 pt-16 md:pt-24 pb-8 md:pb-10">
+        {/* Hero */}
+        <div className="relative">
+          {/* Decorative illustrations flanking the hero on large screens */}
+          <Image
+            src="/landing-left.webp"
+            alt=""
+            aria-hidden="true"
+            width={300}
+            height={338}
+            priority
+            className="rise hidden lg:block absolute left-0 top-10 w-56 xl:w-72 h-auto z-0 pointer-events-none select-none"
+            style={{ animationDelay: "0.15s" }}
+          />
+          <Image
+            src="/landing-right.webp"
+            alt=""
+            aria-hidden="true"
+            width={300}
+            height={300}
+            priority
+            className="rise hidden lg:block absolute right-0 top-10 w-56 xl:w-72 h-auto z-0 pointer-events-none select-none"
+            style={{ animationDelay: "0.22s" }}
           />
 
-          <img 
-            ref={imageRefs.right}
-            src="/landing-right.svg" 
-            alt="" 
-            width={320}
-            height={320}
-            onLoad={() => handleImageLoad('right')}
-            onError={() => handleImageError('right')}
-            className={`hidden md:block absolute right-0 top-0 w-80 h-80 z-0 transition-opacity duration-500 ease-out ${loadedImages.has('right') ? 'opacity-100' : 'opacity-0'}`}
-          />
-
-          <h1 className="relative text-7xl font-bold text-neutral-900 mb-6 leading-none font-[family-name:var(--font-fustat)] z-10">
-            Make a tailored
-            <br />
-            course for you
-          </h1>
-          <p className="relative text-xl text-neutral-700 mb-12 font-medium leading-tight font-[family-name:var(--font-fustat)] z-10">
-            Upload any materials to generate
-            <br />a personalized course!
-          </p>
-
-          {/* Upload Area */}
-          <div className="max-w-2xl mx-auto">
-            <div
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
-              onDrop={handleDrop}
-              onClick={() => !isProcessing && fileInputRef.current?.click()}
-              className={`relative border-2 border-dashed rounded-3xl p-8 md:p-16 transition-all backdrop-blur-sm min-h-[200px] flex flex-col items-center justify-center ${
-                isDragging
-                  ? "border-blue-500 bg-blue-50/80"
-                  : isProcessing
-                  ? "border-blue-500 bg-blue-50/80"
-                  : error
-                  ? "border-red-500 bg-red-50/80"
-                  : "border-neutral-300 bg-white/80"
-              } ${!isProcessing ? "cursor-pointer" : ""}`}
+          <div className="relative z-10 text-center max-w-3xl mx-auto">
+            <a
+              href="https://together.ai"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Made & powered by Together AI"
+              className="rise interactive inline-flex items-center gap-2 h-9 px-4 rounded-full bg-white border border-border mb-6"
+              style={{ animationDelay: "0.04s" }}
             >
-              {isProcessing ? (
-                <div className="flex flex-col items-center">
-                  <Loader size={32} className="mb-4 text-blue-500 [animation-duration:0.6s]" />
-                  <p className="text-neutral-700 font-medium">{progress}</p>
-                  <p className="text-sm text-neutral-500 mt-2">
-                    This may take a few minutes...
-                  </p>
-                </div>
-              ) : (
-                <>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    id="file-upload"
-                    className="hidden"
-                    accept=".pdf,.json,application/json"
-                    onChange={handleFileSelect}
-                    disabled={isProcessing}
-                  />
-                  <label
-                    htmlFor="file-upload"
-                    className="cursor-pointer flex flex-col items-center"
-                  >
-                    <button
-                      type="button"
+              <span className="text-sm font-medium text-neutral-600">Made &amp; powered by</span>
+              <img src="/together-logo-light.png" alt="Together AI" className="h-5 w-auto" />
+            </a>
+            <h1
+              className="rise font-bold text-neutral-900 leading-[1.05] tracking-[-0.045em] text-balance mb-5 text-[clamp(2.5rem,7vw,4.5rem)]"
+              style={{ animationDelay: "0.11s" }}
+            >
+              Make a tailored course for you
+            </h1>
+            <p
+              className="rise text-lg md:text-xl text-neutral-600 font-medium text-pretty max-w-xl mx-auto mb-10"
+              style={{ animationDelay: "0.18s" }}
+            >
+              Upload any material and turn it into a personalized, interactive course.
+            </p>
+
+          {/* Upload card */}
+          <div className="rise max-w-2xl mx-auto" style={{ animationDelay: "0.25s" }}>
+            <input
+              ref={fileInputRef}
+              type="file"
+              id="file-upload"
+              className="hidden"
+              accept=".pdf,.json,application/json"
+              onChange={handleFileSelect}
+              disabled={isProcessing}
+            />
+            <div className="gradient-border p-2 shadow-sm" style={{ borderWidth: "1px" }}>
+              <div
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+                onClick={() => !isProcessing && fileInputRef.current?.click()}
+                className={`group rounded-[14px] px-8 py-10 md:py-12 min-h-[210px] flex flex-col items-center justify-center text-center transition-colors duration-200 ease-standard ${
+                  isDragging ? "bg-surface-subtle" : "bg-white"
+                } ${!isProcessing ? "cursor-pointer" : ""}`}
+              >
+                {isProcessing ? (
+                  <div className="flex flex-col items-center text-center">
+                    <Loader size={30} className="mb-4 text-neutral-900" />
+                    <p className="text-neutral-800 font-medium">{progress}</p>
+                    <p className="text-sm text-neutral-500 mt-2">This may take a few minutes…</p>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center">
+                    <div
+                      className={`mb-5 flex h-12 w-12 items-center justify-center text-neutral-700 transition-transform duration-300 ease-out-soft ${
+                        isDragging ? "scale-110 -translate-y-0.5" : "group-hover:scale-105"
+                      }`}
+                    >
+                      <UploadCloud className="h-8 w-8" />
+                    </div>
+                    <Button
+                      size="lg"
                       onClick={(e) => {
                         e.stopPropagation();
                         fileInputRef.current?.click();
                       }}
-                      className="mb-4 px-6 py-3 bg-neutral-900 text-white rounded-full font-medium hover:bg-neutral-800 transition-colors flex items-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                      disabled={isProcessing}
                     >
-                      <svg
-                        className="w-5 h-5"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
-                        />
-                      </svg>
                       Upload a PDF
-                    </button>
-                    <p className="text-sm text-neutral-500">
-                      Or drag-and-drop here
+                    </Button>
+                    <p className="mt-4 text-sm text-neutral-500">
+                      {isDragging ? "Drop your PDF to begin" : "or drag & drop your file here"}
                     </p>
-                    <p className="text-xs text-neutral-400 mt-2">
-                      JSON upload available for debugging purposes
+                    <p className="mt-1 text-xs text-neutral-400">
+                      PDF up to 100 pages · JSON for debugging
                     </p>
-                  </label>
-
-                  {error && (
-                    <div className="w-full mt-6 p-4 md:p-5 bg-red-100 border border-red-300 rounded-xl">
-                      <p className="text-red-700 text-sm md:text-base leading-relaxed text-center">{error}</p>
-                    </div>
-                  )}
-                </>
-              )}
+                  </div>
+                )}
+              </div>
             </div>
-            
-            {/* Try Demo Button */}
+
+            {error && (
+              <Callout variant="incorrect" className="mt-6 text-sm text-left">
+                {error}
+              </Callout>
+            )}
+
             {!isProcessing && (
-              <div className="mt-6 text-center">
-                <button
-                  onClick={handleTryDemo}
-                  className="px-6 py-2.5 bg-white text-neutral-700 rounded-full font-medium hover:bg-neutral-50 transition-colors border border-neutral-300 inline-flex items-center gap-2"
-                >
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M13 10V3L4 14h7v7l9-11h-7z"
-                    />
-                  </svg>
-                  Try Demo Course
-                </button>
+              <div className="mt-6">
+                <Button variant="outline" onClick={handleTryDemo}>
+                  <Sparkles className="w-4 h-4" />
+                  Try a demo course
+                </Button>
               </div>
             )}
           </div>
+          </div>
         </div>
 
-        {/* How it works */}
-        <section className="mt-32 mb-20">
-          <div className="text-center mb-12">
-            <span className="inline-block px-4 py-1.5 text-sm font-medium text-neutral-700 bg-red-50 rounded-full mb-6">
-              How it works
-            </span>
-            <h2 className="text-4xl md:text-5xl font-bold text-neutral-900 leading-tight font-[family-name:var(--font-fustat)]">
-              From static PDF to guided
-              <br />
-              learning — in minutes
-            </h2>
-          </div>
+        {/* Section 2 — How it works */}
+        <LandingSteps />
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
-            {/* Step 1 — Upload */}
-            <div className="rounded-2xl border border-neutral-200 bg-gradient-to-b from-red-50/60 via-white to-white p-6 flex flex-col items-center text-center">
-              <div className="w-full aspect-[4/3] flex items-center justify-center mb-4">
-                <div className="w-40 h-28 rounded-xl border-2 border-dashed border-neutral-300 flex items-center justify-center bg-white/60">
-                  <div className="w-10 h-10 rounded-full bg-neutral-900 flex items-center justify-center">
-                    <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                    </svg>
-                  </div>
-                </div>
+        {/* Section 3 — CTA */}
+        <section>
+          <Reveal className="gradient-border max-w-5xl mx-auto p-8 md:p-12">
+            <div className="flex flex-col items-center lg:flex-row lg:justify-between gap-8">
+              <div className="max-w-xl text-center lg:text-left">
+                <span className="text-xs font-semibold uppercase tracking-wider text-hint-fg">
+                  Ready when you are
+                </span>
+                <h2 className="text-[clamp(1.75rem,4vw,2.75rem)] font-bold text-neutral-900 tracking-[-0.04em] text-balance mt-2 mb-3 leading-[1.1]">
+                  Turn your next PDF into a course you&rsquo;ll actually finish.
+                </h2>
+                <p className="text-base text-neutral-600">
+                  No setup. Your first 3 courses are free.
+                </p>
               </div>
-              <span className="text-sm font-semibold text-neutral-400 mb-1">1</span>
-              <h3 className="text-lg font-bold text-neutral-900 mb-1">Upload a PDF</h3>
-              <p className="text-sm text-neutral-500">Lecture notes, textbooks, papers, or docs.</p>
-            </div>
-
-            {/* Step 2 — Break it down */}
-            <div className="rounded-2xl border border-neutral-200 bg-gradient-to-b from-red-50/60 via-white to-white p-6 flex flex-col items-center text-center">
-              <div className="w-full aspect-[4/3] flex items-center justify-center mb-4">
-                <svg viewBox="0 0 200 140" className="w-full h-full" fill="none">
-                  {/* PDF rectangle */}
-                  <rect x="20" y="30" width="60" height="80" rx="8" fill="url(#pdfGrad)" stroke="#FDBA74" strokeWidth="1" />
-                  <text x="50" y="75" textAnchor="middle" className="text-[10px] font-bold" fill="#EF4444">PDF</text>
-
-                  {/* Lines from PDF to labels */}
-                  <line x1="80" y1="50" x2="120" y2="35" stroke="#D4D4D4" strokeWidth="1" />
-                  <line x1="80" y1="70" x2="120" y2="70" stroke="#D4D4D4" strokeWidth="1" />
-                  <line x1="80" y1="90" x2="120" y2="105" stroke="#D4D4D4" strokeWidth="1" />
-
-                  {/* Labels */}
-                  <rect x="120" y="24" width="60" height="22" rx="6" fill="white" stroke="#E5E5E5" strokeWidth="1" />
-                  <text x="150" y="39" textAnchor="middle" fill="#525252" fontSize="10" fontWeight="500">Lessons</text>
-
-                  <rect x="120" y="59" width="60" height="22" rx="6" fill="white" stroke="#E5E5E5" strokeWidth="1" />
-                  <text x="150" y="74" textAnchor="middle" fill="#525252" fontSize="10" fontWeight="500">Quizzes</text>
-
-                  <rect x="120" y="94" width="68" height="22" rx="6" fill="white" stroke="#E5E5E5" strokeWidth="1" />
-                  <text x="154" y="109" textAnchor="middle" fill="#525252" fontSize="10" fontWeight="500">Diagrams</text>
-
-                  <defs>
-                    <linearGradient id="pdfGrad" x1="20" y1="30" x2="80" y2="110" gradientUnits="userSpaceOnUse">
-                      <stop stopColor="#FFEDD5" />
-                      <stop offset="1" stopColor="#FED7AA" />
-                    </linearGradient>
-                  </defs>
-                </svg>
+              <div className="flex flex-col sm:flex-row lg:flex-col gap-3 lg:flex-shrink-0 w-full sm:w-auto">
+                <Button
+                  size="lg"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isProcessing}
+                  className="w-full sm:w-auto"
+                >
+                  <Upload className="w-5 h-5" />
+                  Upload a PDF
+                </Button>
+                <Button
+                  variant="outline"
+                  size="lg"
+                  onClick={handleTryDemo}
+                  disabled={isProcessing}
+                  className="w-full sm:w-auto"
+                >
+                  {isProcessing ? (
+                    <>
+                      <Loader size={18} />
+                      Loading demo…
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-5 h-5" />
+                      Try the demo
+                    </>
+                  )}
+                </Button>
               </div>
-              <span className="text-sm font-semibold text-neutral-400 mb-1">2</span>
-              <h3 className="text-lg font-bold text-neutral-900 mb-1">We break it down</h3>
-              <p className="text-sm text-neutral-500">Content is split into short modules with clear explanations.</p>
             </div>
-
-            {/* Step 3 — Learn by doing */}
-            <div className="rounded-2xl border border-neutral-200 bg-gradient-to-b from-red-50/60 via-white to-white p-6 flex flex-col items-center text-center">
-              <div className="w-full aspect-[4/3] flex items-center justify-center mb-4">
-                <div className="flex flex-col gap-2 w-36">
-                  {["A", "B", "C", "D"].map((letter) => (
-                    <div key={letter} className="flex items-center gap-2">
-                      <span className={`text-xs font-bold w-4 ${letter === "B" ? "text-green-600" : letter === "D" ? "text-red-500" : "text-neutral-400"}`}>{letter}</span>
-                      <div className={`h-6 flex-1 rounded-md ${
-                        letter === "B" ? "bg-green-400 border border-green-500" :
-                        letter === "D" ? "bg-red-300 border border-red-400" :
-                        "bg-neutral-100 border border-neutral-200"
-                      }`} />
-                    </div>
-                  ))}
-                </div>
-              </div>
-              <span className="text-sm font-semibold text-neutral-400 mb-1">3</span>
-              <h3 className="text-lg font-bold text-neutral-900 mb-1">Learn by doing</h3>
-              <p className="text-sm text-neutral-500">Answer questions, get feedback, and track progress.</p>
-            </div>
-          </div>
+          </Reveal>
         </section>
       </main>
 
-      {/* Footer */}
-      <footer className="fixed bottom-4 left-4 z-10">
-        <a
-          href="https://together.ai"
-          target="_blank"
-          rel="noopener noreferrer"
-          aria-label="Powered by together.ai"
-          className="inline-flex items-center gap-1.5 px-3 h-6 rounded-full bg-neutral-900 border border-neutral-800 hover:bg-neutral-800 transition-colors"
-        >
-          <span className="text-xs font-medium text-white">Powered by</span>
-          <img
-            src="/together-ai-new-logo.png"
-            alt="Together AI"
-            className="h-3 w-auto object-contain"
-          />
-        </a>
-      </footer>
-
-      {/* Social Icons */}
-      <div className="fixed bottom-4 right-4 flex items-center gap-3 z-10">
-          <a 
-            href="https://github.com" 
-            target="_blank" 
-            rel="noopener noreferrer"
-            className="flex items-center justify-center w-8 h-8 bg-neutral-50 border border-neutral-200 rounded-full text-neutral-700 hover:text-neutral-900 transition-colors"
-            aria-label="GitHub"
-          >
-            <Github className="w-4 h-4" />
-          </a>
-          <a 
-            href="https://x.com/nutlope" 
-            target="_blank" 
-            rel="noopener noreferrer"
-            className="flex items-center justify-center w-8 h-8 bg-neutral-50 border border-neutral-200 rounded-full text-neutral-700 hover:text-neutral-900 transition-colors"
-            aria-label="X (Twitter)"
-          >
-            <Twitter className="w-4 h-4" />
-          </a>
-      </div>
+      <Footer />
     </div>
   );
 }

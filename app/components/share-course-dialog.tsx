@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { Copy, Check } from "lucide-react";
+import { Button } from "./ui/button";
 import {
   Dialog,
   DialogContent,
@@ -58,10 +59,7 @@ const ShareForm = ({
               readOnly
               className="flex-1 px-4 py-2 border border-neutral-300 rounded-lg bg-neutral-50 text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:border-transparent"
             />
-            <button
-              onClick={onCopyLink}
-              className="px-4 py-2 bg-neutral-900 text-white rounded-lg hover:bg-neutral-800 transition-colors flex items-center justify-center gap-2 min-w-[100px]"
-            >
+            <Button shape="lg" onClick={onCopyLink} className="min-w-[100px]">
               {copied ? (
                 <>
                   <Check className="w-4 h-4" />
@@ -73,18 +71,15 @@ const ShareForm = ({
                   Copy
                 </>
               )}
-            </button>
+            </Button>
           </div>
         </div>
         <p className="text-sm text-neutral-600">
           Anyone with this link can access and view your course.
         </p>
-        <button
-          onClick={onClose}
-          className="w-full px-4 py-2 border border-neutral-300 rounded-lg hover:bg-neutral-50 transition-colors text-neutral-900"
-        >
+        <Button variant="secondary" shape="lg" onClick={onClose} className="w-full">
           Done
-        </button>
+        </Button>
       </div>
     </div>
   );

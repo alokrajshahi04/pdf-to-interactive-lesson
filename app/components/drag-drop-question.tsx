@@ -8,12 +8,15 @@ import {
   useSensors,
   MouseSensor,
   TouchSensor,
+  KeyboardSensor,
   useDraggable,
   useDroppable,
   DragStartEvent,
   DragEndEvent,
 } from "@dnd-kit/core";
+import { Undo2, Redo2, Check, X, AlertTriangle } from "lucide-react";
 
+// Decorative pill palette — intentional per-choice variety, not semantic state.
 const CHOICE_COLORS = [
   { bg: "#FDE0FF", border: "#550059" },
   { bg: "#E0F7FF", border: "#004259" },
@@ -128,26 +131,26 @@ function DroppableSlot({
 
   const borderColor =
     isOver && !showResult
-      ? "#3b82f6" // blue-500
+      ? "var(--color-info)"
       : showResult && isCorrect
-      ? "#16a34a" // green-600
+      ? "var(--color-correct)"
       : showResult && isIncorrect
-      ? "#dc2626" // red-600
+      ? "var(--color-incorrect)"
       : isEmptyWhenShowingResult
-      ? "#f59e0b" // amber-500 for missing answer
+      ? "var(--color-warning)"
       : assignedChoiceColors && !showResult
       ? assignedChoiceColors.border
-      : "#a3a3a3"; // neutral-400
+      : "var(--color-border-strong)";
 
   const backgroundColor =
     isOver && !showResult
-      ? "#dbeafe" // blue-100
+      ? "var(--color-info-bg)"
       : showResult && isCorrect
-      ? "#dcfce7" // green-100
+      ? "var(--color-correct-bg)"
       : showResult && isIncorrect
-      ? "#fee2e2" // red-100
+      ? "var(--color-incorrect-bg)"
       : isEmptyWhenShowingResult
-      ? "#fef3c7" // amber-100 for missing answer
+      ? "var(--color-warning-bg)"
       : assignedChoiceColors && !showResult
       ? assignedChoiceColors.bg
       : "#ffffff";
@@ -166,7 +169,7 @@ function DroppableSlot({
         backgroundColor,
         touchAction: hasAssignedChoice && !showResult ? "none" : undefined,
       }}
-      className={`w-full p-3 md:p-4 rounded-2xl flex flex-col items-center transition-all relative select-none h-[90px] md:h-[120px] ${
+      className={`w-full p-3 md:p-4 rounded-2xl flex flex-col items-center transition-[background-color,border-color] duration-200 ease-standard relative select-none h-[90px] md:h-[120px] ${
         hasAssignedChoice && !showResult
           ? isDragging
             ? "opacity-0"
@@ -180,65 +183,29 @@ function DroppableSlot({
         <p
           className={`text-sm font-semibold ${
             showResult && isCorrect
-              ? "text-green-700"
+              ? "text-correct-fg"
               : showResult && isIncorrect
-              ? "text-red-700"
+              ? "text-incorrect-fg"
               : isEmptyWhenShowingResult
-              ? "text-amber-700"
+              ? "text-warning-fg"
               : "text-neutral-700"
           }`}
         >
           {slotIndex + 1}
         </p>
         {showResult && isIncorrect && (
-          <div className="flex items-center justify-center w-6 h-6 rounded-full bg-red-100">
-            <svg
-              className="w-4 h-4 text-red-600"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2.5}
-                d="M6 18L18 6M6 6l12 12"
-              />
-            </svg>
+          <div className="flex items-center justify-center w-6 h-6 rounded-full bg-incorrect-bg">
+            <X className="w-4 h-4 text-incorrect" strokeWidth={2.5} />
           </div>
         )}
         {showResult && isCorrect && (
-          <div className="flex items-center justify-center w-6 h-6 rounded-full bg-green-100">
-            <svg
-              className="w-4 h-4 text-green-600"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2.5}
-                d="M5 13l4 4L19 7"
-              />
-            </svg>
+          <div className="flex items-center justify-center w-6 h-6 rounded-full bg-correct-bg">
+            <Check className="w-4 h-4 text-correct" strokeWidth={2.5} />
           </div>
         )}
         {isEmptyWhenShowingResult && (
-          <div className="flex items-center justify-center w-6 h-6 rounded-full bg-amber-100">
-            <svg
-              className="w-4 h-4 text-amber-600"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2.5}
-                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-              />
-            </svg>
+          <div className="flex items-center justify-center w-6 h-6 rounded-full bg-warning-bg">
+            <AlertTriangle className="w-4 h-4 text-warning" strokeWidth={2.5} />
           </div>
         )}
       </div>
@@ -263,7 +230,7 @@ function ReturnZone({
     <div
       ref={setNodeRef}
       className={`space-y-3 md:space-y-5 px-2 md:px-6 py-3 md:py-5 min-h-full rounded-l-xl transition-colors ${
-        isOver && !showResult ? "bg-blue-50" : ""
+        isOver && !showResult ? "bg-info-bg" : ""
       }`}
     >
       {children}
@@ -341,7 +308,9 @@ export function DragDropQuestion({
         delay: 100,
         tolerance: 5,
       },
-    })
+    }),
+    // Keyboard drag: focus a pill, Space to lift, arrows to move, Space to drop.
+    useSensor(KeyboardSensor)
   );
 
   // Keep ref in sync with state
@@ -566,11 +535,11 @@ export function DragDropQuestion({
   return (
     <div
       className="rounded-xl overflow-hidden bg-white"
-      style={{ border: "1px solid #d4d4d8" }}
+      style={{ border: "1px solid var(--color-border-strong)" }}
     >
       <div
         className="bg-white px-4 py-5"
-        style={{ borderBottom: "1px solid #d4d4d8" }}
+        style={{ borderBottom: "1px solid var(--color-border-strong)" }}
       >
         <div className="flex items-center justify-between">
           <h3 className="text-base font-medium text-neutral-900">
@@ -589,19 +558,7 @@ export function DragDropQuestion({
                 title="Undo (Ctrl+Z / ⌘+Z)"
                 aria-label="Undo last action"
               >
-                <svg
-                  className="w-5 h-5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"
-                  />
-                </svg>
+                <Undo2 className="w-5 h-5" />
               </button>
               <button
                 onClick={handleRedo}
@@ -614,19 +571,7 @@ export function DragDropQuestion({
                 title="Redo (Ctrl+Shift+Z / ⌘+Shift+Z or Ctrl+Y / ⌘+Y)"
                 aria-label="Redo last undone action"
               >
-                <svg
-                  className="w-5 h-5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M21 10h-10a8 8 0 00-8 8v2M21 10l-6 6m6-6l-6-6"
-                  />
-                </svg>
+                <Redo2 className="w-5 h-5" />
               </button>
             </div>
           }
@@ -654,11 +599,11 @@ export function DragDropQuestion({
             </ReturnZone>
 
             {/* Divider - Full Height */}
-            <div className="absolute left-1/2 top-0 bottom-0 w-0.5 bg-neutral-300 -translate-x-1/2"></div>
+            <div className="absolute left-1/2 top-0 bottom-0 w-0.5 bg-border-strong -translate-x-1/2"></div>
 
             {/* Right Column - Slots */}
             <div className="relative">
-              <div className="absolute inset-0 bg-neutral-50 -mr-3 md:-mr-6 -mb-3 md:-mb-6 -mt-3 md:-mt-6 rounded-r-xl"></div>
+              <div className="absolute inset-0 bg-surface-subtle -mr-3 md:-mr-6 -mb-3 md:-mb-6 -mt-3 md:-mt-6 rounded-r-xl"></div>
               <div className="relative space-y-3 md:space-y-5 px-2 md:px-6 py-3 md:py-5">
                 {slots.map((_, slotIndex) => {
                   const assignedChoiceIndex = slotAssignments[slotIndex];
@@ -700,9 +645,9 @@ export function DragDropQuestion({
                           className={`text-neutral-800 font-medium text-center text-sm leading-relaxed line-clamp-3 ${
                             showResult
                               ? isCorrect
-                                ? "text-green-900"
+                                ? "text-correct-fg"
                                 : isIncorrect
-                                ? "text-red-900"
+                                ? "text-incorrect-fg"
                                 : ""
                               : ""
                           }`}
@@ -710,7 +655,7 @@ export function DragDropQuestion({
                           {assignedChoice}
                         </span>
                       ) : showResult ? (
-                        <p className="text-amber-600 text-sm text-center w-full">
+                        <p className="text-warning text-sm text-center w-full">
                           Not answered
                         </p>
                       ) : (

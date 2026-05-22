@@ -4,7 +4,8 @@ import { useState } from "react";
 import { Header } from "./header";
 import { Footer } from "./footer";
 import { ShareCourseDialog } from "./share-course-dialog";
-import { Share2 } from "lucide-react";
+import { Share2, ArrowRight } from "lucide-react";
+import { Button } from "./ui/button";
 import type { Course } from "@/lib/types";
 
 interface ModulesScreenProps {
@@ -85,33 +86,24 @@ function ModulesScreen({
 
             {/* Action Buttons */}
             <div className="space-y-4 pb-16 w-full flex flex-col">
-              <button
+              <Button
+                size="lg"
                 onClick={() => onStartModule(currentModuleIndex)}
-                className="w-full max-w-sm py-4 gradient-border-button bg-neutral-900 text-white font-semibold hover:bg-neutral-800 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                className="w-full max-w-sm"
               >
                 {allComplete ? "Revisit" : "Begin"} Module {currentModuleIndex + 1}
-                <svg
-                  className="w-5 h-5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M13 7l5 5m0 0l-5 5m5-5H6"
-                  />
-                </svg>
-              </button>
-              
-              <button
+                <ArrowRight className="w-5 h-5" />
+              </Button>
+
+              <Button
+                variant="outline"
+                size="lg"
                 onClick={() => setIsShareDialogOpen(true)}
-                className="w-full max-w-sm py-4 border-2 border-neutral-900 text-neutral-900 font-semibold rounded-full hover:bg-neutral-50 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                className="w-full max-w-sm"
               >
                 <Share2 className="w-5 h-5" />
-                Share Course
-              </button>
+                Share course
+              </Button>
             </div>
           </div>
 
@@ -119,7 +111,6 @@ function ModulesScreen({
           <div className="space-y-4">
             {course.modules.map((module, index) => {
               const successfulLessons = module.lessons.filter((l) => l.success);
-              const isCompleted = completedModules.includes(index);
               const isCurrent = !allComplete && currentModuleIndex === index;
               // Module is unlocked if: it's the first module, OR the previous module is completed
               const isLocked = index > 0 && !completedModules.includes(index - 1);
@@ -129,22 +120,20 @@ function ModulesScreen({
                   key={index}
                   onClick={() => !isLocked && onStartModule(index)}
                   disabled={isLocked}
-                  className={`w-full text-left p-6 rounded-2xl border border-thin transition-all ${
+                  className={`w-full text-left p-6 rounded-2xl ${
                     isCurrent
-                      ? "gradient-border bg-white"
-                      : isCompleted
-                      ? "border-[#D5D5D5] bg-[#F5F5F5]"
+                      ? "gradient-border bg-white card-hover"
                       : isLocked
-                      ? "border-[#D5D5D5] bg-[#F5F5F5] opacity-50 cursor-not-allowed"
-                      : "border-[#D5D5D5] bg-[#F5F5F5] hover:border-[#D5D5D5]"
+                      ? "border border-border-strong bg-surface-muted opacity-50 cursor-not-allowed"
+                      : "border border-border-strong bg-surface-muted card-hover hover:border-neutral-400"
                   }`}
                 >
                   <div className="flex items-start gap-4">
-                    <span className="text-lg font-semibold text-neutral-400 flex-shrink-0">
+                    <span className="text-lg font-semibold text-neutral-400 flex-shrink-0 tabular-nums">
                       {index + 1}.
                     </span>
                     <div className="flex-1">
-                      <h3 className="text-xl font-bold text-black mb-1">
+                      <h3 className="text-xl font-bold text-neutral-900 mb-1">
                         {module.title}
                       </h3>
                       <p className="text-neutral-600 text-sm">

@@ -7,6 +7,7 @@ interface Credits {
 
 export function useCredits() {
   const [credits, setCredits] = useState<Credits | null>(null);
+  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     const fetchCredits = () => {
@@ -20,7 +21,8 @@ export function useCredits() {
             });
           }
         })
-        .catch(() => {});
+        .catch(() => {})
+        .finally(() => setLoaded(true));
     };
 
     fetchCredits();
@@ -28,5 +30,5 @@ export function useCredits() {
     return () => window.removeEventListener("credits-updated", fetchCredits);
   }, []);
 
-  return credits;
+  return { credits, loaded };
 }

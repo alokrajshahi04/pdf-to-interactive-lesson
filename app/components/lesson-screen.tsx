@@ -1,8 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
+import { Lightbulb, Eye, X, Info } from "lucide-react";
 import { DragDropQuestion } from "./drag-drop-question";
 import { FlowDiagram } from "./flow-diagram";
+import { Button } from "./ui/button";
+import { Callout } from "./ui/callout";
+import { Loader } from "@/components/ai-elements/loader";
 import type { LessonData, Step } from "@/lib/types";
 
 interface LessonScreenProps {
@@ -22,6 +26,9 @@ interface LessonScreenProps {
   getButtonText: () => string;
 }
 
+const OPTION_TRANSITION =
+  "transition-[background-color,border-color,box-shadow] duration-200 ease-standard";
+
 function LessonScreen({
   step,
   moduleIndex,
@@ -38,13 +45,13 @@ function LessonScreen({
   onRetryGrading,
   getButtonText,
 }: LessonScreenProps) {
-  const hasPlayedInitialAnimation = useRef(false);
-  const shouldAnimateOnLoad = !hasPlayedInitialAnimation.current;
+  const [hasAnimated, setHasAnimated] = useState(false);
+  const shouldAnimateOnLoad = !hasAnimated;
   const [showHint, setShowHint] = useState(false);
   const [showAnswer, setShowAnswer] = useState(false);
 
   useEffect(() => {
-    hasPlayedInitialAnimation.current = true;
+    setHasAnimated(true);
   }, []);
 
   useEffect(() => {
@@ -63,19 +70,20 @@ function LessonScreen({
     if (!showResult || !lessonData.choices || !lessonData.slots) return null;
     const correctAnswer = lessonData.answer as number[];
     const currentUserAnswer = (userAnswer as number[]) || [];
-    const incorrectSlots = lessonData.slots.map((slot, slotIndex) => {
-      const assignedChoiceIndex = currentUserAnswer[slotIndex] ?? -1;
-      if (assignedChoiceIndex !== correctAnswer[slotIndex]) {
-        return { slotIndex, correctChoice: lessonData.choices![correctAnswer[slotIndex]] };
-      }
-      return null;
-    }).filter(Boolean);
+    const incorrectSlots = lessonData.slots
+      .map((slot, slotIndex) => {
+        const assignedChoiceIndex = currentUserAnswer[slotIndex] ?? -1;
+        if (assignedChoiceIndex !== correctAnswer[slotIndex]) {
+          return { slotIndex, correctChoice: lessonData.choices![correctAnswer[slotIndex]] };
+        }
+        return null;
+      })
+      .filter(Boolean);
 
     if (incorrectSlots.length === 0) return null;
 
     return (
-      <div className="mt-4 p-5 bg-blue-50 border border-blue-200 rounded-xl">
-        <p className="text-sm font-semibold text-neutral-700 mb-3">Correct Answers:</p>
+      <Callout variant="info" title="Correct answers" className="mt-4">
         <div className="space-y-2">
           {incorrectSlots.map((item) => (
             <div key={item!.slotIndex} className="flex items-start gap-2">
@@ -86,7 +94,7 @@ function LessonScreen({
             </div>
           ))}
         </div>
-      </div>
+      </Callout>
     );
   };
 
@@ -95,15 +103,15 @@ function LessonScreen({
       {step === "module-intro" && (
         <div>
           <h1 className={`text-3xl font-bold text-neutral-900 mb-8 ${animateClass()}`}>
-            Welcome to Module {moduleIndex + 1}! Let&apos;s start with{" "}
+            Welcome to Module {moduleIndex + 1}! Let&rsquo;s start with{" "}
             {moduleTitle.toLowerCase()}
           </h1>
           <p
             className={`text-lg text-neutral-600 leading-relaxed ${animateClass()}`}
             style={{ animationDelay: "0.1s" }}
           >
-            This module contains {successfulLessonsCount} interactive lessons
-            about {moduleTitle.toLowerCase()}.
+            This module contains {successfulLessonsCount} interactive lessons about{" "}
+            {moduleTitle.toLowerCase()}.
           </p>
         </div>
       )}
@@ -119,31 +127,26 @@ function LessonScreen({
           >
             {lessonData.content}
           </p>
-          <div
-            className={`bg-pink-50 border border-pink-200 rounded-2xl p-6 ${animateClass()}`}
+          <Callout
+            variant="hint"
+            className={animateClass()}
             style={{ animationDelay: "0.2s" }}
           >
-            <p className="text-neutral-800 leading-relaxed">{lessonData.info}</p>
-          </div>
+            {lessonData.info}
+          </Callout>
 
-          {/* Show Flow Diagram for flow-diagram questions */}
           {lessonData.questionType === "flow-diagram" && lessonData.flowConfig && (
-            <div
-              className={`bg-blue-50 border-2 border-blue-200 rounded-xl p-6 ${animateClass()}`}
+            <Callout
+              variant="info"
+              icon={<Info className="w-5 h-5 text-info" />}
+              title="Study this process flow carefully — you’ll be tested on the sequence!"
+              className={`border-2 ${animateClass()}`}
               style={{ animationDelay: "0.3s" }}
             >
-              <div className="flex items-center gap-2 mb-4">
-                <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <h3 className="text-sm font-semibold text-blue-900">
-                  Study this process flow carefully — you'll be tested on the sequence!
-                </h3>
-              </div>
-              <div style={{ height: '500px', minHeight: '500px' }}>
+              <div className="h-[360px] sm:h-[500px]">
                 <FlowDiagram config={lessonData.flowConfig} />
               </div>
-            </div>
+            </Callout>
           )}
         </div>
       )}
@@ -154,62 +157,42 @@ function LessonScreen({
             {lessonData.title}
           </h1>
 
-          {/* Hint button — reveals the info one-liner (before answering) */}
-          {!showResult && !showHint && (
+          {/* Hint toggle — the button stays put and flips to "Hide hint";
+              the hint appears directly beneath it. */}
+          {!showResult && (
             <div className={animateClass(!showResult)} style={!showResult ? { animationDelay: "0.1s" } : {}}>
               <button
-                onClick={() => setShowHint(true)}
-                className="px-4 py-2 bg-pink-50 text-pink-700 border border-pink-200 rounded-lg hover:bg-pink-100 transition-colors text-sm font-medium flex items-center gap-2"
+                onClick={() => setShowHint((v) => !v)}
+                className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-hint-bg text-hint-fg border border-hint-border hover:brightness-95 text-sm font-medium ${OPTION_TRANSITION}`}
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                </svg>
-                Show Hint
+                {showHint ? <X className="w-4 h-4" /> : <Lightbulb className="w-4 h-4" />}
+                {showHint ? "Hide hint" : "Show hint"}
               </button>
-            </div>
-          )}
-          {showHint && !showResult && (
-            <div className="bg-pink-50 border border-pink-200 rounded-2xl p-6">
-              <div className="flex items-center justify-between">
-                <p className="text-neutral-800 leading-relaxed">{lessonData.info}</p>
-                <button
-                  onClick={() => setShowHint(false)}
-                  className="ml-4 text-xs text-neutral-500 hover:text-neutral-700 flex-shrink-0 flex items-center gap-1"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                  Hide
-                </button>
-              </div>
+              {showHint && (
+                <Callout variant="hint" className="mt-3">
+                  {lessonData.info}
+                </Callout>
+              )}
             </div>
           )}
 
-          {/* Show Answer button — replaces hint button after answering */}
+          {/* Show answer toggle */}
           {showResult && !showAnswer && (
             <div>
               <button
                 onClick={() => setShowAnswer(true)}
-                className="px-4 py-2 bg-blue-50 text-blue-700 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors text-sm font-medium flex items-center gap-2"
+                className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-info-bg text-info-fg border border-info-border hover:brightness-95 text-sm font-medium ${OPTION_TRANSITION}`}
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                </svg>
-                Show Answer
+                <Eye className="w-4 h-4" />
+                Show answer
               </button>
             </div>
           )}
 
-          {/* After answering and clicking Show Answer, show the full content for review */}
           {showResult && showAnswer && (
             <>
-              <p className="text-lg text-neutral-800 leading-relaxed">
-                {lessonData.content}
-              </p>
-              <div className="bg-pink-50 border border-pink-200 rounded-2xl p-6">
-                <p className="text-neutral-800 leading-relaxed">{lessonData.info}</p>
-              </div>
+              <p className="text-lg text-neutral-800 leading-relaxed">{lessonData.content}</p>
+              <Callout variant="hint">{lessonData.info}</Callout>
             </>
           )}
 
@@ -222,59 +205,53 @@ function LessonScreen({
             </p>
 
             {/* Multiple Choice */}
-            {lessonData.questionType === "multiple-choice" &&
-              lessonData.choices && (
-                <div
-                  className={`space-y-3 ${animateClass(!showResult)}`}
-                  style={!showResult ? { animationDelay: "0.3s" } : {}}
-                >
-                  {lessonData.choices.map((choice, idx) => (
-                    <button
-                      key={idx}
-                      onClick={() => !showResult && onAnswerChange(idx)}
-                      disabled={showResult}
-                      className={`w-full text-left p-5 rounded-xl transition-all flex items-center gap-4 ${
-                        userAnswer === idx
-                          ? showResult
-                            ? idx === lessonData.answer
-                              ? "bg-green-100 border-2 border-green-400"
-                              : "bg-red-100 border-2 border-red-400"
-                            : "bg-blue-50 border-2 border-blue-400"
-                          : showResult && idx === lessonData.answer
-                          ? "bg-green-100 border-2 border-green-400"
-                          : "bg-neutral-100 border-2 border-neutral-200 hover:border-neutral-300"
+            {lessonData.questionType === "multiple-choice" && lessonData.choices && (
+              <div
+                className={`space-y-3 ${animateClass(!showResult)}`}
+                style={!showResult ? { animationDelay: "0.3s" } : {}}
+              >
+                {lessonData.choices.map((choice, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => !showResult && onAnswerChange(idx)}
+                    disabled={showResult}
+                    className={`w-full text-left p-5 rounded-xl flex items-center gap-4 ${OPTION_TRANSITION} ${
+                      userAnswer === idx
+                        ? showResult
+                          ? idx === lessonData.answer
+                            ? "bg-correct-bg border-2 border-correct"
+                            : "bg-incorrect-bg border-2 border-incorrect"
+                          : "bg-info-bg border-2 border-info"
+                        : showResult && idx === lessonData.answer
+                        ? "bg-correct-bg border-2 border-correct"
+                        : "bg-surface-muted border-2 border-border hover:border-border-strong"
+                    }`}
+                  >
+                    <div
+                      className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
+                        userAnswer === idx ? "border-neutral-600" : "border-neutral-400"
                       }`}
                     >
-                      <div
-                        className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
-                          userAnswer === idx
-                            ? "border-neutral-600"
-                            : "border-neutral-400"
-                        }`}
-                      >
-                        {userAnswer === idx && (
-                          <div className="w-3 h-3 rounded-full bg-neutral-600" />
-                        )}
-                      </div>
-                      <span className="text-neutral-800 flex-1">{typeof choice === "string" ? choice.replace(/\s*\((?:CORRECT|correct|Correct)\)\s*/g, "").trim() : choice}</span>
-                    </button>
-                  ))}
-                </div>
-              )}
+                      {userAnswer === idx && <div className="w-3 h-3 rounded-full bg-neutral-600" />}
+                    </div>
+                    <span className="text-neutral-800 flex-1">
+                      {typeof choice === "string"
+                        ? choice.replace(/\s*\((?:CORRECT|correct|Correct)\)\s*/g, "").trim()
+                        : choice}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
 
-            {/* Multiple Choice Explanation */}
+            {/* MC Explanation */}
             {lessonData.questionType === "multiple-choice" &&
               showResult &&
               showAnswer &&
               lessonData.explanation && (
-                <div className="mt-4 p-5 bg-blue-50 border border-blue-200 rounded-xl">
-                  <p className="text-sm font-semibold text-neutral-700 mb-2">
-                    Explanation:
-                  </p>
-                  <p className="text-neutral-800 leading-relaxed">
-                    {lessonData.explanation}
-                  </p>
-                </div>
+                <Callout variant="info" title="Explanation" className="mt-4">
+                  <p className="text-neutral-800 leading-relaxed">{lessonData.explanation}</p>
+                </Callout>
               )}
 
             {/* True/False */}
@@ -288,32 +265,26 @@ function LessonScreen({
                     key={value.toString()}
                     onClick={() => !showResult && onAnswerChange(value)}
                     disabled={showResult}
-                    className={`w-full text-left p-5 rounded-xl transition-all flex items-center gap-4 ${
+                    className={`w-full text-left p-5 rounded-xl flex items-center gap-4 ${OPTION_TRANSITION} ${
                       userAnswer === value
                         ? showResult
                           ? value === lessonData.answer
-                            ? "bg-green-100 border-2 border-green-400"
-                            : "bg-red-100 border-2 border-red-400"
-                          : "bg-blue-50 border-2 border-blue-400"
+                            ? "bg-correct-bg border-2 border-correct"
+                            : "bg-incorrect-bg border-2 border-incorrect"
+                          : "bg-info-bg border-2 border-info"
                         : showResult && value === lessonData.answer
-                        ? "bg-green-100 border-2 border-green-400"
-                        : "bg-neutral-100 border-2 border-neutral-200 hover:border-neutral-300"
+                        ? "bg-correct-bg border-2 border-correct"
+                        : "bg-surface-muted border-2 border-border hover:border-border-strong"
                     }`}
                   >
                     <div
                       className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
-                        userAnswer === value
-                          ? "border-neutral-600"
-                          : "border-neutral-400"
+                        userAnswer === value ? "border-neutral-600" : "border-neutral-400"
                       }`}
                     >
-                      {userAnswer === value && (
-                        <div className="w-3 h-3 rounded-full bg-neutral-600" />
-                      )}
+                      {userAnswer === value && <div className="w-3 h-3 rounded-full bg-neutral-600" />}
                     </div>
-                    <span className="text-neutral-800 font-medium">
-                      {value ? "True" : "False"}
-                    </span>
+                    <span className="text-neutral-800 font-medium">{value ? "True" : "False"}</span>
                   </button>
                 ))}
               </div>
@@ -330,67 +301,60 @@ function LessonScreen({
                   onChange={(e) => onAnswerChange(e.target.value)}
                   disabled={showResult || isGrading}
                   placeholder="Type your answer here..."
-                  className={`w-full p-5 border-2 rounded-xl focus:outline-none resize-none text-neutral-800 bg-neutral-50 transition-all ${
+                  className={`w-full p-5 border-2 rounded-xl focus:outline-none resize-none text-neutral-800 bg-surface-muted transition-[border-color,background-color] duration-200 ease-standard ${
                     showResult && lessonData.gradingResult
                       ? lessonData.gradingResult.isCorrect
-                        ? "border-green-400 bg-green-50"
-                        : "border-red-400 bg-red-50"
+                        ? "border-correct bg-correct-bg"
+                        : "border-incorrect bg-incorrect-bg"
                       : showResult
-                      ? "border-neutral-200"
-                      : "border-neutral-200 focus:border-blue-400"
+                      ? "border-border"
+                      : "border-border focus:border-info"
                   }`}
                   rows={4}
                 />
                 {gradingError && (
-                  <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-xl">
-                    <p className="text-sm font-semibold text-red-700 mb-2">
-                      Error grading answer
-                    </p>
-                    <p className="text-red-600 text-sm mb-3">{gradingError}</p>
-                    {onRetryGrading && (
-                      <button
-                        onClick={onRetryGrading}
-                        className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium"
-                      >
-                        Retry
-                      </button>
-                    )}
-                  </div>
+                  <Callout
+                    variant="incorrect"
+                    title="Error grading answer"
+                    className="mt-4"
+                    action={
+                      onRetryGrading ? (
+                        <Button variant="danger" size="sm" shape="lg" onClick={onRetryGrading}>
+                          Retry
+                        </Button>
+                      ) : undefined
+                    }
+                  >
+                    <p className="text-sm">{gradingError}</p>
+                  </Callout>
                 )}
                 {showResult && showAnswer && !isGrading && !gradingError && (
-                  <div className="mt-4 p-5 bg-blue-50 border border-blue-200 rounded-xl">
-                    <p className="text-sm font-semibold text-neutral-700 mb-2">
-                      Answer:
-                    </p>
-                    <p className="text-neutral-800 leading-relaxed">
-                      {lessonData.answer}
-                    </p>
-                  </div>
+                  <Callout variant="info" title="Answer" className="mt-4">
+                    <p className="text-neutral-800 leading-relaxed">{lessonData.answer}</p>
+                  </Callout>
                 )}
               </div>
             )}
 
             {/* Drag Drop */}
-            {lessonData.questionType === "drag-drop" &&
-              lessonData.choices &&
-              lessonData.slots && (
-                <div
-                  className={animateClass(!showResult)}
-                  style={!showResult ? { animationDelay: "0.3s" } : {}}
-                >
-                  <DragDropQuestion
-                    choices={lessonData.choices}
-                    slots={lessonData.slots}
-                    correctAnswer={lessonData.answer as number[]}
-                    userAnswer={(userAnswer as number[]) || null}
-                    showResult={showResult}
-                    onAnswerChange={onAnswerChange}
-                  />
-                  {showAnswer && renderIncorrectSlots()}
-                </div>
-              )}
+            {lessonData.questionType === "drag-drop" && lessonData.choices && lessonData.slots && (
+              <div
+                className={animateClass(!showResult)}
+                style={!showResult ? { animationDelay: "0.3s" } : {}}
+              >
+                <DragDropQuestion
+                  choices={lessonData.choices}
+                  slots={lessonData.slots}
+                  correctAnswer={lessonData.answer as number[]}
+                  userAnswer={(userAnswer as number[]) || null}
+                  showResult={showResult}
+                  onAnswerChange={onAnswerChange}
+                />
+                {showAnswer && renderIncorrectSlots()}
+              </div>
+            )}
 
-            {/* Flow Diagram */}
+            {/* Flow Diagram question */}
             {lessonData.questionType === "flow-diagram" &&
               lessonData.flowConfig &&
               lessonData.choices &&
@@ -399,26 +363,21 @@ function LessonScreen({
                   className={animateClass(!showResult)}
                   style={!showResult ? { animationDelay: "0.3s" } : {}}
                 >
-                  {/* Flow Visualization (shown as hint or after answer) */}
                   {(showHint || (showResult && showAnswer)) && (
-                    <div className="mb-8 bg-neutral-50 border-2 border-neutral-200 rounded-xl p-6">
+                    <div className="mb-8 bg-surface-muted border-2 border-border rounded-xl p-6">
                       <div className="flex items-center justify-between mb-4">
-                        <h3 className="text-sm font-semibold text-neutral-700">
-                          Process Flow:
-                        </h3>
+                        <h3 className="text-sm font-semibold text-neutral-700">Process flow</h3>
                         {!showResult && showHint && (
                           <button
                             onClick={() => setShowHint(false)}
                             className="text-xs text-neutral-500 hover:text-neutral-700 flex items-center gap-1"
                           >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                            </svg>
+                            <X className="w-4 h-4" />
                             Hide
                           </button>
                         )}
                       </div>
-                      <div style={{ height: '500px', minHeight: '500px' }}>
+                      <div className="h-[360px] sm:h-[500px]">
                         <FlowDiagram config={lessonData.flowConfig} />
                       </div>
                     </div>
@@ -439,7 +398,7 @@ function LessonScreen({
         </div>
       )}
 
-      {/* Action Button */}
+      {/* Action button */}
       <div
         className={`mt-12 ${animateClass(step === "module-intro" || step === "content" || !showResult)}`}
         style={
@@ -448,44 +407,15 @@ function LessonScreen({
             : {}
         }
       >
-        <button
-          onClick={onContinue}
-          disabled={!canContinue || isGrading}
-          className={`px-8 py-3 rounded-full font-medium transition-all flex items-center justify-center gap-2 ${
-            canContinue && !isGrading
-              ? "bg-neutral-700 text-white hover:bg-neutral-800 active:scale-95"
-              : "bg-neutral-300 text-neutral-500 cursor-not-allowed"
-          }`}
-        >
-          {isGrading && (
-            <svg
-              className="animate-spin h-5 w-5"
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-            >
-              <circle
-                className="opacity-25"
-                cx="12"
-                cy="12"
-                r="10"
-                stroke="currentColor"
-                strokeWidth="4"
-              ></circle>
-              <path
-                className="opacity-75"
-                fill="currentColor"
-                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-              ></path>
-            </svg>
-          )}
-          {isGrading ? "Grading..." : getButtonText()}
-        </button>
+        <Button size="lg" onClick={onContinue} disabled={!canContinue || isGrading}>
+          {isGrading && <Loader size={18} />}
+          {isGrading ? "Grading…" : getButtonText()}
+        </Button>
       </div>
 
       {/* Debug Info (Local Development Only) */}
-      {process.env.NODE_ENV === 'development' && lessonData && step !== "module-intro" && (
-        <div className="mt-12 p-6 bg-neutral-100 border border-neutral-300 rounded-xl">
+      {process.env.NODE_ENV === "development" && lessonData && step !== "module-intro" && (
+        <div className="mt-12 p-6 bg-surface-muted border border-border rounded-xl">
           <h3 className="text-sm font-semibold text-neutral-900 mb-3">
             Debug: Lesson JSON (Local Only)
           </h3>
@@ -494,27 +424,8 @@ function LessonScreen({
           </pre>
         </div>
       )}
-
-      <style jsx>{`
-        @keyframes fadeInUp {
-          from {
-            opacity: 0;
-            transform: translateY(10px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-        .animate-fadeInUp {
-          animation: fadeInUp 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-          opacity: 0;
-          animation-fill-mode: forwards;
-        }
-      `}</style>
     </>
   );
 }
-
 
 export { LessonScreen };

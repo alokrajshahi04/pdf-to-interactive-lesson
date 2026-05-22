@@ -3,6 +3,8 @@
 import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ModulesScreen } from "@/app/components/modules-screen";
+import { Button } from "@/app/components/ui/button";
+import { ModuleListSkeleton } from "@/app/components/ui/skeleton";
 import { getCourseProgress, deriveCurrentModuleIndex } from "@/lib/course-progress";
 import type { Course } from "@/lib/types";
 
@@ -91,7 +93,7 @@ export default function CoursePage() {
   };
 
   if (loading) {
-    return <div className="min-h-screen bg-white" />;
+    return <ModuleListSkeleton />;
   }
 
   if (error || !course) {
@@ -102,13 +104,10 @@ export default function CoursePage() {
           <h1 className="text-2xl font-bold text-neutral-900 mb-4">
             {isNotFound ? "Course not found" : "Failed to load course"}
           </h1>
-          <p className="text-neutral-600 mb-6">{error || "The course you're looking for doesn't exist."}</p>
-          <button
-            onClick={() => router.push("/courses")}
-            className="px-6 py-2 bg-neutral-900 text-white rounded-lg hover:bg-neutral-800"
-          >
-            Back to Courses
-          </button>
+          <p className="text-neutral-600 mb-6">{error || "The course you’re looking for doesn’t exist."}</p>
+          <Button shape="lg" onClick={() => router.push("/courses")}>
+            Back to courses
+          </Button>
         </div>
       </div>
     );

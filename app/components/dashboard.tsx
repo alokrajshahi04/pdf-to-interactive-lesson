@@ -8,10 +8,20 @@ import { storePendingFile } from "@/lib/utils/indexed-db-storage";
 import type { Course } from "@/lib/types";
 import { HeaderActions } from "./header-actions";
 import { ApiKeyDialog } from "./api-key-dialog";
+import { Footer } from "./footer";
 import Link from "next/link";
-import { Github, Twitter } from "lucide-react";
+import { Upload, Trash2 } from "lucide-react";
 import { useImageFadeIn } from "../hooks/use-image-fade-in";
-
+import { Button } from "./ui/button";
+import { Callout } from "./ui/callout";
+import { CourseGridSkeleton } from "./ui/skeleton";
+import { Loader } from "@/components/ai-elements/loader";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "./ui/dialog";
 
 interface DatabaseCourse {
   id: string;
@@ -22,6 +32,75 @@ interface DatabaseCourse {
   updatedAt: string;
 }
 
+function CourseCard({
+  course,
+  onDelete,
+}: {
+  course: DatabaseCourse;
+  onDelete: (course: DatabaseCourse) => void;
+}) {
+  const progress = getCourseProgress(course.slug);
+  const modules = course.courseData?.modules || [];
+  const totalModules = modules.filter(
+    (m: { lessons?: { success: boolean }[] }) => m.lessons?.some((l) => l.success)
+  ).length;
+  const completedModules = progress?.completedModules?.length || 0;
+  const progressPercent =
+    totalModules > 0 ? Math.round((completedModules / totalModules) * 100) : 0;
+
+  return (
+    <article className="card-hover relative p-6 rounded-2xl border-[0.5px] border-border bg-white">
+      {/* Stretched link overlay — keyboard-focusable, navigates the whole card */}
+      <Link
+        href={`/course/${course.slug}`}
+        aria-label={`Open ${course.title}`}
+        className="absolute inset-0 rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+      />
+
+      <button
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          onDelete(course);
+        }}
+        className="interactive absolute top-4 right-4 z-10 p-2 text-neutral-400 hover:text-incorrect hover:bg-incorrect-bg rounded-full"
+        aria-label={`Delete ${course.title}`}
+      >
+        <Trash2 className="w-4 h-4" />
+      </button>
+
+      <h3 className="text-xl font-bold text-neutral-900 mb-2 pr-8">
+        {course.title}
+      </h3>
+
+      <div className="mb-3">
+        <div className="flex items-center justify-between mb-1">
+          <span className="text-xs text-neutral-600">
+            {completedModules} of {totalModules} modules
+          </span>
+          <span
+            className={`text-xs font-semibold tabular-nums ${
+              progressPercent > 0 ? "text-correct" : "text-neutral-400"
+            }`}
+          >
+            {progressPercent}%
+          </span>
+        </div>
+        <div className="h-2 bg-surface-muted rounded-full overflow-hidden">
+          <div
+            className="h-full bg-correct rounded-full transition-[width] duration-300 ease-standard"
+            style={{ width: `${progressPercent}%` }}
+          />
+        </div>
+      </div>
+
+      <p className="text-xs text-neutral-400 mt-3">
+        Created {new Date(course.createdAt).toLocaleDateString()}
+      </p>
+    </article>
+  );
+}
+
 function Dashboard() {
   const [courses, setCourses] = useState<DatabaseCourse[]>([]);
   const [isDragging, setIsDragging] = useState(false);
@@ -30,6 +109,9 @@ function Dashboard() {
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState("");
   const [isApiKeyDialogOpen, setIsApiKeyDialogOpen] = useState(false);
+  const [courseToDelete, setCourseToDelete] = useState<DatabaseCourse | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const logoFadeIn = useImageFadeIn("/logo.svg");
 
@@ -45,7 +127,6 @@ function Dashboard() {
         setCourses(data.courses || []);
       } catch (error) {
         console.error("Error fetching courses:", error);
-        // Don't show error in UI, just leave courses empty
       } finally {
         setIsLoadingCourses(false);
       }
@@ -54,24 +135,25 @@ function Dashboard() {
     fetchCourses();
   }, []);
 
-  const handleDelete = async (courseSlug: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (confirm("Delete this course? This action cannot be undone.")) {
-      try {
-        const response = await fetch(`/api/courses/${courseSlug}`, {
-          method: "DELETE",
-        });
-        
-        if (response.ok) {
-          // Remove from local state
-          setCourses(courses.filter(c => c.slug !== courseSlug));
-        } else {
-          alert("Failed to delete course. Please try again.");
-        }
-      } catch (error) {
-        console.error("Error deleting course:", error);
-        alert("Failed to delete course. Please try again.");
+  const confirmDelete = async () => {
+    if (!courseToDelete) return;
+    setIsDeleting(true);
+    setDeleteError(null);
+    try {
+      const response = await fetch(`/api/courses/${courseToDelete.slug}`, {
+        method: "DELETE",
+      });
+      if (response.ok) {
+        setCourses((prev) => prev.filter((c) => c.slug !== courseToDelete.slug));
+        setCourseToDelete(null);
+      } else {
+        setDeleteError("Failed to delete course. Please try again.");
       }
+    } catch (error) {
+      console.error("Error deleting course:", error);
+      setDeleteError("Failed to delete course. Please try again.");
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -114,18 +196,15 @@ function Dashboard() {
     setProgress("Reading JSON file...");
 
     try {
-      // Read the JSON file
       const text = await file.text();
       const courseData = JSON.parse(text);
 
-      // Basic validation
       if (!courseData.title || !courseData.modules || !Array.isArray(courseData.modules)) {
         throw new Error("Invalid course JSON format. Must have 'title' and 'modules' array.");
       }
 
       setProgress("Saving course to database...");
 
-      // Save to database
       const userId = getOrCreateUserId();
       const response = await fetch("/api/courses", {
         method: "POST",
@@ -144,7 +223,6 @@ function Dashboard() {
       const savedCourse = await response.json();
       setProgress("Course saved! Redirecting...");
 
-      // Redirect to the course
       setTimeout(() => {
         window.location.href = `/course/${savedCourse.slug}`;
       }, 500);
@@ -156,8 +234,7 @@ function Dashboard() {
   };
 
   const handleFileUpload = async (file: File) => {
-    // Check file size as a rough proxy for page count (most PDFs are ~50-200KB per page)
-    const estimatedPages = Math.ceil(file.size / (100 * 1024)); // Rough estimate
+    const estimatedPages = Math.ceil(file.size / (100 * 1024));
     if (estimatedPages > 100) {
       setError(
         `This PDF appears to be very large (~${estimatedPages} pages). We currently only support PDFs up to 100 pages. Please upload a shorter document.`
@@ -165,15 +242,13 @@ function Dashboard() {
       return;
     }
 
-    // Check for API key
     const apiKey = getApiKey();
-    
-    // Check rate limit status (only if no API key)
+
     if (!apiKey) {
       try {
         const response = await fetch("/api/rate-limit-status");
         const rateLimitStatus = await response.json();
-        
+
         if (rateLimitStatus.hasReachedCourseLimit) {
           setError("You've used all 3 free courses! Add your Together AI API key to generate unlimited courses.");
           setIsApiKeyDialogOpen(true);
@@ -181,7 +256,6 @@ function Dashboard() {
         }
       } catch (error) {
         console.error("Failed to check rate limit:", error);
-        // Continue with upload on error to be permissive
       }
     }
 
@@ -196,331 +270,180 @@ function Dashboard() {
 
   return (
     <div className="min-h-screen bg-neutral-50 flex flex-col">
-      {/* API Key Dialog */}
-      <ApiKeyDialog 
-        open={isApiKeyDialogOpen} 
+      <ApiKeyDialog
+        open={isApiKeyDialogOpen}
         onOpenChange={setIsApiKeyDialogOpen}
       />
-      
-      {/* Header */}
-      <header className="sticky top-0 z-50 border-b-[0.5px] border-neutral-200 bg-white w-full">
-        <div className="w-full px-8 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Link href="/">
-              <img
-                ref={logoFadeIn.imgRef}
-                src="/logo.svg"
-                alt="Logo"
-                onLoad={logoFadeIn.handleLoad}
-                onError={logoFadeIn.handleError}
-                className={`h-6 w-auto transition-opacity duration-700 ease-out ${logoFadeIn.isLoaded ? 'opacity-100' : 'opacity-0'}`}
-              />
-            </Link>
+
+      {/* Delete confirmation */}
+      <Dialog
+        open={!!courseToDelete}
+        onOpenChange={(open) => {
+          if (!open && !isDeleting) {
+            setCourseToDelete(null);
+            setDeleteError(null);
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-md bg-white">
+          <DialogHeader>
+            <DialogTitle className="text-left">Delete this course?</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-neutral-600">
+            <span className="font-semibold text-neutral-900">
+              {courseToDelete?.title}
+            </span>{" "}
+            will be permanently removed. This can&rsquo;t be undone.
+          </p>
+          {deleteError && (
+            <Callout variant="incorrect" className="text-sm">
+              {deleteError}
+            </Callout>
+          )}
+          <div className="flex justify-end gap-3 pt-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              shape="lg"
+              onClick={() => {
+                setCourseToDelete(null);
+                setDeleteError(null);
+              }}
+              disabled={isDeleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="danger"
+              size="sm"
+              shape="lg"
+              onClick={confirmDelete}
+              disabled={isDeleting}
+            >
+              {isDeleting ? "Deleting…" : "Delete course"}
+            </Button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Header */}
+      <header className="sticky top-0 z-50 h-16 border-b-[0.5px] border-border bg-white w-full">
+        <div className="h-full px-6 md:px-8 flex items-center justify-between">
+          <Link href="/">
+            <img
+              ref={logoFadeIn.imgRef}
+              src="/logo.svg"
+              alt="Logo"
+              onLoad={logoFadeIn.handleLoad}
+              onError={logoFadeIn.handleError}
+              className={`h-6 w-auto transition-opacity duration-500 ease-out ${logoFadeIn.isLoaded ? "opacity-100" : "opacity-0"}`}
+            />
+          </Link>
           <HeaderActions />
         </div>
       </header>
-      
-      {/* Content Area */}
-      <div className="flex flex-col lg:flex-row flex-1">
-      {/* Left Sidebar */}
-      <aside className="w-full lg:w-96 bg-white border-r-[0.5px] border-neutral-200 p-8 flex flex-col">
-        <div className="mb-8 text-center lg:text-left">
-          <h1 className="text-2xl lg:text-3xl font-bold text-neutral-900 mb-2">
-            Welcome back!
-          </h1>
-          <p className="text-sm lg:text-base text-neutral-600">
-            Pick up right where you left off or start a fresh course from any
-            PDF.
-          </p>
-        </div>
 
-        {/* Upload Area */}
-        <div
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
-          onDrop={handleDrop}
-          onClick={() => !isProcessing && fileInputRef.current?.click()}
-          className={`lg:h-64 border-[0.5px] border-dashed rounded-2xl p-8 flex flex-col items-center justify-center transition-colors backdrop-blur-sm relative overflow-hidden ${
-            isDragging
-              ? "border-blue-500 bg-blue-50/80"
-              : isProcessing
-              ? "border-blue-500 bg-blue-50/80"
-              : "border-neutral-400 bg-white/80"
-          } ${!isProcessing ? "cursor-pointer" : ""}`}
-        >
-          {isProcessing ? (
-            <div className="flex flex-col items-center">
-              <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4" />
-              <p className="text-neutral-700 font-medium">{progress}</p>
-              <p className="text-sm text-neutral-500 mt-2">
-                Redirecting to generation page...
-              </p>
-            </div>
-          ) : (
-            <>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="application/pdf,application/json,.json"
-                onChange={handleFileSelect}
-                className="hidden"
-                id="pdf-upload"
-                disabled={isProcessing}
-              />
-              <label
-                htmlFor="pdf-upload"
-                className="cursor-pointer"
-              >
-                <button
-                  type="button"
+      {/* Content */}
+      <div className="flex flex-col lg:flex-row flex-1">
+        {/* Sticky sidebar */}
+        <aside className="w-full lg:w-96 lg:flex-shrink-0 bg-white border-b lg:border-b-0 lg:border-r border-border p-8 lg:sticky lg:top-16 lg:h-[calc(100dvh-4rem)] lg:overflow-y-auto">
+          <div className="mb-8">
+            <h1 className="text-2xl lg:text-3xl font-bold text-neutral-900 mb-2">
+              Welcome back
+            </h1>
+            <p className="text-sm text-neutral-600">
+              Pick up where you left off, or start a fresh course from any PDF.
+            </p>
+          </div>
+
+          <div
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+            onClick={() => !isProcessing && fileInputRef.current?.click()}
+            className={`lg:h-64 border-[0.5px] border-dashed rounded-2xl p-8 flex flex-col items-center justify-center transition-[border-color,background-color] duration-200 ease-standard ${
+              isDragging
+                ? "border-neutral-400 bg-surface-subtle"
+                : "border-border-strong bg-white"
+            } ${!isProcessing ? "cursor-pointer" : ""}`}
+          >
+            {isProcessing ? (
+              <div className="flex flex-col items-center text-center">
+                <Loader size={28} className="mb-4 text-neutral-900" />
+                <p className="text-neutral-700 font-medium">{progress}</p>
+                <p className="text-sm text-neutral-500 mt-2">
+                  Redirecting to generation…
+                </p>
+              </div>
+            ) : (
+              <>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="application/pdf,application/json,.json"
+                  onChange={handleFileSelect}
+                  className="hidden"
+                  id="pdf-upload"
+                  disabled={isProcessing}
+                />
+                <Button
                   onClick={(e) => {
                     e.stopPropagation();
                     fileInputRef.current?.click();
                   }}
                   disabled={isProcessing}
-                  className="px-6 py-3 bg-neutral-900 text-white rounded-full font-medium hover:bg-neutral-800 transition-colors mb-3 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="mb-3"
                 >
+                  <Upload className="w-4 h-4" />
                   Upload a PDF
-                </button>
-              </label>
-              <p className="text-sm text-neutral-500">
-                Or drag-and-drop here
-              </p>
-              <p className="text-xs text-neutral-400 mt-2">
-                JSON upload available for debugging purposes
-              </p>
-            </>
-          )}
-          {error && (
-            <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg w-full">
-              <div className="flex items-start gap-3">
-                <svg
-                  className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                  />
-                </svg>
-                <div className="flex-1">
-                  <p className="text-red-800 font-medium text-sm mb-1">Error</p>
-                  <p className="text-red-700 text-sm leading-relaxed">{error}</p>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
+                </Button>
+                <p className="text-sm text-neutral-500">Or drag-and-drop here</p>
+                <p className="text-xs text-neutral-400 mt-2">
+                  JSON upload available for debugging
+                </p>
+              </>
+            )}
+          </div>
 
-        {/* Mobile: Course list section with separator and bg */}
-        <div className="lg:hidden border-t-[0.5px] border-neutral-200 pt-12 mt-6 bg-neutral-100 -mx-8 -mb-8 px-8 pb-12">
+          {error && (
+            <Callout variant="incorrect" title="Couldn’t upload" className="mt-4 text-sm">
+              {error}
+            </Callout>
+          )}
+        </aside>
+
+        {/* Course list */}
+        <main className="flex-1 p-6 lg:p-12 bg-neutral-50">
           <div className="max-w-7xl mx-auto">
             {isLoadingCourses ? (
-              <div className="text-center py-10">
-                <p className="text-neutral-500 text-sm">
-                  Loading courses...
-                </p>
-              </div>
+              <CourseGridSkeleton count={4} />
             ) : courses.length === 0 ? (
-              <div className="text-center py-10">
+              <div className="flex flex-col items-center justify-center text-center py-24 px-6 rounded-2xl border-[0.5px] border-dashed border-border bg-white">
+                <div className="w-12 h-12 rounded-full bg-surface-muted flex items-center justify-center mb-4">
+                  <Upload className="w-5 h-5 text-neutral-400" />
+                </div>
+                <p className="text-neutral-900 font-semibold mb-1">No courses yet</p>
                 <p className="text-neutral-500 text-sm">
-                  No courses yet. Upload a PDF to get started!
+                  Upload a PDF to generate your first course.
                 </p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 gap-4">
-              {courses.map((course) => {
-                const progress = getCourseProgress(course.slug);
-                const modules = course.courseData?.modules || [];
-                const totalModules = modules.filter((m: { lessons?: { success: boolean }[] }) => m.lessons?.some(l => l.success)).length;
-                const completedModules = progress?.completedModules?.length || 0;
-                const progressPercent = totalModules > 0 ? Math.round((completedModules / totalModules) * 100) : 0;
-                
-                return (
-                  <div
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {courses.map((course) => (
+                  <CourseCard
                     key={course.id}
-                    onClick={() => window.location.href = `/course/${course.slug}`}
-                    className="relative p-6 rounded-2xl border-[0.5px] bg-white border-neutral-300 text-left transition-all cursor-pointer hover:bg-neutral-50"
-                  >
-                    {/* Delete Button */}
-                    <button
-                      onClick={(e) => handleDelete(course.slug, e)}
-                      className="absolute top-4 right-4 p-2 text-neutral-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors z-10"
-                      title="Delete course"
-                    >
-                      <svg
-                        className="w-4 h-4"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M6 18L18 6M6 6l12 12"
-                        />
-                      </svg>
-                    </button>
-
-                    {/* Course Title */}
-                    <h3 className="text-xl font-bold text-neutral-900 mb-2 pr-8">
-                      {course.title}
-                    </h3>
-
-                    {/* Progress Bar - Always show */}
-                    <div className="mb-3">
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-xs text-neutral-600">{completedModules} of {totalModules} modules</span>
-                          <span className={`text-xs font-semibold ${progressPercent > 0 ? 'text-green-600' : 'text-neutral-400'}`}>{progressPercent}%</span>
-                        </div>
-                        <div className="h-2 bg-neutral-100 rounded-full overflow-hidden">
-                          <div
-                            className="h-full bg-green-600 transition-all duration-300"
-                            style={{ width: `${progressPercent}%` }}
-                          />
-                        </div>
-                      </div>
-
-                    {/* Timestamp */}
-                    <p className="text-xs text-neutral-400 mt-3">
-                      Created: {new Date(course.createdAt).toLocaleDateString()}
-                    </p>
-                  </div>
-                );
-              })}
-            </div>
-          )}
+                    course={course}
+                    onDelete={setCourseToDelete}
+                  />
+                ))}
+              </div>
+            )}
           </div>
-        </div>
-
-      </aside>
-
-      {/* Main Content */}
-      <main className="flex-1 lg:p-12 bg-white lg:bg-white">
-        {/* Desktop: Course list */}
-        <div className="hidden lg:block max-w-7xl mx-auto">
-          {isLoadingCourses ? (
-            <div className="text-center py-20">
-              <p className="text-neutral-500 text-lg">
-                Loading courses...
-              </p>
-            </div>
-          ) : courses.length === 0 ? (
-            <div className="text-center py-20">
-              <p className="text-neutral-500 text-lg">
-                No courses yet. Upload a PDF to get started!
-              </p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {courses.map((course) => {
-                const progress = getCourseProgress(course.slug);
-                const modules = course.courseData?.modules || [];
-                const totalModules = modules.filter((m: { lessons?: { success: boolean }[] }) => m.lessons?.some(l => l.success)).length;
-                const completedModules = progress?.completedModules?.length || 0;
-                const progressPercent = totalModules > 0 ? Math.round((completedModules / totalModules) * 100) : 0;
-                
-                return (
-                  <div
-                    key={course.id}
-                    onClick={() => window.location.href = `/course/${course.slug}`}
-                    className="relative p-6 rounded-2xl border-[0.5px] bg-white border-neutral-300 text-left transition-all cursor-pointer hover:bg-neutral-50"
-                  >
-                    {/* Delete Button */}
-                    <button
-                      onClick={(e) => handleDelete(course.slug, e)}
-                      className="absolute top-4 right-4 p-2 text-neutral-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors z-10"
-                      title="Delete course"
-                    >
-                      <svg
-                        className="w-4 h-4"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M6 18L18 6M6 6l12 12"
-                        />
-                      </svg>
-                    </button>
-
-                    {/* Course Title */}
-                    <h3 className="text-xl font-bold text-neutral-900 mb-2 pr-8">
-                      {course.title}
-                    </h3>
-
-                    {/* Progress Bar - Always show */}
-                    <div className="mb-3">
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-xs text-neutral-600">{completedModules} of {totalModules} modules</span>
-                          <span className={`text-xs font-semibold ${progressPercent > 0 ? 'text-green-600' : 'text-neutral-400'}`}>{progressPercent}%</span>
-                        </div>
-                        <div className="h-2 bg-neutral-100 rounded-full overflow-hidden">
-                          <div
-                            className="h-full bg-green-600 transition-all duration-300"
-                            style={{ width: `${progressPercent}%` }}
-                          />
-                        </div>
-                      </div>
-
-                    {/* Timestamp */}
-                    <p className="text-xs text-neutral-400 mt-3">
-                      Created: {new Date(course.createdAt).toLocaleDateString()}
-                    </p>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      </main>
+        </main>
       </div>
 
-      {/* Footer */}
-      <footer className="bg-white border-t-[0.5px] border-neutral-200 px-4 py-4 flex items-center justify-between">
-        <a
-          href="https://together.ai"
-          target="_blank"
-          rel="noopener noreferrer"
-          aria-label="Powered by together.ai"
-          className="inline-flex items-center gap-1.5 px-3 h-6 rounded-full bg-neutral-900 border border-neutral-800 hover:bg-neutral-800 transition-colors"
-        >
-          <span className="text-xs font-medium text-white">Powered by</span>
-          <img
-            src="/together-ai-new-logo.png"
-            alt="Together AI"
-            className="h-3 w-auto object-contain"
-          />
-        </a>
-        <div className="flex items-center gap-3">
-          <a 
-            href="https://github.com" 
-            target="_blank" 
-            rel="noopener noreferrer"
-            className="flex items-center justify-center w-8 h-8 bg-neutral-50 border border-neutral-200 rounded-full text-neutral-700 hover:text-neutral-900 transition-colors"
-            aria-label="GitHub"
-          >
-            <Github className="w-4 h-4" />
-          </a>
-          <a 
-            href="https://x.com/nutlope" 
-            target="_blank" 
-            rel="noopener noreferrer"
-            className="flex items-center justify-center w-8 h-8 bg-neutral-50 border border-neutral-200 rounded-full text-neutral-700 hover:text-neutral-900 transition-colors"
-            aria-label="X (Twitter)"
-          >
-            <Twitter className="w-4 h-4" />
-          </a>
-        </div>
+      <footer className="bg-white border-t-[0.5px] border-border">
+        <Footer />
       </footer>
     </div>
   );

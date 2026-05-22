@@ -7,6 +7,8 @@ import { LessonScreen } from "@/app/components/lesson-screen";
 import { Header } from "@/app/components/header";
 import { Footer } from "@/app/components/footer";
 import { ApiKeyDialog } from "@/app/components/api-key-dialog";
+import { Button } from "@/app/components/ui/button";
+import { LessonSkeleton } from "@/app/components/ui/skeleton";
 import type { Course, Step } from "@/lib/types";
 import { useCourseNavigation } from "@/app/hooks/use-course-navigation";
 import { getCourseProgress, updateCourseProgress } from "@/lib/course-progress";
@@ -25,11 +27,11 @@ export default function LessonPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isApiKeyDialogOpen, setIsApiKeyDialogOpen] = useState(false);
-  const hasAnimatedPage = useRef(false);
-  const shouldAnimatePage = !hasAnimatedPage.current;
+  const [hasAnimatedPage, setHasAnimatedPage] = useState(false);
+  const shouldAnimatePage = !hasAnimatedPage;
 
   useEffect(() => {
-    hasAnimatedPage.current = true;
+    setHasAnimatedPage(true);
   }, []);
 
   // Validate module index
@@ -140,6 +142,11 @@ export default function LessonPage() {
 
   // Manage scroll position on step transitions
   useEffect(() => {
+    const prefersReduced =
+      typeof window !== "undefined" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const behavior: ScrollBehavior = prefersReduced ? "auto" : "smooth";
+
     if (navigation.step === "answer") {
       // Restore scroll position after showing result — use rAF to ensure it
       // happens after React has committed the DOM changes
@@ -147,18 +154,19 @@ export default function LessonPage() {
       requestAnimationFrame(() => {
         window.scrollTo(0, savedPosition);
       });
-    } else if (navigation.step === "module-complete") {
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    } else if (navigation.step === "content" || navigation.step === "module-intro") {
-      // Scroll to top when starting a new lesson or module
-      window.scrollTo({ top: 0, behavior: "smooth" });
+    } else if (
+      navigation.step === "module-complete" ||
+      navigation.step === "content" ||
+      navigation.step === "module-intro"
+    ) {
+      window.scrollTo({ top: 0, behavior });
     }
   }, [navigation.step]);
 
   // Preload celebration image
   useEffect(() => {
     const img = new Image();
-    img.src = "/great-work.svg";
+    img.src = "/great-work.webp";
   }, []);
 
 
@@ -172,7 +180,14 @@ export default function LessonPage() {
   };
 
   if (loading) {
-    return <div className="min-h-screen bg-white" />;
+    return (
+      <div className="min-h-screen bg-white flex flex-col">
+        <Header showNavLinks={true} />
+        <div className="max-w-xl mx-auto px-6 py-16 flex-grow w-full">
+          <LessonSkeleton />
+        </div>
+      </div>
+    );
   }
 
   if (error || !course) {
@@ -182,13 +197,10 @@ export default function LessonPage() {
         <div className="max-w-xl mx-auto px-6 py-16 flex-grow flex items-center justify-center">
           <div className="text-center">
             <h1 className="text-2xl font-bold text-neutral-900 mb-4">Course not found</h1>
-            <p className="text-neutral-600 mb-6">{error || "The course you're looking for doesn't exist."}</p>
-            <button
-              onClick={() => router.push("/courses")}
-              className="px-6 py-2 bg-neutral-900 text-white rounded-lg hover:bg-neutral-800"
-            >
-              Back to Courses
-            </button>
+            <p className="text-neutral-600 mb-6">{error || "The course you’re looking for doesn’t exist."}</p>
+            <Button shape="lg" onClick={() => router.push("/courses")}>
+              Back to courses
+            </Button>
           </div>
         </div>
         <Footer />
@@ -218,7 +230,14 @@ export default function LessonPage() {
 
   // Hook hasn't synced with the real course yet — keep showing loading
   if (!currentModule && course.modules.length > 0 && moduleIndexParam < course.modules.length) {
-    return <div className="min-h-screen bg-white" />;
+    return (
+      <div className="min-h-screen bg-white flex flex-col">
+        <Header showNavLinks={true} courseTitle={course?.title} />
+        <div className="max-w-xl mx-auto px-6 py-16 flex-grow w-full">
+          <LessonSkeleton />
+        </div>
+      </div>
+    );
   }
 
   // Only check for currentLesson if we're not on module-complete or module-intro steps
@@ -237,12 +256,9 @@ export default function LessonPage() {
         <div className="max-w-xl mx-auto px-6 py-16 flex-grow flex items-center justify-center">
           <div className="text-center">
             <h1 className="text-2xl font-bold text-neutral-900 mb-4">Lesson not found</h1>
-            <button
-              onClick={handleBackToModules}
-              className="px-6 py-2 bg-neutral-900 text-white rounded-lg hover:bg-neutral-800"
-            >
-              Back to Modules
-            </button>
+            <Button shape="lg" onClick={handleBackToModules}>
+              Back to modules
+            </Button>
           </div>
         </div>
         <Footer />
@@ -260,13 +276,10 @@ export default function LessonPage() {
         <div className="max-w-xl mx-auto px-6 py-16 flex-grow flex items-center justify-center">
           <div className="text-center">
             <h1 className="text-2xl font-bold text-neutral-900 mb-4">Module not found</h1>
-            <p className="text-neutral-600 mb-6">The module you're looking for doesn't exist.</p>
-            <button
-              onClick={() => router.push(`/course/${slug}`)}
-              className="px-6 py-2 bg-neutral-900 text-white rounded-lg hover:bg-neutral-800"
-            >
-              Back to Modules
-            </button>
+            <p className="text-neutral-600 mb-6">The module you’re looking for doesn’t exist.</p>
+            <Button shape="lg" onClick={() => router.push(`/course/${slug}`)}>
+              Back to modules
+            </Button>
           </div>
         </div>
         <Footer />
@@ -331,22 +344,6 @@ export default function LessonPage() {
       </div>
 
       <Footer />
-
-      <style jsx>{`
-        @keyframes fadeIn {
-          from {
-            opacity: 0;
-            transform: translateY(8px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-        .animate-fadeIn {
-          animation: fadeIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-      `}</style>
     </div>
   );
 }

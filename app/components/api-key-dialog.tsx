@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { ExternalLink, Eye, EyeOff, X } from "lucide-react";
+import { Button } from "./ui/button";
 import {
   Dialog,
   DialogContent,
@@ -142,14 +143,15 @@ const ApiKeyForm = ({
         </li>
       </ul>
       <div className="flex flex-col gap-3">
-        <button
+        <Button
           ref={submitButtonRef}
           type="submit"
           disabled={!apiKey.trim()}
-          className="w-full px-4 py-2 bg-neutral-900 text-white rounded-lg hover:bg-neutral-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          shape="lg"
+          className="w-full"
         >
           {savedApiKey ? "Update API Key" : "Save API Key"}
-        </button>
+        </Button>
         <div className="flex items-center justify-between text-sm pt-2 gap-6">
           <a
             href="https://together.ai"

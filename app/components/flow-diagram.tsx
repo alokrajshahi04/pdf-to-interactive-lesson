@@ -10,16 +10,16 @@ export type { FlowConfig, SimpleNode, SimpleEdge };
 
 const COLOR_MAP = {
   start: {
-    background: '#FFC0CB',
-    border: '#FF69B4',
+    background: 'var(--color-hint-bg)',
+    border: 'var(--color-hint)',
   },
   process: {
-    background: '#D4E7F7',
-    border: '#4A90E2',
+    background: 'var(--color-info-bg)',
+    border: 'var(--color-info)',
   },
   output: {
-    background: '#D4F7E7',
-    border: '#4AE290',
+    background: 'var(--color-correct-bg)',
+    border: 'var(--color-correct)',
   },
 };
 
@@ -69,7 +69,7 @@ function getLayoutedElements(simpleNodes: SimpleNode[], simpleEdges: SimpleEdge[
         whiteSpace: 'pre-line' as const,
         textAlign: 'center' as const,
         minWidth: 180,
-        color: '#1f2937', // Force dark text color (neutral-800)
+        color: 'var(--color-foreground)',
       },
     };
   });
@@ -107,12 +107,12 @@ export function FlowDiagram({ config, className }: FlowDiagramProps) {
           maxZoom: 1.5,
         }}
         attributionPosition="bottom-left"
-        zoomOnScroll={true}
+        zoomOnScroll={false}
         zoomOnPinch={true}
-        zoomOnDoubleClick={true}
-        panOnScroll={true}
+        zoomOnDoubleClick={false}
+        panOnScroll={false}
         panOnDrag={true}
-        preventScrolling={true}
+        preventScrolling={false}
         nodesDraggable={false}
         nodesConnectable={false}
         elementsSelectable={false}
@@ -120,8 +120,8 @@ export function FlowDiagram({ config, className }: FlowDiagramProps) {
           hideAttribution: true,
         }}
       >
-        <Background 
-          color="#aaa"
+        <Background
+          color="var(--color-border-strong)"
           gap={16}
           variant={BackgroundVariant.Dots}
         />

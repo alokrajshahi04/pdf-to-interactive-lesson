@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, Minus, ChevronDown } from "lucide-react";
+import { Check, Minus, ChevronDown, Lock } from "lucide-react";
 import Link from "next/link";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
@@ -84,9 +84,7 @@ function Header({ showProgressBar, moduleProgress, showCoursesLink, courseTitle,
                           </span>
                           <span className="flex-shrink-0 w-4 flex items-center justify-center">
                             {isLocked ? (
-                              <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                                <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
-                              </svg>
+                              <Lock className="w-3 h-3" />
                             ) : isCompleted ? (
                               <Check className="w-4 h-4 text-green-600" />
                             ) : null}
@@ -113,12 +111,10 @@ function Header({ showProgressBar, moduleProgress, showCoursesLink, courseTitle,
                 const successfulLessons = courseModule?.lessons.filter((l) => l.success) || [];
                 const totalLessons = successfulLessons.length;
                 // Calculate completed lessons based on progress
-                const completedLessons = mod.progress === 100 
-                  ? totalLessons 
+                const completedLessons = mod.progress === 100
+                  ? totalLessons
                   : Math.max(0, Math.floor((mod.progress / 100) * totalLessons));
-                const completedQuestions = completedLessons; // Assuming 1 question per lesson
-                const totalQuestions = totalLessons;
-                
+
                 // Extract topics from lesson titles (first few words)
                 const topics = successfulLessons.slice(0, 3).map(lesson => 
                   lesson.data?.title?.split(':')[0]?.trim() || lesson.data?.title?.split('.')[0]?.trim() || lesson.data?.title
@@ -128,7 +124,7 @@ function Header({ showProgressBar, moduleProgress, showCoursesLink, courseTitle,
                   <Tooltip key={idx}>
                     <TooltipTrigger asChild>
                       <div
-                        className="flex-1 h-2 rounded-full border border-[#E5E5E5] bg-[#F5F5F5] relative overflow-hidden cursor-pointer"
+                        className="flex-1 h-2 rounded-full border border-border bg-surface-muted relative overflow-hidden cursor-pointer"
                       >
                         {mod.progress > 0 && (
                           <div
@@ -147,27 +143,13 @@ function Header({ showProgressBar, moduleProgress, showCoursesLink, courseTitle,
                             {topics.join(", ")}
                           </div>
                         )}
-                        <div className="border-t border-[#E5E5E5] pt-3 pb-2 -mx-4 px-4" style={{ borderWidth: '0.5px' }}>
-                          <div className="text-xs text-neutral-600 mb-2">Progress:</div>
-                          <div className="flex items-center gap-1.5 text-xs mb-1.5">
-                            <Check className="w-3.5 h-3.5 text-green-600" />
-                            <span className="text-neutral-600">Questions:</span>
-                            <span className="text-green-600 font-semibold">{completedQuestions}</span>
-                            <span className="text-neutral-400">/ {totalQuestions}</span>
-                          </div>
+                        <div className="border-t border-border pt-3 pb-1 -mx-4 px-4">
+                          <div className="text-xs text-neutral-600 mb-2">Progress</div>
                           <div className="flex items-center gap-1.5 text-xs">
                             <Minus className="w-3.5 h-3.5 text-neutral-900" />
                             <span className="text-neutral-600">Lessons:</span>
                             <span className="text-neutral-900 font-semibold">{completedLessons}</span>
                             <span className="text-neutral-400">/ {totalLessons}</span>
-                          </div>
-                        </div>
-                        <div className="pt-3 -mx-4 px-4">
-                          <div className="flex items-center justify-between text-xs">
-                            <span className="text-neutral-600">Time spent:</span>
-                            <span className="text-neutral-900 font-semibold">
-                              {Math.max(1, Math.floor((mod.progress / 100) * 15))} mins
-                            </span>
                           </div>
                         </div>
                       </div>
