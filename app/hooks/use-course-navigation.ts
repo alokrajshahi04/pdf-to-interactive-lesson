@@ -65,6 +65,29 @@ export function useCourseNavigation(
     }
   }, [options?.initialCompletedModules]);
 
+  // Sync moduleIndex when the URL-derived initialModuleIndex changes — e.g.
+  // the module dropdown calling router.push. Resets lesson/step like
+  // handleStartModule so the new module starts fresh.
+  //
+  // moduleIndex is INTENTIONALLY not in deps. Internal navigation via
+  // handleContinue updates moduleIndex *and* fires onNavigate (which the
+  // page applies via window.history.pushState). pushState does not update
+  // useParams in App Router, so initialModuleIndex stays stable during
+  // internal advances and this effect does not re-fire. If moduleIndex were
+  // in deps, internal advances would re-trigger this effect and roll the
+  // hook back to the URL value.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    const initial = options?.initialModuleIndex;
+    if (typeof initial === "number" && initial !== moduleIndex) {
+      setModuleIndex(initial);
+      setLessonIndex(0);
+      setStep("module-intro");
+      setUserAnswer(null);
+      setShowResult(false);
+    }
+  }, [options?.initialModuleIndex]);
+
   // Lesson interaction
   const [step, setStep] = useState<Step>(
     options?.initialStep ?? "module-intro"

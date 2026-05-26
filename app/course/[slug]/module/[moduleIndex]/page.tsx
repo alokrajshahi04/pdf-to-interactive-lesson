@@ -42,6 +42,20 @@ export default function LessonPage() {
     }
   }, [moduleIndexParam]);
 
+  // Lock guard: if the user reaches a module URL without having completed the
+  // prerequisite, bounce them back to the modules list. The dropdown disables
+  // locked modules client-side, but the URL is still typeable / refreshable.
+  // Fires once loading completes (so savedCompletedModules is populated) and
+  // re-runs on URL changes (dropdown nav) and on mid-session completions
+  // (which update savedCompletedModules below).
+  useEffect(() => {
+    if (loading || !course) return;
+    if (isNaN(moduleIndexParam) || moduleIndexParam === 0) return;
+    if (!savedCompletedModules.includes(moduleIndexParam - 1)) {
+      router.replace(`/course/${slug}`);
+    }
+  }, [loading, course, moduleIndexParam, savedCompletedModules, slug, router]);
+
   // Load course and progress from database
   useEffect(() => {
     const fetchCourseAndProgress = async () => {
@@ -116,6 +130,9 @@ export default function LessonPage() {
     onModuleComplete: (_completedIndex: number, allCompleted: number[]) => {
       // Immediately save when a module completes
       updateCourseProgress(slug, allCompleted);
+      // Keep page-level state in sync so the URL guard and Header lock logic
+      // see fresh completions without waiting for the next page load.
+      setSavedCompletedModules(allCompleted);
     },
     onNeedsApiKey: () => {
       setIsApiKeyDialogOpen(true);
@@ -182,7 +199,7 @@ export default function LessonPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-white flex flex-col">
-        <Header showNavLinks={true} />
+        <Header showNavLinks={true} showCoursesLink={true} />
         <div className="max-w-xl mx-auto px-6 py-16 flex-grow w-full">
           <LessonSkeleton />
         </div>
@@ -193,7 +210,7 @@ export default function LessonPage() {
   if (error || !course) {
     return (
       <div className="min-h-screen bg-white flex flex-col">
-        <Header showNavLinks={true} courseTitle={course?.title} />
+        <Header showNavLinks={true} showCoursesLink={true} courseTitle={course?.title} />
         <div className="max-w-xl mx-auto px-6 py-16 flex-grow flex items-center justify-center">
           <div className="text-center">
             <h1 className="text-2xl font-bold text-neutral-900 mb-4">Course not found</h1>
@@ -232,7 +249,7 @@ export default function LessonPage() {
   if (!currentModule && course.modules.length > 0 && moduleIndexParam < course.modules.length) {
     return (
       <div className="min-h-screen bg-white flex flex-col">
-        <Header showNavLinks={true} courseTitle={course?.title} />
+        <Header showNavLinks={true} showCoursesLink={true} courseTitle={course?.title} />
         <div className="max-w-xl mx-auto px-6 py-16 flex-grow w-full">
           <LessonSkeleton />
         </div>
@@ -245,10 +262,11 @@ export default function LessonPage() {
     return (
       <div className="min-h-screen bg-white flex flex-col">
         <Header
-          showNavLinks={true}
+          showNavLinks={true} showCoursesLink={true}
           courseTitle={course?.title}
           course={course}
           currentModuleIndex={currentModuleIndex}
+          completedModules={navigation.completedModules}
           onModuleSelect={(moduleIndex) => {
             router.push(`/course/${slug}/module/${moduleIndex}`);
           }}
@@ -272,7 +290,7 @@ export default function LessonPage() {
   if (!currentModule) {
     return (
       <div className="min-h-screen bg-white flex flex-col">
-        <Header showNavLinks={true} courseTitle={course?.title} />
+        <Header showNavLinks={true} showCoursesLink={true} courseTitle={course?.title} />
         <div className="max-w-xl mx-auto px-6 py-16 flex-grow flex items-center justify-center">
           <div className="text-center">
             <h1 className="text-2xl font-bold text-neutral-900 mb-4">Module not found</h1>
@@ -298,10 +316,11 @@ export default function LessonPage() {
       <Header
         showProgressBar={true}
         moduleProgress={moduleProgressData}
-        showNavLinks={true}
+        showNavLinks={true} showCoursesLink={true}
         courseTitle={course?.title}
         course={course}
         currentModuleIndex={currentModuleIndex}
+        completedModules={navigation.completedModules}
         onModuleSelect={(moduleIndex) => {
           router.push(`/course/${slug}/module/${moduleIndex}`);
         }}

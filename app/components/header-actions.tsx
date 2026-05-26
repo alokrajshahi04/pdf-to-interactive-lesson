@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { BookOpen, KeyRound } from "lucide-react";
 import { useCredits } from "../hooks/use-credits";
 import { ApiKeyDialog } from "./api-key-dialog";
 import { Button, buttonVariants } from "./ui/button";
+import { getApiKey } from "@/lib/api-key-storage";
 
 interface HeaderActionsProps {
   showCoursesLink?: boolean;
@@ -14,12 +15,28 @@ interface HeaderActionsProps {
 function HeaderActions({ showCoursesLink }: HeaderActionsProps) {
   const { credits, loaded } = useCredits();
   const [showApiKeyDialog, setShowApiKeyDialog] = useState(false);
+  // null = not checked yet (avoids SSR flicker); true = key present, hide chip.
+  const [hasApiKey, setHasApiKey] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    setHasApiKey(!!getApiKey());
+  }, []);
+
+  const handleApiKeyDialogChange = (open: boolean) => {
+    setShowApiKeyDialog(open);
+    if (!open) {
+      // Re-check after the dialog closes so the chip hides on save / reappears on remove.
+      setHasApiKey(!!getApiKey());
+    }
+  };
+
+  const showCreditsChip = hasApiKey !== true;
 
   return (
     <>
-      <ApiKeyDialog open={showApiKeyDialog} onOpenChange={setShowApiKeyDialog} />
+      <ApiKeyDialog open={showApiKeyDialog} onOpenChange={handleApiKeyDialogChange} />
       <div className="flex items-center gap-2 flex-shrink-0">
-        {!loaded ? (
+        {showCreditsChip && (!loaded ? (
           // Reserve the chip immediately so it appears with the rest of the
           // header; the number fills in once the credit check resolves.
           <div className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-full bg-surface-muted text-sm text-neutral-400 cursor-default select-none">
@@ -38,7 +55,7 @@ function HeaderActions({ showCoursesLink }: HeaderActionsProps) {
             <span className="hidden sm:inline">courses left</span>
             <span className="sm:hidden">left</span>
           </div>
-        ) : null}
+        ) : null)}
         {showCoursesLink && (
           <Link
             href="/courses"

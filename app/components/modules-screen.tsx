@@ -53,7 +53,7 @@ function ModulesScreen({
   return (
     <div className="min-h-screen bg-white flex flex-col">
       <Header 
-        showNavLinks={true} 
+        showNavLinks={true} showCoursesLink={true} 
         courseTitle={course.title}
         course={course}
         currentModuleIndex={currentModuleIndex}

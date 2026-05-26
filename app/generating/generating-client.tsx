@@ -352,6 +352,12 @@ export function GeneratingPageContent() {
                 );
               })}
             </ol>
+
+            {!isComplete && (
+              <p className="text-xs text-neutral-400 mt-6">
+                This usually takes 1–2 minutes.
+              </p>
+            )}
           </div>
         )}
       </main>
