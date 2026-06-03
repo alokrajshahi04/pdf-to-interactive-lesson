@@ -27,7 +27,7 @@
 import { createCourse } from "../lib/create-course";
 import { generateText } from "ai";
 import { ocr } from "../lib/ocr";
-import { DEFAULT_MODEL } from "../lib/utils/together";
+import { DEFAULT_MODEL, __usageTracker, getModelPricing } from "../lib/utils/together";
 import { parseJSON } from "../lib/utils/json";
 import { getJudgeModel } from "../lib/utils/judge-model";
 import { readdirSync, writeFileSync, mkdirSync, existsSync } from "fs";
@@ -78,28 +78,73 @@ const openrouterApiKey = process.env.OPENROUTER_API_KEY;
 const anthropicApiKey = process.env.ANTHROPIC_API_KEY;
 const ollamaBaseUrl = process.env.OLLAMA_BASE_URL;
 
+// ── Generation token accounting (for cost) ──────────────
+// Must be set before createCourse builds its Together client, which only wraps
+// for usage tracking when __usageTracker.onCall is present. Captures GENERATION
+// tokens only (Together); the LLM judge runs on a separate provider.
+let genInputTokens = 0;
+let genOutputTokens = 0;
+__usageTracker.onCall = ({ inputTokens, outputTokens }) => {
+  genInputTokens += inputTokens;
+  genOutputTokens += outputTokens;
+};
+
 // ── Judge setup ─────────────────────────────────────────
 
-async function judgeViaClaude(prompt: string): Promise<string> {
-  // Strip ANTHROPIC_API_KEY so claude CLI uses subscription auth
+// Limit concurrent claude CLI subprocesses — without this, parallel judging across
+// batches spawns ~180 processes and many exit with code 1.
+const CLAUDE_CLI_MAX_CONCURRENCY = parseInt(
+  process.env.CLAUDE_CLI_MAX_CONCURRENCY ?? "6",
+  10
+);
+let claudeCliInflight = 0;
+const claudeCliQueue: Array<() => void> = [];
+
+async function acquireClaudeCliSlot() {
+  if (claudeCliInflight < CLAUDE_CLI_MAX_CONCURRENCY) {
+    claudeCliInflight++;
+    return;
+  }
+  await new Promise<void>((resolve) => claudeCliQueue.push(resolve));
+  claudeCliInflight++;
+}
+
+function releaseClaudeCliSlot() {
+  claudeCliInflight--;
+  const next = claudeCliQueue.shift();
+  if (next) next();
+}
+
+async function runClaudeCli(prompt: string): Promise<{ stdout: string; stderr: string; code: number }> {
   const env = { ...process.env };
   delete env.ANTHROPIC_API_KEY;
-
   const proc = Bun.spawn(
     ["claude", "-p", prompt, "--model", "sonnet"],
     { env, stdout: "pipe", stderr: "pipe" }
   );
-
   const [stdout, stderr, code] = await Promise.all([
     new Response(proc.stdout).text(),
     new Response(proc.stderr).text(),
     proc.exited,
   ]);
+  return { stdout, stderr, code };
+}
 
-  if (code !== 0) {
-    throw new Error(`claude CLI exited with code ${code}: ${stderr}`);
+async function judgeViaClaude(prompt: string): Promise<string> {
+  await acquireClaudeCliSlot();
+  try {
+    let lastErr = "";
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const { stdout, stderr, code } = await runClaudeCli(prompt);
+      if (code === 0) return stdout.trim();
+      lastErr = stderr || `exit ${code}`;
+      // brief backoff before retry
+      await new Promise((r) => setTimeout(r, 500 * (attempt + 1)));
+    }
+    throw new Error(`claude CLI exited non-zero after 3 attempts: ${lastErr}`);
+  } finally {
+    releaseClaudeCliSlot();
   }
-  return stdout.trim();
 }
 
 async function judge(prompt: string): Promise<string> {
@@ -1186,6 +1231,18 @@ async function main() {
   const timestamp = new Date().toISOString().replace(/:/g, "-").split(".")[0];
   const outputPath = resolve(BENCHMARKS_DIR, `${tag}-${timestamp}.json`);
 
+  // Generation cost from captured tokens (Together pricing; undefined if model unpriced)
+  const genModelName = model ?? DEFAULT_MODEL;
+  const pricing = getModelPricing(genModelName);
+  const costUsd = pricing
+    ? (genInputTokens / 1e6) * pricing.input + (genOutputTokens / 1e6) * pricing.output
+    : undefined;
+  if (costUsd != null) {
+    console.log(
+      `  Gen cost:           $${costUsd.toFixed(4)} (${genInputTokens.toLocaleString()} in / ${genOutputTokens.toLocaleString()} out tokens)`
+    );
+  }
+
   const output = {
     tag,
     timestamp: new Date().toISOString(),
@@ -1195,6 +1252,12 @@ async function main() {
     batchSize: batch,
     dimensions: [...enabledDimensions],
     totalTimeMs,
+    usage: {
+      inputTokens: genInputTokens,
+      outputTokens: genOutputTokens,
+      costUsd: costUsd ?? null,
+      costPerLesson: costUsd != null && totalLessons > 0 ? costUsd / totalLessons : null,
+    },
     aggregate: {
       structural: {
         totalLessons,
@@ -1272,6 +1335,16 @@ async function main() {
 
   writeFileSync(outputPath, JSON.stringify(output, null, 2));
   console.log(`\n💾 Saved to ${outputPath}`);
+
+  // Auto-sync this run into the Neon benchmark_runs table for over-time tracking.
+  // Non-fatal: a missing DATABASE_URL or DB error must never fail the eval.
+  try {
+    const { syncBenchmarkFile } = await import("./lib/benchmark-db");
+    const synced = await syncBenchmarkFile(outputPath);
+    if (synced) console.log(`📤 Synced to benchmark_runs`);
+  } catch (e: any) {
+    console.warn(`⚠️  DB sync skipped: ${e.message}`);
+  }
 }
 
 main().catch((err) => {

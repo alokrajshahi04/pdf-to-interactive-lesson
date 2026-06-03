@@ -50,6 +50,12 @@
   --color-warning-bg: #fffbeb;
   --color-warning-border: #fde68a;
 
+  /* status-bar palette — borrowed from vercel-status (Geist 500s) */
+  --color-bar-good: #22c55e;
+  --color-bar-warn: #f59e0b;
+  --color-bar-bad: #ef4444;
+  --color-bar-track: #ededed;
+
   /* brand rainbow */
   --color-brand-1: #fb7372;
   --color-brand-2: #ffc33e;
