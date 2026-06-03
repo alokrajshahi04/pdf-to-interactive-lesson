@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { ModuleCompleteScreen } from "@/app/components/module-complete-screen";
 import { LessonScreen } from "@/app/components/lesson-screen";
@@ -145,15 +145,30 @@ export default function LessonPage() {
   }, [course, navigation.currentModule]);
 
   // Track scroll position to prevent unwanted scroll jumps on answer submit
-  const scrollPositionRef = useRef<number>(0);
+  const scrollPositionRef = useRef<number | null>(null);
+  const shouldRestoreAnswerScrollRef = useRef(false);
 
   const handleContinueWithScroll = () => {
     // Save scroll position before submitting an answer
-    if (navigation.step === "question") {
+    if (navigation.step === "question" && !navigation.showResult) {
       scrollPositionRef.current = window.scrollY;
+      shouldRestoreAnswerScrollRef.current = true;
     }
     navigation.handleContinue();
   };
+
+  useLayoutEffect(() => {
+    if (navigation.step === "answer") {
+      if (!shouldRestoreAnswerScrollRef.current || scrollPositionRef.current === null) return;
+      const savedPosition = scrollPositionRef.current;
+      shouldRestoreAnswerScrollRef.current = false;
+      window.scrollTo({ top: savedPosition, behavior: "auto" });
+      const frameId = requestAnimationFrame(() => {
+        window.scrollTo({ top: savedPosition, behavior: "auto" });
+      });
+      return () => cancelAnimationFrame(frameId);
+    }
+  }, [navigation.step]);
 
   // Manage scroll position on step transitions
   useEffect(() => {
@@ -162,14 +177,7 @@ export default function LessonPage() {
       window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const behavior: ScrollBehavior = prefersReduced ? "auto" : "smooth";
 
-    if (navigation.step === "answer") {
-      // Restore scroll position after showing result — use rAF to ensure it
-      // happens after React has committed the DOM changes
-      const savedPosition = scrollPositionRef.current;
-      requestAnimationFrame(() => {
-        window.scrollTo(0, savedPosition);
-      });
-    } else if (
+    if (
       navigation.step === "module-complete" ||
       navigation.step === "content" ||
       navigation.step === "module-intro"
@@ -237,6 +245,7 @@ export default function LessonPage() {
     isGrading,
     gradingError,
     gradingErrorCode,
+    answerResult,
     moduleStats,
     setUserAnswer,
     canContinue,
@@ -353,6 +362,7 @@ export default function LessonPage() {
               isGrading={isGrading}
               gradingError={gradingError}
               gradingErrorCode={gradingErrorCode}
+              answerResult={answerResult}
               onAnswerChange={setUserAnswer}
               canContinue={canContinue()}
               onContinue={handleContinueWithScroll}

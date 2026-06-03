@@ -182,6 +182,10 @@ body {
   from { opacity: 0; transform: translateY(16px); }
   to { opacity: 1; transform: translateY(0); }
 }
+@keyframes toastIn {
+  from { transform: translateY(8px) scale(0.98); }
+  to { transform: translateY(0) scale(1); }
+}
 
 .animate-fadeIn,
 .animate-fade-in { animation: fadeIn var(--duration-base) var(--ease-standard) both; }
@@ -216,6 +220,10 @@ body {
   .card-hover:hover {
     transform: translateY(-2px);
     box-shadow: 0 8px 24px -8px rgb(0 0 0 / 0.12);
+  }
+
+  .animate-toast {
+    animation: toastIn var(--duration-base) var(--ease-out-soft) both;
   }
 
   .link-underline {

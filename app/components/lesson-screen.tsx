@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Lightbulb, Eye, X, Info, KeyRound } from "lucide-react";
+import { Lightbulb, Eye, X, Info, KeyRound, CheckCircle2, XCircle } from "lucide-react";
 import { DragDropQuestion } from "./drag-drop-question";
 import { FlowDiagram } from "./flow-diagram";
 import { Button } from "./ui/button";
@@ -20,6 +20,7 @@ interface LessonScreenProps {
   isGrading?: boolean;
   gradingError?: string | null;
   gradingErrorCode?: string | null;
+  answerResult?: { id: number; isCorrect: boolean } | null;
   onAnswerChange: (answer: string | boolean | number | number[]) => void;
   canContinue: boolean;
   onContinue: () => void;
@@ -42,6 +43,7 @@ function LessonScreen({
   isGrading = false,
   gradingError = null,
   gradingErrorCode = null,
+  answerResult = null,
   onAnswerChange,
   canContinue,
   onContinue,
@@ -53,9 +55,47 @@ function LessonScreen({
   const questionKey = `${moduleIndex}:${lessonData.title}:${lessonData.question}`;
   const [hintState, setHintState] = useState({ key: "", visible: false });
   const [answerState, setAnswerState] = useState({ key: "", visible: false });
+  const [dismissedAnswerToastId, setDismissedAnswerToastId] = useState<number | null>(null);
   const showHint = hintState.key === questionKey && hintState.visible;
   const showAnswer = answerState.key === questionKey && answerState.visible;
   const isInvalidApiKeyError = gradingErrorCode === "invalid_api_key";
+  const isDragDropQuestion =
+    lessonData.questionType === "drag-drop" || lessonData.questionType === "flow-diagram";
+  const isWrongMultipleChoiceAnswer =
+    step === "answer" &&
+    showResult &&
+    lessonData.questionType === "multiple-choice" &&
+    (answerResult?.isCorrect === false ||
+      (typeof userAnswer === "number" &&
+        typeof lessonData.answer === "number" &&
+        userAnswer !== lessonData.answer));
+  const isWrongShortAnswer =
+    step === "answer" &&
+    showResult &&
+    lessonData.questionType === "short-answer" &&
+    lessonData.gradingResult?.isCorrect === false &&
+    !isGrading &&
+    !gradingError;
+  const isWrongDragDropAnswer =
+    step === "answer" &&
+    showResult &&
+    isDragDropQuestion &&
+    answerResult?.isCorrect === false;
+  const effectiveShowAnswer =
+    showAnswer || isWrongMultipleChoiceAnswer || isWrongShortAnswer || isWrongDragDropAnswer;
+  const showSupplementalAnswerContext =
+    effectiveShowAnswer &&
+    lessonData.questionType !== "short-answer" &&
+    lessonData.questionType !== "multiple-choice" &&
+    !isDragDropQuestion;
+  const visibleAnswerToast =
+    step === "answer" &&
+    showResult &&
+    answerResult &&
+    dismissedAnswerToastId !== answerResult.id
+      ? answerResult
+      : null;
+  const visibleAnswerToastId = visibleAnswerToast?.id ?? null;
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
@@ -64,6 +104,16 @@ function LessonScreen({
 
     return () => window.clearTimeout(timeoutId);
   }, []);
+
+  useEffect(() => {
+    if (!visibleAnswerToastId) return;
+
+    const timeoutId = window.setTimeout(() => {
+      setDismissedAnswerToastId(visibleAnswerToastId);
+    }, 3200);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [visibleAnswerToastId]);
 
   const toggleHint = () => {
     setHintState((current) => ({
@@ -117,6 +167,37 @@ function LessonScreen({
 
   return (
     <>
+      {visibleAnswerToast && (
+        <div
+          key={visibleAnswerToast.id}
+          role="status"
+          aria-live="polite"
+          className={`pointer-events-none fixed bottom-4 right-4 z-50 w-[calc(100%-2rem)] max-w-sm rounded-xl border p-4 shadow-lg animate-toast ${
+            visibleAnswerToast.isCorrect
+              ? "border-correct-border bg-correct-bg text-correct-fg"
+              : "border-incorrect-border bg-incorrect-bg text-incorrect-fg"
+          }`}
+        >
+          <div className="flex items-start gap-3">
+            {visibleAnswerToast.isCorrect ? (
+              <CheckCircle2 className="mt-0.5 h-5 w-5 flex-shrink-0 text-correct" />
+            ) : (
+              <XCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-incorrect" />
+            )}
+            <div>
+              <p className="text-sm font-semibold">
+                {visibleAnswerToast.isCorrect ? "Correct answer" : "Incorrect answer"}
+              </p>
+              <p className="text-sm">
+                {visibleAnswerToast.isCorrect
+                  ? "Your answer is correct."
+                  : "Your answer is incorrect."}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {step === "module-intro" && (
         <div>
           <h1 className={`text-3xl font-bold text-neutral-900 mb-8 ${animateClass()}`}>
@@ -194,7 +275,7 @@ function LessonScreen({
           )}
 
           {/* Show answer toggle */}
-          {showResult && !showAnswer && (
+          {showResult && !effectiveShowAnswer && (
             <div>
               <button
                 onClick={revealAnswer}
@@ -206,7 +287,7 @@ function LessonScreen({
             </div>
           )}
 
-          {showResult && showAnswer && (
+          {showResult && showSupplementalAnswerContext && (
             <>
               <p className="text-lg text-neutral-800 leading-relaxed">{lessonData.content}</p>
               <Callout variant="hint">{lessonData.info}</Callout>
@@ -264,7 +345,7 @@ function LessonScreen({
             {/* MC Explanation */}
             {lessonData.questionType === "multiple-choice" &&
               showResult &&
-              showAnswer &&
+              effectiveShowAnswer &&
               lessonData.explanation && (
                 <Callout variant="info" title="Explanation" className="mt-4">
                   <p className="text-neutral-800 leading-relaxed">{lessonData.explanation}</p>
@@ -350,7 +431,7 @@ function LessonScreen({
                     <p className="text-sm">{gradingError}</p>
                   </Callout>
                 )}
-                {showResult && showAnswer && !isGrading && !gradingError && (
+                {showResult && effectiveShowAnswer && !isGrading && !gradingError && (
                   <Callout variant="info" title="Answer" className="mt-4">
                     <p className="text-neutral-800 leading-relaxed">{lessonData.answer}</p>
                   </Callout>
@@ -372,7 +453,7 @@ function LessonScreen({
                   showResult={showResult}
                   onAnswerChange={onAnswerChange}
                 />
-                {showAnswer && renderIncorrectSlots()}
+                {effectiveShowAnswer && renderIncorrectSlots()}
               </div>
             )}
 
@@ -413,7 +494,7 @@ function LessonScreen({
                     showResult={showResult}
                     onAnswerChange={onAnswerChange}
                   />
-                  {showAnswer && renderIncorrectSlots()}
+                  {effectiveShowAnswer && renderIncorrectSlots()}
                 </div>
               )}
           </div>

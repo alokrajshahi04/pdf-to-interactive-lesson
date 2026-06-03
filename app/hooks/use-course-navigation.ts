@@ -11,6 +11,11 @@ export interface ModuleStats {
   startTime: number;
 }
 
+export interface AnswerResult {
+  id: number;
+  isCorrect: boolean;
+}
+
 interface UseCourseNavigationOptions {
   initialModuleIndex?: number;
   initialLessonIndex?: number;
@@ -84,6 +89,7 @@ export function useCourseNavigation(
       setStep("module-intro");
       setUserAnswer(null);
       setShowResult(false);
+      setAnswerResult(null);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [options?.initialModuleIndex]);
@@ -99,6 +105,7 @@ export function useCourseNavigation(
   const [isGrading, setIsGrading] = useState(false);
   const [gradingError, setGradingError] = useState<string | null>(null);
   const [gradingErrorCode, setGradingErrorCode] = useState<string | null>(null);
+  const [answerResult, setAnswerResult] = useState<AnswerResult | null>(null);
   const [moduleStats, setModuleStats] = useState<ModuleStats>({
     correct: 0,
     total: 0,
@@ -151,6 +158,7 @@ export function useCourseNavigation(
     setModuleIndex(0);
     setLessonIndex(0);
     setCompletedModules([]);
+    setAnswerResult(null);
     setShowLanding(false);
     setShowModulesScreen(true);
   };
@@ -159,6 +167,7 @@ export function useCourseNavigation(
     setModuleIndex(index);
     setLessonIndex(0);
     setStep("module-intro");
+    setAnswerResult(null);
     setShowModulesScreen(false);
   };
 
@@ -169,6 +178,7 @@ export function useCourseNavigation(
   const handleContinue = async () => {
     if (step === "module-intro") {
       setModuleStats({ correct: 0, total: 0, startTime: Date.now() });
+      setAnswerResult(null);
       const newStep = "content";
       setStep(newStep);
       options?.onNavigate?.({
@@ -177,6 +187,7 @@ export function useCourseNavigation(
         step: newStep,
       });
     } else if (step === "content") {
+      setAnswerResult(null);
       const newStep = "question";
       setStep(newStep);
       options?.onNavigate?.({
@@ -193,6 +204,7 @@ export function useCourseNavigation(
       }
 
       if (data.questionType === "short-answer") {
+        setAnswerResult(null);
         // If we already have a grading result, clear it and re-grade
         // This ensures we always get fresh results when the user submits
         if (data.gradingResult) {
@@ -289,6 +301,7 @@ export function useCourseNavigation(
 
           const result = await response.json();
           const isCorrect = result.isCorrect;
+          setAnswerResult({ id: Date.now(), isCorrect });
 
           // Update lesson data with grading result
 
@@ -378,6 +391,7 @@ export function useCourseNavigation(
           Array.isArray(correctAnswerArray) &&
           userAnswerArray.length === correctAnswerArray.length &&
           JSON.stringify(userAnswerArray) === JSON.stringify(correctAnswerArray);
+        setAnswerResult({ id: Date.now(), isCorrect });
 
         setModuleStats((prev) => ({
           ...prev,
@@ -396,6 +410,7 @@ export function useCourseNavigation(
       } else {
         // For multiple-choice and true-false, check directly
         const isCorrect = userAnswer === data.answer;
+        setAnswerResult({ id: Date.now(), isCorrect });
 
         setModuleStats((prev) => ({
           ...prev,
@@ -423,6 +438,7 @@ export function useCourseNavigation(
         setShowResult(false);
         setGradingError(null);
         setGradingErrorCode(null);
+        setAnswerResult(null);
         options?.onNavigate?.({
           moduleIndex,
           lessonIndex: newLessonIndex,
@@ -444,6 +460,7 @@ export function useCourseNavigation(
         setShowResult(false);
         setGradingError(null);
         setGradingErrorCode(null);
+        setAnswerResult(null);
 
         options?.onNavigate?.({
           moduleIndex,
@@ -462,6 +479,7 @@ export function useCourseNavigation(
         const newModuleIndex = moduleIndex + 1;
         setModuleIndex(newModuleIndex);
         setLessonIndex(0);
+        setAnswerResult(null);
         const newStep = "module-intro";
         setStep(newStep);
         options?.onNavigate?.({
@@ -520,6 +538,7 @@ export function useCourseNavigation(
     isGrading,
     gradingError,
     gradingErrorCode,
+    answerResult,
     moduleStats,
     completedModules,
 
