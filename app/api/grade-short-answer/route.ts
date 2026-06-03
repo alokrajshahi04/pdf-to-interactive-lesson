@@ -13,6 +13,25 @@ import {
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+const INVALID_API_KEY_MESSAGE =
+  "Invalid Together AI API key. Update the key in settings and try again.";
+
+function getErrorMessage(error: unknown) {
+  if (error instanceof Error) return error.message;
+  if (typeof error === "string") return error;
+  return "Unknown error";
+}
+
+function isInvalidApiKeyError(error: unknown) {
+  const message = getErrorMessage(error).toLowerCase();
+
+  return (
+    message.includes("invalid api key") ||
+    message.includes("invalid_api_key") ||
+    message.includes("incorrect api key")
+  );
+}
+
 // POST /api/grade-short-answer
 export async function POST(request: NextRequest) {
   try {
@@ -66,7 +85,6 @@ export async function POST(request: NextRequest) {
     const together = createTogetherClient(apiKey);
 
     // Use LLM to evaluate if the user's answer demonstrates understanding
-    const llmStartTime = Date.now();
     const result = await generateText({
       model: together(GRADER_MODEL),
       prompt: `You are an educational assessment evaluator. Evaluate whether a student's answer to a short-answer question demonstrates understanding of the material.
@@ -129,17 +147,33 @@ Respond ONLY with valid JSON in this exact format:
       );
     }
   } catch (error) {
+    const errorMessage = getErrorMessage(error);
+
+    if (isInvalidApiKeyError(error)) {
+      debugLog.log("[API] User-facing grading error", {
+        code: "invalid_api_key",
+      });
+
+      return Response.json(
+        {
+          error: INVALID_API_KEY_MESSAGE,
+          code: "invalid_api_key",
+        },
+        { status: 401 }
+      );
+    }
+
     debugLog.error("[API] Error grading short answer", {
-      error: error instanceof Error ? error.message : "Unknown error",
+      error: errorMessage,
       stack: error instanceof Error ? error.stack : undefined,
     });
+
     return Response.json(
       {
         error: "Failed to grade answer",
-        details: error instanceof Error ? error.message : "Unknown error",
+        details: errorMessage,
       },
       { status: 500 }
     );
   }
 }
-

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Lightbulb, Eye, X, Info } from "lucide-react";
+import { Lightbulb, Eye, X, Info, KeyRound } from "lucide-react";
 import { DragDropQuestion } from "./drag-drop-question";
 import { FlowDiagram } from "./flow-diagram";
 import { Button } from "./ui/button";
@@ -19,10 +19,12 @@ interface LessonScreenProps {
   showResult: boolean;
   isGrading?: boolean;
   gradingError?: string | null;
+  gradingErrorCode?: string | null;
   onAnswerChange: (answer: string | boolean | number | number[]) => void;
   canContinue: boolean;
   onContinue: () => void;
   onRetryGrading?: () => void;
+  onUpdateApiKey?: () => void;
   getButtonText: () => string;
 }
 
@@ -39,29 +41,44 @@ function LessonScreen({
   showResult,
   isGrading = false,
   gradingError = null,
+  gradingErrorCode = null,
   onAnswerChange,
   canContinue,
   onContinue,
   onRetryGrading,
+  onUpdateApiKey,
   getButtonText,
 }: LessonScreenProps) {
-  const [hasAnimated, setHasAnimated] = useState(false);
-  const shouldAnimateOnLoad = !hasAnimated;
-  const [showHint, setShowHint] = useState(false);
-  const [showAnswer, setShowAnswer] = useState(false);
+  const [shouldAnimateOnLoad, setShouldAnimateOnLoad] = useState(true);
+  const questionKey = `${moduleIndex}:${lessonData.title}:${lessonData.question}`;
+  const [hintState, setHintState] = useState({ key: "", visible: false });
+  const [answerState, setAnswerState] = useState({ key: "", visible: false });
+  const showHint = hintState.key === questionKey && hintState.visible;
+  const showAnswer = answerState.key === questionKey && answerState.visible;
+  const isInvalidApiKeyError = gradingErrorCode === "invalid_api_key";
 
   useEffect(() => {
-    setHasAnimated(true);
+    const timeoutId = window.setTimeout(() => {
+      setShouldAnimateOnLoad(false);
+    }, 320);
+
+    return () => window.clearTimeout(timeoutId);
   }, []);
 
-  useEffect(() => {
-    if (step !== "question" && step !== "answer") {
-      setShowHint(false);
-    }
-    if (step !== "answer") {
-      setShowAnswer(false);
-    }
-  }, [step]);
+  const toggleHint = () => {
+    setHintState((current) => ({
+      key: questionKey,
+      visible: current.key === questionKey ? !current.visible : true,
+    }));
+  };
+
+  const hideHint = () => {
+    setHintState({ key: questionKey, visible: false });
+  };
+
+  const revealAnswer = () => {
+    setAnswerState({ key: questionKey, visible: true });
+  };
 
   const animateClass = (condition = true) =>
     shouldAnimateOnLoad && condition ? "animate-fadeInUp" : "";
@@ -162,7 +179,7 @@ function LessonScreen({
           {!showResult && (
             <div className={animateClass(!showResult)} style={!showResult ? { animationDelay: "0.1s" } : {}}>
               <button
-                onClick={() => setShowHint((v) => !v)}
+                onClick={toggleHint}
                 className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-hint-bg text-hint-fg border border-hint-border hover:brightness-95 text-sm font-medium ${OPTION_TRANSITION}`}
               >
                 {showHint ? <X className="w-4 h-4" /> : <Lightbulb className="w-4 h-4" />}
@@ -180,7 +197,7 @@ function LessonScreen({
           {showResult && !showAnswer && (
             <div>
               <button
-                onClick={() => setShowAnswer(true)}
+                onClick={revealAnswer}
                 className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-info-bg text-info-fg border border-info-border hover:brightness-95 text-sm font-medium ${OPTION_TRANSITION}`}
               >
                 <Eye className="w-4 h-4" />
@@ -315,10 +332,15 @@ function LessonScreen({
                 {gradingError && (
                   <Callout
                     variant="incorrect"
-                    title="Error grading answer"
+                    title={isInvalidApiKeyError ? "Invalid API key" : "Error grading answer"}
                     className="mt-4"
                     action={
-                      onRetryGrading ? (
+                      isInvalidApiKeyError && onUpdateApiKey ? (
+                        <Button variant="danger" size="sm" shape="lg" onClick={onUpdateApiKey}>
+                          <KeyRound className="h-4 w-4" />
+                          Update key
+                        </Button>
+                      ) : onRetryGrading ? (
                         <Button variant="danger" size="sm" shape="lg" onClick={onRetryGrading}>
                           Retry
                         </Button>
@@ -369,7 +391,7 @@ function LessonScreen({
                         <h3 className="text-sm font-semibold text-neutral-700">Process flow</h3>
                         {!showResult && showHint && (
                           <button
-                            onClick={() => setShowHint(false)}
+                            onClick={hideHint}
                             className="text-xs text-neutral-500 hover:text-neutral-700 flex items-center gap-1"
                           >
                             <X className="w-4 h-4" />

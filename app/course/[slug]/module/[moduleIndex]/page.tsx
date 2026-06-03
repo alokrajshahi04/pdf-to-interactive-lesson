@@ -19,6 +19,7 @@ export default function LessonPage() {
   const searchParams = useSearchParams();
   const slug = params.slug as string;
   const moduleIndexParam = parseInt(params.moduleIndex as string, 10);
+  const isInvalidModuleIndex = isNaN(moduleIndexParam);
   const stepParam = (searchParams.get("step") || "module-intro") as Step;
   const lessonIndexParam = parseInt(searchParams.get("lesson") || "0", 10);
 
@@ -27,20 +28,15 @@ export default function LessonPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isApiKeyDialogOpen, setIsApiKeyDialogOpen] = useState(false);
-  const [hasAnimatedPage, setHasAnimatedPage] = useState(false);
-  const shouldAnimatePage = !hasAnimatedPage;
+  const [shouldAnimatePage, setShouldAnimatePage] = useState(true);
 
   useEffect(() => {
-    setHasAnimatedPage(true);
+    const timeoutId = window.setTimeout(() => {
+      setShouldAnimatePage(false);
+    }, 320);
+
+    return () => window.clearTimeout(timeoutId);
   }, []);
-
-  // Validate module index
-  useEffect(() => {
-    if (isNaN(moduleIndexParam)) {
-      setError("Invalid module");
-      setLoading(false);
-    }
-  }, [moduleIndexParam]);
 
   // Lock guard: if the user reaches a module URL without having completed the
   // prerequisite, bounce them back to the modules list. The dropdown disables
@@ -50,14 +46,16 @@ export default function LessonPage() {
   // (which update savedCompletedModules below).
   useEffect(() => {
     if (loading || !course) return;
-    if (isNaN(moduleIndexParam) || moduleIndexParam === 0) return;
+    if (isInvalidModuleIndex || moduleIndexParam === 0) return;
     if (!savedCompletedModules.includes(moduleIndexParam - 1)) {
       router.replace(`/course/${slug}`);
     }
-  }, [loading, course, moduleIndexParam, savedCompletedModules, slug, router]);
+  }, [loading, course, isInvalidModuleIndex, moduleIndexParam, savedCompletedModules, slug, router]);
 
   // Load course and progress from database
   useEffect(() => {
+    if (isInvalidModuleIndex) return;
+
     const fetchCourseAndProgress = async () => {
       try {
         setLoading(true);
@@ -87,7 +85,7 @@ export default function LessonPage() {
     };
 
     fetchCourseAndProgress();
-  }, [slug]);
+  }, [isInvalidModuleIndex, slug]);
 
   // Navigation callback to update URL without triggering Next.js page navigation
   const handleNavigate = ({
@@ -122,7 +120,7 @@ export default function LessonPage() {
 
   // Always call the hook (Rules of Hooks requirement)
   const navigation = useCourseNavigation(course || defaultCourse, {
-    initialModuleIndex: isNaN(moduleIndexParam) ? 0 : moduleIndexParam,
+    initialModuleIndex: isInvalidModuleIndex ? 0 : moduleIndexParam,
     initialLessonIndex: isNaN(lessonIndexParam) ? 0 : lessonIndexParam,
     initialStep: stepParam,
     initialCompletedModules: savedCompletedModules,
@@ -196,7 +194,9 @@ export default function LessonPage() {
     setIsApiKeyDialogOpen(open);
   };
 
-  if (loading) {
+  const pageError = isInvalidModuleIndex ? "Invalid module" : error;
+
+  if (!isInvalidModuleIndex && loading) {
     return (
       <div className="min-h-screen bg-white flex flex-col">
         <Header showNavLinks={true} showCoursesLink={true} />
@@ -207,14 +207,14 @@ export default function LessonPage() {
     );
   }
 
-  if (error || !course) {
+  if (pageError || !course) {
     return (
       <div className="min-h-screen bg-white flex flex-col">
         <Header showNavLinks={true} showCoursesLink={true} courseTitle={course?.title} />
         <div className="max-w-xl mx-auto px-6 py-16 flex-grow flex items-center justify-center">
           <div className="text-center">
             <h1 className="text-2xl font-bold text-neutral-900 mb-4">Course not found</h1>
-            <p className="text-neutral-600 mb-6">{error || "The course you’re looking for doesn’t exist."}</p>
+            <p className="text-neutral-600 mb-6">{pageError || "The course you’re looking for doesn’t exist."}</p>
             <Button shape="lg" onClick={() => router.push("/courses")}>
               Back to courses
             </Button>
@@ -232,11 +232,11 @@ export default function LessonPage() {
     moduleProgressData,
     step,
     moduleIndex: currentModuleIndex,
-    lessonIndex,
     userAnswer,
     showResult,
     isGrading,
     gradingError,
+    gradingErrorCode,
     moduleStats,
     setUserAnswer,
     canContinue,
@@ -352,10 +352,12 @@ export default function LessonPage() {
               showResult={showResult}
               isGrading={isGrading}
               gradingError={gradingError}
+              gradingErrorCode={gradingErrorCode}
               onAnswerChange={setUserAnswer}
               canContinue={canContinue()}
               onContinue={handleContinueWithScroll}
               onRetryGrading={handleRetryGrading}
+              onUpdateApiKey={() => setIsApiKeyDialogOpen(true)}
               getButtonText={getButtonText}
             />
           </div>
@@ -366,4 +368,3 @@ export default function LessonPage() {
     </div>
   );
 }
-

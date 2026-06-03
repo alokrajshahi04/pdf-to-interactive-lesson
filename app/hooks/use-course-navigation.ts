@@ -63,7 +63,7 @@ export function useCourseNavigation(
     if (initial && initial.length > 0 && completedModules.length === 0) {
       setCompletedModules(initial);
     }
-  }, [options?.initialCompletedModules]);
+  }, [completedModules.length, options?.initialCompletedModules]);
 
   // Sync moduleIndex when the URL-derived initialModuleIndex changes — e.g.
   // the module dropdown calling router.push. Resets lesson/step like
@@ -76,7 +76,6 @@ export function useCourseNavigation(
   // internal advances and this effect does not re-fire. If moduleIndex were
   // in deps, internal advances would re-trigger this effect and roll the
   // hook back to the URL value.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     const initial = options?.initialModuleIndex;
     if (typeof initial === "number" && initial !== moduleIndex) {
@@ -86,6 +85,7 @@ export function useCourseNavigation(
       setUserAnswer(null);
       setShowResult(false);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [options?.initialModuleIndex]);
 
   // Lesson interaction
@@ -98,6 +98,7 @@ export function useCourseNavigation(
   const [showResult, setShowResult] = useState(false);
   const [isGrading, setIsGrading] = useState(false);
   const [gradingError, setGradingError] = useState<string | null>(null);
+  const [gradingErrorCode, setGradingErrorCode] = useState<string | null>(null);
   const [moduleStats, setModuleStats] = useState<ModuleStats>({
     correct: 0,
     total: 0,
@@ -226,6 +227,7 @@ export function useCourseNavigation(
         // Call API to grade the answer (always, since we cleared cache if it existed)
         setIsGrading(true);
         setGradingError(null);
+        setGradingErrorCode(null);
 
         try {
           const apiKey = getApiKey();
@@ -252,17 +254,37 @@ export function useCourseNavigation(
           });
 
           if (!response.ok) {
-            const errorData = await response.json();
-            debugLog.error("[GRADING] API error response", {
-              status: response.status,
-              errorData,
-            });
+            const errorData = await response.json().catch(() => ({}));
+            const errorCode =
+              typeof errorData.code === "string" ? errorData.code : null;
+            const errorMessage =
+              typeof errorData.error === "string"
+                ? errorData.error
+                : "Failed to grade answer";
+            const isUserFacingError =
+              errorCode === "invalid_api_key" || response.status === 429;
+
+            if (isUserFacingError) {
+              debugLog.log("[GRADING] User-facing API error response", {
+                status: response.status,
+                code: errorCode,
+              });
+            } else {
+              debugLog.error("[GRADING] API error response", {
+                status: response.status,
+                errorData,
+              });
+            }
+
+            setGradingErrorCode(errorCode);
+
             if (response.status === 429) {
+              setGradingErrorCode(errorCode || "grading_limit");
               throw new Error(
                 "You've used all your free grading credits. Add your API key for unlimited grading."
               );
             }
-            throw new Error(errorData.error || "Failed to grade answer");
+            throw new Error(errorMessage);
           }
 
           const result = await response.json();
@@ -325,9 +347,23 @@ export function useCourseNavigation(
             step: newStep,
           });
         } catch (error) {
-          debugLog.error("[GRADING] Error grading answer:", error);
-          setGradingError(
-            error instanceof Error ? error.message : "Failed to grade answer"
+          const message =
+            error instanceof Error ? error.message : "Failed to grade answer";
+          const isUserFacingError =
+            message.toLowerCase().includes("api key") ||
+            message.toLowerCase().includes("free grading credits");
+
+          if (isUserFacingError) {
+            debugLog.log("[GRADING] User-facing grading error:", message);
+          } else {
+            debugLog.error("[GRADING] Error grading answer:", error);
+          }
+          setGradingError(message);
+          setGradingErrorCode((current) =>
+            current ||
+            (message.toLowerCase().includes("api key")
+              ? "invalid_api_key"
+              : null)
           );
           // Don't proceed to answer step on error
         } finally {
@@ -386,6 +422,7 @@ export function useCourseNavigation(
         setUserAnswer(null);
         setShowResult(false);
         setGradingError(null);
+        setGradingErrorCode(null);
         options?.onNavigate?.({
           moduleIndex,
           lessonIndex: newLessonIndex,
@@ -406,6 +443,7 @@ export function useCourseNavigation(
         setUserAnswer(null);
         setShowResult(false);
         setGradingError(null);
+        setGradingErrorCode(null);
 
         options?.onNavigate?.({
           moduleIndex,
@@ -441,6 +479,7 @@ export function useCourseNavigation(
 
   const handleRetryGrading = () => {
     setGradingError(null);
+    setGradingErrorCode(null);
     // Retry by calling handleContinue again
     handleContinue();
   };
@@ -480,6 +519,7 @@ export function useCourseNavigation(
     showResult,
     isGrading,
     gradingError,
+    gradingErrorCode,
     moduleStats,
     completedModules,
 
