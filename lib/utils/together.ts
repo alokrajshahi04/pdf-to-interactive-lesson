@@ -41,6 +41,8 @@ export function createTogetherClient(apiKey: string) {
 export function getTogetherProviderOptions(model: string) {
   if (
     model === "moonshotai/Kimi-K2.5" ||
+    model === "moonshotai/Kimi-K2.6" ||
+    model === "deepseek-ai/DeepSeek-V4-Pro" ||
     model === "Qwen/Qwen3.5-397B-A17B"
   ) {
     return {
