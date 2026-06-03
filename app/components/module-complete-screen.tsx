@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Image from "next/image";
 import { ArrowRight, List } from "lucide-react";
 import { Button } from "./ui/button";
@@ -45,6 +46,10 @@ function ModuleCompleteScreen({
   onContinue,
   onBackToModules,
 }: ModuleCompleteScreenProps) {
+  const [elapsedMinutes] = useState(() =>
+    Math.max(1, Math.round((Date.now() - moduleStats.startTime) / 60000))
+  );
+
   return (
     <div className="text-center">
       {/* Celebration */}
@@ -110,7 +115,7 @@ function ModuleCompleteScreen({
           </div>
           <div className="bg-surface-muted rounded-xl p-4 text-center">
             <div className="text-2xl font-bold text-neutral-900 mb-1 tabular-nums">
-              {Math.max(1, Math.round((Date.now() - moduleStats.startTime) / 60000))}m
+              {elapsedMinutes}m
             </div>
             <div className="text-xs text-neutral-500">Time</div>
           </div>

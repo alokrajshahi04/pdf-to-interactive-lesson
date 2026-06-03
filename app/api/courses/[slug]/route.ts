@@ -70,6 +70,10 @@ export async function DELETE(
 ) {
   try {
     const { slug } = await params;
+    const userId =
+      request.headers.get("X-User-ID") ||
+      request.headers.get("X-Session-ID") ||
+      undefined;
 
     if (!slug) {
       return NextResponse.json(
@@ -78,18 +82,37 @@ export async function DELETE(
       );
     }
 
-    // Delete the course
-    const result = await db
-      .delete(courses)
-      .where(eq(courses.slug, slug))
-      .returning();
+    if (!userId) {
+      return NextResponse.json(
+        { error: "Session id is required" },
+        { status: 401 }
+      );
+    }
 
-    if (result.length === 0) {
+    const [course] = await db
+      .select({
+        id: courses.id,
+        createdBy: courses.createdBy,
+      })
+      .from(courses)
+      .where(eq(courses.slug, slug))
+      .limit(1);
+
+    if (!course) {
       return NextResponse.json(
         { error: "Course not found" },
         { status: 404 }
       );
     }
+
+    if (!course.createdBy || course.createdBy !== userId) {
+      return NextResponse.json(
+        { error: "You can only delete courses created in this browser session" },
+        { status: 403 }
+      );
+    }
+
+    await db.delete(courses).where(eq(courses.slug, slug));
 
     return NextResponse.json({
       success: true,
@@ -100,4 +123,3 @@ export async function DELETE(
     return handleApiError(error, "Failed to delete course");
   }
 }
-

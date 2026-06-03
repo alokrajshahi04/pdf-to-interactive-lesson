@@ -119,7 +119,7 @@ ${content}`,
 /**
  * Generate a complete course with modules and lessons.
  *
- * Pipeline (benchmarks in SPEEDUP_FINDINGS.md):
+ * Pipeline (benchmarks in docs/course-generation-speedup.md):
  *   1. createModules — one LLM call for the 3 module titles.
  *   2. assignFlowsToModules — one LLM call picks 3 distinct processes from the
  *      source, one per module. Eliminates flow-diagram dupes by construction.

@@ -27,23 +27,8 @@ function ModulesScreen({
   currentModuleIndex,
   allComplete = false,
 }: ModulesScreenProps) {
-  const [copied, setCopied] = useState(false);
   const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
   const totalModules = course.modules.length;
-  const totalLessons = course.modules.reduce(
-    (sum, mod) => sum + mod.lessons.filter((l) => l.success).length,
-    0
-  );
-
-  const handleCopy = async () => {
-    try {
-      await navigator.clipboard.writeText(JSON.stringify(course, null, 2));
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
-      console.error('Failed to copy:', err);
-    }
-  };
 
   // Calculate module progress for header
   const moduleProgressData = course.modules.map((_, idx) => ({
@@ -53,7 +38,7 @@ function ModulesScreen({
   return (
     <div className="min-h-screen bg-white flex flex-col">
       <Header 
-        showNavLinks={true} showCoursesLink={true} 
+        showCoursesLink={true}
         courseTitle={course.title}
         course={course}
         currentModuleIndex={currentModuleIndex}
@@ -355,36 +340,6 @@ function ModulesScreen({
                   </div>
                 );
               })()}
-            </div>
-
-            {/* Full Course JSON */}
-            <div className="p-6 bg-neutral-100 border border-neutral-300 rounded-xl">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-semibold text-neutral-900">Debug: Full Course JSON (Local Only)</h3>
-                <button
-                  onClick={handleCopy}
-                  className="px-3 py-1.5 text-xs font-medium bg-neutral-900 text-white rounded-lg hover:bg-neutral-800 transition-colors flex items-center gap-2"
-                >
-                  {copied ? (
-                    <>
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
-                      Copied!
-                    </>
-                  ) : (
-                    <>
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                      </svg>
-                      Copy JSON
-                    </>
-                  )}
-                </button>
-              </div>
-              <pre className="text-xs text-neutral-800 overflow-auto max-h-96 whitespace-pre-wrap break-words">
-                {JSON.stringify(course, null, 2)}
-              </pre>
             </div>
           </div>
         )}

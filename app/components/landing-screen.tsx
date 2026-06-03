@@ -15,7 +15,6 @@ import { Footer } from "./footer";
 import { Button } from "./ui/button";
 import { Callout } from "./ui/callout";
 import { Upload, UploadCloud, Sparkles } from "lucide-react";
-import demoCourse from "@/lib/demo/composer2-course.json";
 
 function LandingScreen() {
   const [isDragging, setIsDragging] = useState(false);
@@ -61,11 +60,7 @@ function LandingScreen() {
     const files = e.dataTransfer.files;
     if (files.length > 0) {
       const file = files[0];
-      if (file.name.endsWith(".json")) {
-        handleJsonUpload(file);
-      } else {
-        handleFileUpload(file);
-      }
+      handleFileUpload(file);
     }
   };
 
@@ -73,54 +68,7 @@ function LandingScreen() {
     const files = e.target.files;
     if (files && files.length > 0) {
       const file = files[0];
-      if (file.name.endsWith(".json")) {
-        handleJsonUpload(file);
-      } else {
-        handleFileUpload(file);
-      }
-    }
-  };
-
-  const handleJsonUpload = async (file: File) => {
-    setIsProcessing(true);
-    setError(null);
-    setProgress("Reading JSON file...");
-
-    try {
-      const text = await file.text();
-      const courseData = JSON.parse(text);
-
-      if (!courseData.title || !courseData.modules || !Array.isArray(courseData.modules)) {
-        throw new Error("Invalid course JSON format. Must have 'title' and 'modules' array.");
-      }
-
-      setProgress("Saving course to database...");
-
-      const userId = getOrCreateUserId();
-      const response = await fetch("/api/courses", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-User-ID": userId,
-        },
-        body: JSON.stringify({ course: courseData }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to save course");
-      }
-
-      const savedCourse = await response.json();
-      setProgress("Course saved! Redirecting...");
-
-      setTimeout(() => {
-        window.location.href = `/course/${savedCourse.slug}`;
-      }, 500);
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Failed to process JSON file";
-      setError(errorMessage);
-      setIsProcessing(false);
+      handleFileUpload(file);
     }
   };
 
@@ -194,13 +142,11 @@ function LandingScreen() {
       setProgress("Loading demo course...");
 
       const userId = getOrCreateUserId();
-      const response = await fetch("/api/courses", {
+      const response = await fetch("/api/demo-course", {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
           "X-User-ID": userId,
         },
-        body: JSON.stringify({ course: demoCourse }),
       });
 
       if (!response.ok) {
@@ -298,7 +244,7 @@ function LandingScreen() {
               type="file"
               id="file-upload"
               className="hidden"
-              accept=".pdf,.json,application/json"
+              accept=".pdf,application/pdf"
               onChange={handleFileSelect}
               disabled={isProcessing}
             />
@@ -340,7 +286,7 @@ function LandingScreen() {
                       {isDragging ? "Drop your PDF to begin" : "or drag & drop your file here"}
                     </p>
                     <p className="mt-1 text-xs text-neutral-400">
-                      PDF up to 100 pages · JSON for debugging
+                      PDF up to 100 pages
                     </p>
                   </div>
                 )}

@@ -1,7 +1,7 @@
 /**
- * Shared course-save helper. Used by both the public `/api/courses` POST
- * route and the queue worker so a generated course lands in Postgres
- * exactly once with a unique slug.
+ * Shared course-save helper. Used by server-owned routes and the queue
+ * worker so a generated course lands in Postgres exactly once with a
+ * unique slug.
  */
 
 import { db } from "@/lib/db";

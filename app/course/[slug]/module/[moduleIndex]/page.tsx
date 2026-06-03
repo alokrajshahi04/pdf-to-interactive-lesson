@@ -207,7 +207,7 @@ export default function LessonPage() {
   if (!isInvalidModuleIndex && loading) {
     return (
       <div className="min-h-screen bg-white flex flex-col">
-        <Header showNavLinks={true} showCoursesLink={true} />
+        <Header showCoursesLink={true} />
         <div className="max-w-xl mx-auto px-6 py-16 flex-grow w-full">
           <LessonSkeleton />
         </div>
@@ -218,7 +218,7 @@ export default function LessonPage() {
   if (pageError || !course) {
     return (
       <div className="min-h-screen bg-white flex flex-col">
-        <Header showNavLinks={true} showCoursesLink={true} courseTitle={course?.title} />
+        <Header showCoursesLink={true} courseTitle={course?.title} />
         <div className="max-w-xl mx-auto px-6 py-16 flex-grow flex items-center justify-center">
           <div className="text-center">
             <h1 className="text-2xl font-bold text-neutral-900 mb-4">Course not found</h1>
@@ -258,7 +258,7 @@ export default function LessonPage() {
   if (!currentModule && course.modules.length > 0 && moduleIndexParam < course.modules.length) {
     return (
       <div className="min-h-screen bg-white flex flex-col">
-        <Header showNavLinks={true} showCoursesLink={true} courseTitle={course?.title} />
+        <Header showCoursesLink={true} courseTitle={course?.title} />
         <div className="max-w-xl mx-auto px-6 py-16 flex-grow w-full">
           <LessonSkeleton />
         </div>
@@ -271,7 +271,7 @@ export default function LessonPage() {
     return (
       <div className="min-h-screen bg-white flex flex-col">
         <Header
-          showNavLinks={true} showCoursesLink={true}
+          showCoursesLink={true}
           courseTitle={course?.title}
           course={course}
           currentModuleIndex={currentModuleIndex}
@@ -299,7 +299,7 @@ export default function LessonPage() {
   if (!currentModule) {
     return (
       <div className="min-h-screen bg-white flex flex-col">
-        <Header showNavLinks={true} showCoursesLink={true} courseTitle={course?.title} />
+        <Header showCoursesLink={true} courseTitle={course?.title} />
         <div className="max-w-xl mx-auto px-6 py-16 flex-grow flex items-center justify-center">
           <div className="text-center">
             <h1 className="text-2xl font-bold text-neutral-900 mb-4">Module not found</h1>
@@ -325,7 +325,7 @@ export default function LessonPage() {
       <Header
         showProgressBar={true}
         moduleProgress={moduleProgressData}
-        showNavLinks={true} showCoursesLink={true}
+        showCoursesLink={true}
         courseTitle={course?.title}
         course={course}
         currentModuleIndex={currentModuleIndex}

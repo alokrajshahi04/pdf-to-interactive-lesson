@@ -1,6 +1,4 @@
 import { NextResponse } from "next/server";
-import { db } from "@/lib/db";
-import { courses } from "@/lib/db/schema";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -19,6 +17,11 @@ export async function GET() {
         { status: 500 }
       );
     }
+
+    const [{ db }, { courses }] = await Promise.all([
+      import("@/lib/db"),
+      import("@/lib/db/schema"),
+    ]);
 
     // Try to query the database
     await db.select().from(courses).limit(1);
@@ -40,4 +43,3 @@ export async function GET() {
     );
   }
 }
-

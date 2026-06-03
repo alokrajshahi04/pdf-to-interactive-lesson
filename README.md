@@ -25,6 +25,9 @@ From `.env.example`:
 - `TOGETHER_API_KEY`
 - `DATABASE_URL`
 - `BLOB_READ_WRITE_TOKEN`
+- `UPSTASH_REDIS_REST_URL`
+- `UPSTASH_REDIS_REST_TOKEN`
+- `NEXT_PUBLIC_APP_URL`
 
 ## Web app
 
@@ -34,8 +37,6 @@ Upload a PDF in the browser and the app will:
 - generate a 3-module course
 - validate lessons
 - save the course for replay and sharing
-
-You can also upload an already-generated course JSON.
 
 ## CLI
 

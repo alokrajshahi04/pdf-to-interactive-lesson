@@ -101,16 +101,13 @@ export function ShareCourseDialog({
       ? `${window.location.origin}/course/${courseSlug}`
       : "";
 
-  // Reset copied state when dialog opens - use ref to avoid setState in effect
   useEffect(() => {
     if (open && !prevOpenRef.current) {
-      // Dialog just opened
-      setCopied(false);
-      // Auto-focus the input when dialog opens
       const focusTimeout = setTimeout(() => {
         inputRef.current?.focus();
         inputRef.current?.select();
       }, 100);
+      prevOpenRef.current = open;
       return () => clearTimeout(focusTimeout);
     }
     prevOpenRef.current = open;
@@ -168,4 +165,3 @@ export function ShareCourseDialog({
     </Drawer>
   );
 }
-

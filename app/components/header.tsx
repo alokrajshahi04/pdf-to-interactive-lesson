@@ -11,7 +11,6 @@ import { useImageFadeIn } from "../hooks/use-image-fade-in";
 interface HeaderProps {
   showProgressBar?: boolean;
   moduleProgress?: Array<{ progress: number }>;
-  showNavLinks?: boolean; // Show home/courses links
   showCoursesLink?: boolean; // Show courses link (for home page when courses exist)
   courseTitle?: string; // Course title to display in header
   course?: Course; // Course data for tooltips

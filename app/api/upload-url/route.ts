@@ -1,6 +1,8 @@
 import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
 import { NextResponse } from "next/server";
 
+const MAX_UPLOAD_BYTES = 100 * 100 * 1024;
+
 export async function POST(request: Request): Promise<NextResponse> {
   const body = (await request.json()) as HandleUploadBody;
 
@@ -8,15 +10,17 @@ export async function POST(request: Request): Promise<NextResponse> {
     const jsonResponse = await handleUpload({
       body,
       request,
-      onBeforeGenerateToken: async () => {
-        // Optional: Add validation or authentication here
-        // For now, we'll allow all PDF uploads
+      onBeforeGenerateToken: async (pathname) => {
+        if (!pathname.toLowerCase().endsWith(".pdf")) {
+          throw new Error("Only PDF uploads are supported");
+        }
+
         return {
           allowedContentTypes: ["application/pdf"],
+          maximumSizeInBytes: MAX_UPLOAD_BYTES,
+          validUntil: Date.now() + 5 * 60 * 1000,
           addRandomSuffix: true,
-          tokenPayload: JSON.stringify({
-            // Optional: Add metadata here
-          }),
+          tokenPayload: JSON.stringify({ pathname }),
         };
       },
       onUploadCompleted: async () => {

@@ -140,14 +140,19 @@ function Dashboard() {
     setIsDeleting(true);
     setDeleteError(null);
     try {
+      const userId = getOrCreateUserId();
       const response = await fetch(`/api/courses/${courseToDelete.slug}`, {
         method: "DELETE",
+        headers: {
+          "X-User-ID": userId,
+        },
       });
       if (response.ok) {
         setCourses((prev) => prev.filter((c) => c.slug !== courseToDelete.slug));
         setCourseToDelete(null);
       } else {
-        setDeleteError("Failed to delete course. Please try again.");
+        const errorData = await response.json().catch(() => null);
+        setDeleteError(errorData?.error || "Failed to delete course. Please try again.");
       }
     } catch (error) {
       console.error("Error deleting course:", error);
@@ -173,8 +178,8 @@ function Dashboard() {
     if (file) {
       if (file.type === "application/pdf") {
         await handleFileUpload(file);
-      } else if (file.type === "application/json" || file.name.endsWith(".json")) {
-        await handleJsonUpload(file);
+      } else {
+        setError("Please upload a PDF file");
       }
     }
   };
@@ -184,61 +189,23 @@ function Dashboard() {
     if (file) {
       if (file.type === "application/pdf") {
         await handleFileUpload(file);
-      } else if (file.type === "application/json" || file.name.endsWith(".json")) {
-        await handleJsonUpload(file);
+      } else {
+        setError("Please upload a PDF file");
       }
-    }
-  };
-
-  const handleJsonUpload = async (file: File) => {
-    setIsProcessing(true);
-    setError(null);
-    setProgress("Reading JSON file...");
-
-    try {
-      const text = await file.text();
-      const courseData = JSON.parse(text);
-
-      if (!courseData.title || !courseData.modules || !Array.isArray(courseData.modules)) {
-        throw new Error("Invalid course JSON format. Must have 'title' and 'modules' array.");
-      }
-
-      setProgress("Saving course to database...");
-
-      const userId = getOrCreateUserId();
-      const response = await fetch("/api/courses", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-User-ID": userId,
-        },
-        body: JSON.stringify({ course: courseData }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to save course");
-      }
-
-      const savedCourse = await response.json();
-      setProgress("Course saved! Redirecting...");
-
-      setTimeout(() => {
-        window.location.href = `/course/${savedCourse.slug}`;
-      }, 500);
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Failed to process JSON file";
-      setError(errorMessage);
-      setIsProcessing(false);
     }
   };
 
   const handleFileUpload = async (file: File) => {
+    setIsProcessing(true);
+    setError(null);
+    setProgress("Preparing PDF...");
+
     const estimatedPages = Math.ceil(file.size / (100 * 1024));
     if (estimatedPages > 100) {
       setError(
         `This PDF appears to be very large (~${estimatedPages} pages). We currently only support PDFs up to 100 pages. Please upload a shorter document.`
       );
+      setIsProcessing(false);
       return;
     }
 
@@ -252,6 +219,7 @@ function Dashboard() {
         if (rateLimitStatus.hasReachedCourseLimit) {
           setError("You've used all 3 free courses! Add your Together AI API key to generate unlimited courses.");
           setIsApiKeyDialogOpen(true);
+          setIsProcessing(false);
           return;
         }
       } catch (error) {
@@ -265,6 +233,7 @@ function Dashboard() {
     } catch (error) {
       console.error("Failed to store file:", error);
       setError("Failed to process file. Please try again.");
+      setIsProcessing(false);
     }
   };
 
@@ -380,7 +349,7 @@ function Dashboard() {
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept="application/pdf,application/json,.json"
+                  accept="application/pdf,.pdf"
                   onChange={handleFileSelect}
                   className="hidden"
                   id="pdf-upload"
@@ -399,7 +368,7 @@ function Dashboard() {
                 </Button>
                 <p className="text-sm text-neutral-500">Or drag-and-drop here</p>
                 <p className="text-xs text-neutral-400 mt-2">
-                  JSON upload available for debugging
+                  PDFs up to 100 pages
                 </p>
               </>
             )}

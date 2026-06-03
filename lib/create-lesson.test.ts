@@ -5,7 +5,7 @@ import { QuestionType, type MultipleChoiceLesson } from "./types";
  * Simple test for lesson validation
  *
  * Usage:
- *   bun run lib/create-lesson.test.ts
+ *   pnpm exec tsx lib/create-lesson.test.ts
  */
 
 async function testValidateLesson() {
@@ -13,6 +13,7 @@ async function testValidateLesson() {
     console.error("❌ TOGETHER_API_KEY environment variable not set");
     process.exit(1);
   }
+  const apiKey = process.env.TOGETHER_API_KEY;
 
   console.log("🧪 Testing Lesson Validation\n");
   console.log("=".repeat(60));
@@ -67,6 +68,7 @@ of tokens in the sequence, since the attention mechanism itself has no notion of
       lesson: validLesson,
       moduleTitle,
       content,
+      apiKey,
     });
     const elapsed = ((Date.now() - startTime) / 1000).toFixed(2);
 
@@ -122,6 +124,7 @@ of tokens in the sequence, since the attention mechanism itself has no notion of
       lesson: invalidLesson,
       moduleTitle,
       content,
+      apiKey,
     });
     const elapsed = ((Date.now() - startTime) / 1000).toFixed(2);
 

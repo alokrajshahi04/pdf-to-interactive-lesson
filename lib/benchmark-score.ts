@@ -1,7 +1,7 @@
 /**
  * Composite "overall score" (0–100, higher = better) for a benchmark run, so runs
- * are easy to assess and rank at a glance. Pure (no deps) — used by the eval
- * scripts and the /evals dashboard alike.
+ * are easy to assess and rank at a glance. Pure (no deps) and used by the eval
+ * scripts.
  *
  * Each component is normalized to 0–100 with higher=better (the "lower is better"
  * dims — duplication, give-away, recall-ratio — are inverted). The score is a

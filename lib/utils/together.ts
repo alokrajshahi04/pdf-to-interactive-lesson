@@ -60,7 +60,7 @@ export function getTogetherProviderOptions(model: string) {
  *
  * Switched from MiniMax-M2.7 to gpt-oss-120b after a model shootout across
  * 15 serverless Together AI models — gpt-oss-120b was 9× faster with equal or
- * better lesson quality on the same input. See SPEEDUP_FINDINGS.md.
+ * better lesson quality on the same input. See docs/course-generation-speedup.md.
  */
 export const DEFAULT_MODEL = "openai/gpt-oss-120b";
 

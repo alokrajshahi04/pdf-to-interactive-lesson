@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { BookOpen, KeyRound } from "lucide-react";
 import { useCredits } from "../hooks/use-credits";
@@ -8,25 +8,47 @@ import { ApiKeyDialog } from "./api-key-dialog";
 import { Button, buttonVariants } from "./ui/button";
 import { getApiKey } from "@/lib/api-key-storage";
 
+const API_KEY_CHANGE_EVENT = "api-key-storage-change";
+
 interface HeaderActionsProps {
   showCoursesLink?: boolean;
+}
+
+function subscribeToApiKeyChanges(onStoreChange: () => void) {
+  if (typeof window === "undefined") return () => {};
+
+  window.addEventListener("storage", onStoreChange);
+  window.addEventListener(API_KEY_CHANGE_EVENT, onStoreChange);
+
+  return () => {
+    window.removeEventListener("storage", onStoreChange);
+    window.removeEventListener(API_KEY_CHANGE_EVENT, onStoreChange);
+  };
+}
+
+function getApiKeyPresence() {
+  return !!getApiKey();
+}
+
+function getServerApiKeyPresence() {
+  return null;
 }
 
 function HeaderActions({ showCoursesLink }: HeaderActionsProps) {
   const { credits, loaded } = useCredits();
   const [showApiKeyDialog, setShowApiKeyDialog] = useState(false);
   // null = not checked yet (avoids SSR flicker); true = key present, hide chip.
-  const [hasApiKey, setHasApiKey] = useState<boolean | null>(null);
-
-  useEffect(() => {
-    setHasApiKey(!!getApiKey());
-  }, []);
+  const hasApiKey = useSyncExternalStore(
+    subscribeToApiKeyChanges,
+    getApiKeyPresence,
+    getServerApiKeyPresence
+  );
 
   const handleApiKeyDialogChange = (open: boolean) => {
     setShowApiKeyDialog(open);
     if (!open) {
       // Re-check after the dialog closes so the chip hides on save / reappears on remove.
-      setHasApiKey(!!getApiKey());
+      window.dispatchEvent(new Event(API_KEY_CHANGE_EVENT));
     }
   };
 
