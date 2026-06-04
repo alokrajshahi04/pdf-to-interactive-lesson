@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Copy, Check } from "lucide-react";
+import { Copy, Check, Globe2, Lock } from "lucide-react";
+import { getOrCreateUserId } from "@/lib/utils/session";
 import { Button } from "./ui/button";
 import {
   Dialog,
@@ -22,15 +23,24 @@ interface ShareCourseDialogProps {
   onOpenChange: (open: boolean) => void;
   courseTitle: string;
   courseSlug: string;
+  isPublic: boolean;
+  isOwner: boolean;
+  onVisibilityChange: (isPublic: boolean) => void;
 }
 
 interface ShareFormProps {
   className?: string;
   courseTitle: string;
   shareLink: string;
+  isPublic: boolean;
+  isOwner: boolean;
   copied: boolean;
+  isUpdating: boolean;
+  visibilityError: string | null;
   inputRef: React.RefObject<HTMLInputElement | null>;
   onCopyLink: () => void;
+  onSetPublic: () => void;
+  onSetPrivate: () => void;
   onClose: () => void;
 }
 
@@ -39,16 +49,50 @@ const ShareForm = ({
   className,
   courseTitle,
   shareLink,
+  isPublic,
+  isOwner,
   copied,
+  isUpdating,
+  visibilityError,
   inputRef,
   onCopyLink,
+  onSetPublic,
+  onSetPrivate,
   onClose,
 }: ShareFormProps) => (
   <div className={className}>
     <div className="space-y-4">
       <div className="text-base text-neutral-900">
-        Share <span className="font-semibold">{courseTitle}</span> with others
+        Share <span className="font-semibold">{courseTitle}</span>
       </div>
+
+      <div className="flex items-start gap-3 rounded-lg border border-border bg-surface-muted p-4">
+        {isPublic ? (
+          <Globe2 className="mt-0.5 h-5 w-5 flex-shrink-0 text-neutral-700" />
+        ) : (
+          <Lock className="mt-0.5 h-5 w-5 flex-shrink-0 text-neutral-700" />
+        )}
+        <div className="space-y-1">
+          <p className="text-sm font-semibold text-neutral-900">
+            {isPublic ? "Public link sharing" : "Private course"}
+          </p>
+          <p className="text-sm text-neutral-600">
+            {isPublic
+              ? "Anyone with this link can view this course."
+              : isOwner
+                ? "Only this browser session can open this course."
+                : "The owner has not shared this course publicly."}
+          </p>
+        </div>
+      </div>
+
+      {visibilityError && (
+        <p className="rounded-lg border border-incorrect-border bg-incorrect-bg px-3 py-2 text-sm text-incorrect-fg">
+          {visibilityError}
+        </p>
+      )}
+
+      {isPublic && (
         <div className="space-y-2">
           <label className="text-sm text-neutral-600">Course link</label>
           <div className="flex gap-2">
@@ -74,23 +118,51 @@ const ShareForm = ({
             </Button>
           </div>
         </div>
-        <p className="text-sm text-neutral-600">
-          Anyone with this link can access and view your course.
-        </p>
-        <Button variant="secondary" shape="lg" onClick={onClose} className="w-full">
+      )}
+
+      <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+        {isOwner && (
+          isPublic ? (
+            <Button
+              variant="secondary"
+              shape="lg"
+              onClick={onSetPrivate}
+              disabled={isUpdating}
+            >
+              <Lock className="h-4 w-4" />
+              {isUpdating ? "Updating..." : "Make private"}
+            </Button>
+          ) : (
+            <Button
+              shape="lg"
+              onClick={onSetPublic}
+              disabled={isUpdating}
+            >
+              <Globe2 className="h-4 w-4" />
+              {isUpdating ? "Updating..." : "Share publicly"}
+            </Button>
+          )
+        )}
+        <Button variant="secondary" shape="lg" onClick={onClose}>
           Done
         </Button>
       </div>
     </div>
-  );
+  </div>
+);
 
 export function ShareCourseDialog({
   open,
   onOpenChange,
   courseTitle,
   courseSlug,
+  isPublic,
+  isOwner,
+  onVisibilityChange,
 }: ShareCourseDialogProps) {
   const [copied, setCopied] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [visibilityError, setVisibilityError] = useState<string | null>(null);
   const isDesktop = useMediaQuery("(min-width: 768px)");
   const inputRef = useRef<HTMLInputElement>(null);
   const prevOpenRef = useRef(open);
@@ -103,6 +175,8 @@ export function ShareCourseDialog({
 
   useEffect(() => {
     if (open && !prevOpenRef.current) {
+      setCopied(false);
+      setVisibilityError(null);
       const focusTimeout = setTimeout(() => {
         inputRef.current?.focus();
         inputRef.current?.select();
@@ -123,6 +197,37 @@ export function ShareCourseDialog({
     }
   };
 
+  const updateVisibility = async (nextIsPublic: boolean) => {
+    setIsUpdating(true);
+    setVisibilityError(null);
+
+    try {
+      const response = await fetch(`/api/courses/${courseSlug}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          "X-User-ID": getOrCreateUserId(),
+        },
+        body: JSON.stringify({ isPublic: nextIsPublic }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+        throw new Error(errorData?.error || "Failed to update sharing");
+      }
+
+      const updated = await response.json();
+      onVisibilityChange(updated.isPublic === true);
+      setCopied(false);
+    } catch (err) {
+      setVisibilityError(
+        err instanceof Error ? err.message : "Failed to update sharing"
+      );
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
   if (isDesktop) {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
@@ -135,9 +240,15 @@ export function ShareCourseDialog({
           <ShareForm
             courseTitle={courseTitle}
             shareLink={shareLink}
+            isPublic={isPublic}
+            isOwner={isOwner}
             copied={copied}
+            isUpdating={isUpdating}
+            visibilityError={visibilityError}
             inputRef={inputRef}
             onCopyLink={handleCopyLink}
+            onSetPublic={() => updateVisibility(true)}
+            onSetPrivate={() => updateVisibility(false)}
             onClose={() => onOpenChange(false)}
           />
         </DialogContent>
@@ -156,9 +267,15 @@ export function ShareCourseDialog({
         <ShareForm
           courseTitle={courseTitle}
           shareLink={shareLink}
+          isPublic={isPublic}
+          isOwner={isOwner}
           copied={copied}
+          isUpdating={isUpdating}
+          visibilityError={visibilityError}
           inputRef={inputRef}
           onCopyLink={handleCopyLink}
+          onSetPublic={() => updateVisibility(true)}
+          onSetPrivate={() => updateVisibility(false)}
           onClose={() => onOpenChange(false)}
         />
       </DrawerContent>

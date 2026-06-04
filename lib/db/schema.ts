@@ -6,7 +6,7 @@ export const courses = pgTable("courses", {
   title: text("title").notNull(),
   courseData: jsonb("course_data").notNull(),
   createdBy: text("created_by"), // userId (or sessionId for anonymous users)
-  isPublic: boolean("is_public").notNull().default(true),
+  isPublic: boolean("is_public").notNull().default(false),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
@@ -68,4 +68,3 @@ export const benchmarkRuns = pgTable("benchmark_runs", {
 
 export type BenchmarkRun = typeof benchmarkRuns.$inferSelect;
 export type NewBenchmarkRun = typeof benchmarkRuns.$inferInsert;
-

@@ -12,6 +12,7 @@ import { LessonSkeleton } from "@/app/components/ui/skeleton";
 import type { Course, Step } from "@/lib/types";
 import { useCourseNavigation } from "@/app/hooks/use-course-navigation";
 import { getCourseProgress, updateCourseProgress } from "@/lib/course-progress";
+import { getOrCreateUserId } from "@/lib/utils/session";
 
 export default function LessonPage() {
   const params = useParams();
@@ -61,7 +62,13 @@ export default function LessonPage() {
         setLoading(true);
         
         // Fetch course data
-        const courseResponse = await fetch(`/api/courses/${slug}`);
+        const userId = getOrCreateUserId();
+        const courseResponse = await fetch(`/api/courses/${slug}`, {
+          headers: {
+            "X-User-ID": userId,
+          },
+          cache: "no-store",
+        });
         if (!courseResponse.ok) {
           setError("Course not found");
           setLoading(false);

@@ -11,6 +11,9 @@ import type { Course } from "@/lib/types";
 interface ModulesScreenProps {
   course: Course;
   courseSlug: string;
+  isPublic: boolean;
+  isOwner: boolean;
+  onVisibilityChange: (isPublic: boolean) => void;
   onStartModule: (moduleIndex: number) => void;
   onJumpToLesson?: (moduleIndex: number, lessonIndex: number) => void;
   completedModules: number[];
@@ -21,6 +24,9 @@ interface ModulesScreenProps {
 function ModulesScreen({
   course,
   courseSlug,
+  isPublic,
+  isOwner,
+  onVisibilityChange,
   onStartModule,
   onJumpToLesson,
   completedModules,
@@ -53,6 +59,9 @@ function ModulesScreen({
         onOpenChange={setIsShareDialogOpen}
         courseTitle={course.title}
         courseSlug={courseSlug}
+        isPublic={isPublic}
+        isOwner={isOwner}
+        onVisibilityChange={onVisibilityChange}
       />
 
       {/* Main Content */}

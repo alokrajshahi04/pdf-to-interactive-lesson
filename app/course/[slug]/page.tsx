@@ -6,6 +6,7 @@ import { ModulesScreen } from "@/app/components/modules-screen";
 import { Button } from "@/app/components/ui/button";
 import { ModuleListSkeleton } from "@/app/components/ui/skeleton";
 import { getCourseProgress, deriveCurrentModuleIndex } from "@/lib/course-progress";
+import { getOrCreateUserId } from "@/lib/utils/session";
 import type { Course } from "@/lib/types";
 
 export default function CoursePage() {
@@ -13,6 +14,8 @@ export default function CoursePage() {
   const router = useRouter();
   const slug = params.slug as string;
   const [course, setCourse] = useState<Course | null>(null);
+  const [isPublic, setIsPublic] = useState(false);
+  const [isOwner, setIsOwner] = useState(false);
   const [completedModules, setCompletedModules] = useState<number[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -28,7 +31,13 @@ export default function CoursePage() {
         setLoading(true);
         
         // Fetch course from database
-        const courseResponse = await fetch(`/api/courses/${slug}`);
+        const userId = getOrCreateUserId();
+        const courseResponse = await fetch(`/api/courses/${slug}`, {
+          headers: {
+            "X-User-ID": userId,
+          },
+          cache: "no-store",
+        });
         
         if (!courseResponse.ok) {
           if (courseResponse.status === 404) {
@@ -44,6 +53,8 @@ export default function CoursePage() {
 
         const courseData = await courseResponse.json();
         setCourse(courseData.course);
+        setIsPublic(courseData.isPublic === true);
+        setIsOwner(courseData.isOwner === true);
 
         // Load user's progress from localStorage
         refreshProgress();
@@ -120,6 +131,9 @@ export default function CoursePage() {
     <ModulesScreen
       course={course}
       courseSlug={slug}
+      isPublic={isPublic}
+      isOwner={isOwner}
+      onVisibilityChange={setIsPublic}
       onStartModule={handleStartModule}
       onJumpToLesson={handleJumpToLesson}
       completedModules={completedModules}
@@ -128,4 +142,3 @@ export default function CoursePage() {
     />
   );
 }
-

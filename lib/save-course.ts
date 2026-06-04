@@ -6,12 +6,14 @@
 
 import { db } from "@/lib/db";
 import { courses } from "@/lib/db/schema";
+import { withCourseSharingMetadata } from "@/lib/course-visibility";
 import { generateSlug, ensureUniqueSlug } from "@/lib/utils/slug";
 
 interface SaveCourseInput {
   course: { title: string } & Record<string, unknown>;
   userId?: string | null;
   providedSlug?: string;
+  isPublic?: boolean;
 }
 
 export interface SavedCourse {
@@ -25,6 +27,7 @@ export async function saveCourse({
   course,
   userId,
   providedSlug,
+  isPublic = false,
 }: SaveCourseInput): Promise<SavedCourse> {
   let slug = providedSlug;
   if (!slug) {
@@ -41,9 +44,9 @@ export async function saveCourse({
     .values({
       slug,
       title: course.title,
-      courseData: course,
+      courseData: isPublic ? withCourseSharingMetadata(course, true) : course,
       createdBy: userId || null,
-      isPublic: true,
+      isPublic,
     })
     .returning();
 

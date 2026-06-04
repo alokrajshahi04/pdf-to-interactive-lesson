@@ -29,7 +29,13 @@ function LandingScreen() {
   useEffect(() => {
     const checkCourses = async () => {
       try {
-        const response = await fetch("/api/courses");
+        const userId = getOrCreateUserId();
+        const response = await fetch("/api/courses", {
+          headers: {
+            "X-User-ID": userId,
+          },
+          cache: "no-store",
+        });
         if (response.ok) {
           const data = await response.json();
           setHasCourses(data.courses.length > 0);

@@ -17,12 +17,15 @@ export function getOrCreateUserId(): string {
   let sessionId = localStorage.getItem(STORAGE_KEY);
   
   if (!sessionId) {
-    // Generate a unique session ID using timestamp + random string
-    sessionId = `session_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
+    // Use an unguessable anonymous owner token for private-course access.
+    const randomId =
+      typeof crypto !== "undefined" && "randomUUID" in crypto
+        ? crypto.randomUUID()
+        : `${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
+    sessionId = `session_${randomId}`;
     localStorage.setItem(STORAGE_KEY, sessionId);
   }
   
   return sessionId;
 }
-
 

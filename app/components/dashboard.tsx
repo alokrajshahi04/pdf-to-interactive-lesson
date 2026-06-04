@@ -28,6 +28,7 @@ interface DatabaseCourse {
   slug: string;
   title: string;
   courseData: Course;
+  isPublic: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -72,6 +73,10 @@ function CourseCard({
       <h3 className="text-xl font-bold text-neutral-900 mb-2 pr-8">
         {course.title}
       </h3>
+
+      <p className="mb-3 text-xs font-medium text-neutral-500">
+        {course.isPublic ? "Public" : "Private"}
+      </p>
 
       <div className="mb-3">
         <div className="flex items-center justify-between mb-1">
@@ -119,7 +124,13 @@ function Dashboard() {
     const fetchCourses = async () => {
       try {
         setIsLoadingCourses(true);
-        const response = await fetch("/api/courses");
+        const userId = getOrCreateUserId();
+        const response = await fetch("/api/courses", {
+          headers: {
+            "X-User-ID": userId,
+          },
+          cache: "no-store",
+        });
         if (!response.ok) {
           throw new Error("Failed to load courses");
         }

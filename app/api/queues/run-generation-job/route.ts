@@ -1,4 +1,5 @@
 import { handleCallback, send } from "@vercel/queue";
+import { del } from "@vercel/blob";
 import { generateCourseFromPdf } from "@/lib/generate-course-from-pdf";
 import { saveCourse } from "@/lib/save-course";
 import { incrementRateLimit } from "@/lib/utils/rate-limiter";
@@ -13,6 +14,14 @@ const REQUEUE_DELAY_SECONDS = 10;
 
 interface QueueMessage {
   jobId: string;
+}
+
+async function deleteUploadedPdf(url: string) {
+  try {
+    await del(url);
+  } catch (error) {
+    console.warn("Failed to delete uploaded PDF blob:", error);
+  }
 }
 
 export const POST = handleCallback<QueueMessage>(async (message) => {
@@ -99,6 +108,7 @@ export const POST = handleCallback<QueueMessage>(async (message) => {
     // see it via status polling. Re-throwing would cause Vercel Queues to
     // retry, but generation errors here are not transient.
   } finally {
+    await deleteUploadedPdf(job.url);
     await releaseSlot();
   }
 });
