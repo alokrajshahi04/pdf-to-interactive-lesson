@@ -1,6 +1,6 @@
-# [PDF to Interactive Lesson Generator](https://pdf-to-interactive-lesson.vercel.app) — turn PDFs into interactive courses with AI
+# [PDF to Lesson](https://pdf-to-interactive-lesson.vercel.app)
 
-Upload a PDF and instantly generate a small interactive course with modules, lessons, quizzes, and flow-ordering questions. Built as a demo app for turning static documents into active learning experiences. Powered by [Together AI](https://together.ai).
+Upload a PDF and instantly generate a small interactive course with modules, lessons, quizzes, and flow-ordering questions. Powered by [Together AI](https://together.ai).
 
 [![PDF to Interactive Lesson Generator](./app/opengraph-image.png)](https://pdf-to-interactive-lesson.vercel.app)
 
@@ -13,6 +13,17 @@ PDF to Interactive Lesson Generator extracts text from your uploaded PDF, sends 
 3. **Generate** — Together AI models create the course structure, lessons, quizzes, and flow questions
 4. **Repair** — duplicate or weak questions are detected and regenerated or hidden
 5. **Learn & Share** — courses are saved so you can revisit progress or share a public course link
+
+## Tech stack
+
+- **Framework**: [Next.js](https://nextjs.org/) App Router
+- **AI**: [Together AI](https://together.ai) — course planning, lesson generation, quiz generation, and flow-question generation (GPT OSS 120B)
+- **PDF extraction**: [MuPDF](https://mupdf.com/)
+- **Database**: [Neon Postgres](https://neon.tech) with [Drizzle ORM](https://orm.drizzle.team/)
+- **Storage**: [Vercel Blob](https://vercel.com/docs/storage/vercel-blob)
+- **Queueing and rate limiting**: [Upstash Redis](https://upstash.com)
+- **Styling**: [Tailwind CSS](https://tailwindcss.com/)
+- **UI**: [Radix UI](https://www.radix-ui.com/), [lucide-react](https://lucide.dev/), and custom interactive lesson components
 
 ## Under the hood
 
@@ -112,24 +123,3 @@ Useful flags:
 - `--no-retry`
 - `--max-retries <n>`
 - `--verbose`
-
-## One-Click Deploy
-
-Deploy your own instance using [Vercel](https://vercel.com):
-
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/Nutlope/pdf-to-interactive-lesson&env=TOGETHER_API_KEY,DATABASE_URL,BLOB_READ_WRITE_TOKEN,UPSTASH_REDIS_REST_URL,UPSTASH_REDIS_REST_TOKEN,NEXT_PUBLIC_APP_URL&project-name=pdf-to-interactive-lesson&repo-name=pdf-to-interactive-lesson)
-
-## Tech stack
-
-- **Framework**: [Next.js](https://nextjs.org/) App Router
-- **AI**: [Together AI](https://together.ai) — course planning, lesson generation, quiz generation, and flow-question generation
-- **PDF extraction**: [MuPDF](https://mupdf.com/)
-- **Database**: [Neon Postgres](https://neon.tech) with [Drizzle ORM](https://orm.drizzle.team/)
-- **Storage**: [Vercel Blob](https://vercel.com/docs/storage/vercel-blob)
-- **Queueing and rate limiting**: [Upstash Redis](https://upstash.com)
-- **Styling**: [Tailwind CSS](https://tailwindcss.com/)
-- **UI**: [Radix UI](https://www.radix-ui.com/), [lucide-react](https://lucide.dev/), and custom interactive lesson components
-
-## License
-
-This demo is intended to be MIT licensed. Add a `LICENSE` file before publishing the repo externally.
