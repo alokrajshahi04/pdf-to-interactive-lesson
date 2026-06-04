@@ -1,44 +1,101 @@
-# PDF to Interactive Lesson
+# [PDF to Interactive Lesson Generator](https://pdf-to-interactive-lesson.vercel.app) — turn PDFs into interactive courses with AI
 
-Turn a PDF into a small interactive course with generated lessons, quizzes, and flow-ordering questions.
+Upload a PDF and instantly generate a small interactive course with modules, lessons, quizzes, and flow-ordering questions. Built as a demo app for turning static documents into active learning experiences. Powered by [Together AI](https://together.ai).
 
-The app has two parts:
+[![PDF to Interactive Lesson Generator](./app/opengraph-image.png)](https://pdf-to-interactive-lesson.vercel.app)
 
-- a Next.js web app for upload, generation, and course playback
-- a CLI for generation and benchmarking
+## How it works
 
-## Setup
+PDF to Interactive Lesson Generator extracts text from your uploaded PDF, sends the source content to Together AI-hosted models, and builds a structured 3-module course. Each module includes grounded lesson content plus interactive checks like short-answer, true-false, multiple-choice, and process-ordering questions.
+
+1. **Upload** a PDF from the browser
+2. **Extract** — the app reads the document text locally with MuPDF
+3. **Generate** — Together AI models create the course structure, lessons, quizzes, and flow questions
+4. **Repair** — duplicate or weak questions are detected and regenerated or hidden
+5. **Learn & Share** — courses are saved so you can revisit progress or share a public course link
+
+## Under the hood
+
+The generation pipeline is designed to be fast enough for a live demo while keeping the generated course grounded in the source PDF.
+
+- **OCR and extraction**: MuPDF pulls text from the uploaded PDF before generation starts
+- **Course planning**: one AI call creates the module structure
+- **Flow assignment**: one AI call finds distinct source-backed processes for flow-ordering questions
+- **Parallel lesson generation**: modules are generated concurrently to reduce wait time
+- **Dedup repair**: similar questions are detected with Jaccard similarity, then regenerated or removed from the visible course
+- **Persistence**: generated courses are stored in Postgres and PDF uploads are handled through Vercel Blob
+
+For a deeper breakdown of the speed and quality work, see [`docs/course-generation-speedup.md`](docs/course-generation-speedup.md).
+
+## Running Locally
+
+### Cloning the repository
+
+```bash
+git clone https://github.com/Nutlope/pdf-to-interactive-lesson.git
+cd pdf-to-interactive-lesson
+```
+
+### Getting API keys
+
+**Together AI** (required — powers course generation):
+
+1. Go to [Together AI](https://api.together.ai/settings/api-keys) to create an account
+2. Copy your API key
+
+**Neon** (required — stores generated courses):
+
+1. Create a Postgres database with [Neon](https://neon.tech)
+2. Copy your database connection string
+
+**Vercel Blob** (required for the web app — stores uploaded PDFs):
+
+1. Create or connect a [Vercel Blob](https://vercel.com/docs/storage/vercel-blob) store
+2. Copy your read/write token
+
+**Upstash Redis** (required for queueing and rate limiting):
+
+1. Create an [Upstash Redis](https://upstash.com) database
+2. Copy the REST URL and REST token
+
+### Storing API keys in .env
+
+Create a `.env.local` file in the root directory and add your keys:
+
+```bash
+TOGETHER_API_KEY=your_together_api_key_here
+DATABASE_URL=your_neon_database_url_here
+BLOB_READ_WRITE_TOKEN=your_vercel_blob_token_here
+UPSTASH_REDIS_REST_URL=your_upstash_redis_rest_url_here
+UPSTASH_REDIS_REST_TOKEN=your_upstash_redis_rest_token_here
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+```
+
+You can also enter a Together AI key directly in the app by clicking the key icon in the top-right corner.
+
+### Installing dependencies
 
 ```bash
 pnpm install
-cp .env.example .env.local
+```
+
+### Setting up the database
+
+```bash
 pnpm db:push
+```
+
+### Running the application
+
+```bash
 pnpm dev
 ```
 
-Open `http://localhost:3000`.
-
-## Required env
-
-From `.env.example`:
-
-- `TOGETHER_API_KEY`
-- `DATABASE_URL`
-- `BLOB_READ_WRITE_TOKEN`
-- `UPSTASH_REDIS_REST_URL`
-- `UPSTASH_REDIS_REST_TOKEN`
-- `NEXT_PUBLIC_APP_URL`
-
-## Web app
-
-Upload a PDF in the browser and the app will:
-
-- extract text
-- generate a 3-module course
-- validate lessons
-- save the course for replay and sharing
+The app will be available at `http://localhost:3000`.
 
 ## CLI
+
+This repo also includes a small CLI for local generation, debugging, and benchmarking.
 
 ```bash
 pnpm course generate data/document.pdf
@@ -56,103 +113,23 @@ Useful flags:
 - `--max-retries <n>`
 - `--verbose`
 
-## Architecture
+## One-Click Deploy
 
-How a PDF becomes a course.
+Deploy your own instance using [Vercel](https://vercel.com):
 
-```
-                      PDF
-                       │
-                       ▼
-              ┌────────────────┐
-              │  OCR (MuPDF)   │   ~100ms, local
-              └────────┬───────┘
-                       │ text
-                       ▼
-            ┌─────────────────────┐
-            │ generateModule-     │   1 LLM call
-            │   Structure         │   → 3 module titles
-            └──────────┬──────────┘
-                       │
-                       ▼
-            ┌─────────────────────┐
-            │ assignFlowsToModules│   1 LLM call
-            │                     │   → 3 distinct processes,
-            └──────────┬──────────┘     one per module
-                       │
-       ┌───────────────┼───────────────┐
-       │               │               │
-       ▼               ▼               ▼
-  ┌────────┐      ┌────────┐      ┌────────┐
-  │ Mod 1  │      │ Mod 2  │      │ Mod 3  │   3 modules
-  │ (par.) │      │ (par.) │      │ (par.) │   running
-  └───┬────┘      └───┬────┘      └───┬────┘   concurrently
-      │               │               │         (Promise.all)
-      └───────────────┼───────────────┘
-                      │ lessons[]
-                      ▼
-            ┌─────────────────────┐
-            │   dedupRepair       │   regen any near-dupes;
-            │   (regen → drop)    │   drop the survivors
-            └──────────┬──────────┘
-                       │
-                       ▼
-                     Course
-```
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/Nutlope/pdf-to-interactive-lesson&env=TOGETHER_API_KEY,DATABASE_URL,BLOB_READ_WRITE_TOKEN,UPSTASH_REDIS_REST_URL,UPSTASH_REDIS_REST_TOKEN,NEXT_PUBLIC_APP_URL&project-name=pdf-to-interactive-lesson&repo-name=pdf-to-interactive-lesson)
 
-Each module does its own work in parallel:
+## Tech stack
 
-```
-  ┌─ Mod N ──────────────────────────────────────┐
-  │  generateText(standardLessons)   ──┐         │   1 LLM call
-  │                                    ├── join  │   (3 lessons)
-  │  generateFlowLessonCombined(...)   ──┘       │   1 LLM call
-  │       (knows its assigned process)           │   (flow lesson)
-  └──────────────────────────────────────────────┘
-```
+- **Framework**: [Next.js](https://nextjs.org/) App Router
+- **AI**: [Together AI](https://together.ai) — course planning, lesson generation, quiz generation, and flow-question generation
+- **PDF extraction**: [MuPDF](https://mupdf.com/)
+- **Database**: [Neon Postgres](https://neon.tech) with [Drizzle ORM](https://orm.drizzle.team/)
+- **Storage**: [Vercel Blob](https://vercel.com/docs/storage/vercel-blob)
+- **Queueing and rate limiting**: [Upstash Redis](https://upstash.com)
+- **Styling**: [Tailwind CSS](https://tailwindcss.com/)
+- **UI**: [Radix UI](https://www.radix-ui.com/), [lucide-react](https://lucide.dev/), and custom interactive lesson components
 
-### Pipeline steps
+## License
 
-1. **OCR.** Local MuPDF text extraction — free, ~100 ms.
-2. **`generateModuleStructure`.** One LLM call returns 3 module titles.
-3. **`assignFlowsToModules`.** One LLM call returns 3 *distinct* sequential processes from the source — one per module. Eliminates cross-module flow-diagram collisions by construction. Returns `null` for a module if the source has no suitable distinct process; that module skips its flow lesson rather than fabricating one.
-4. **Parallel module generation.** All 3 modules run in `Promise.all`. Each module makes 2 LLM calls concurrently: 3 standard lessons (short-answer + true-false + multiple-choice) in one call, plus 1 combined flow-diagram lesson — detection and ordering question in one call (was 2 separate calls before).
-5. **`dedupRepair`.** Jaccard-similarity detection (≥0.5) across all questions. For each duplicate group: keep one, regenerate the rest serially with `previousQuestions` context. Any that survive regen get marked `success: false` with `validationType: "duplicate"` — consumers filter these out at render time.
-
-### Design decisions
-
-- **Parallel modules over sequential** sacrifices the previous "module N sees questions from modules 1..N-1" deduplication chain. We get it back via the distinct-flow assignment (eliminates flow dupes) plus the dedup-repair pass (handles standard-lesson dupes).
-- **Combined flow** (one call for both detect + question) trades a tiny bit of prompt complexity for one fewer round-trip per module.
-- **Dropping the per-lesson LLM-judge validator** removed ~25% of total latency. The new model and grounding-aware prompts produce equal or better quality without it.
-- **Hybrid dedup (regen → drop)** trades ~1.6 lessons on worst-case PDFs for zero visible duplicates and higher quality on what ships.
-
-### Numbers
-
-5-iter average across all 6 PDFs in `data/pdfs/`, claude-judged:
-
-| | Old (M2.7, sequential) | New (gpt-oss-120b, parallel) |
-|---|---|---|
-| Time / course | ~400s | **~50s** (~8.7×) |
-| Cost / course | ~$0.03 | **~$0.012** (~2.5×) |
-| Correctness | 92% | **100%** |
-| Grounded | 85% | **100%** |
-| Duplicates | 2 / course | **0 / course** |
-
-Full benchmark breakdown in [`docs/course-generation-speedup.md`](docs/course-generation-speedup.md).
-
-### Code map
-
-- `lib/create-course.ts` — public entry. Thin wrapper around `lib/pipeline`.
-- `lib/pipeline/index.ts` — `generateCourse`, the orchestrator above.
-- `lib/pipeline/assign-flows.ts` — distinct-process assignment.
-- `lib/pipeline/combined-flow.ts` — single-call flow generator.
-- `lib/pipeline/dedup-repair.ts` — Jaccard dedup + regen + drop.
-- `lib/create-lesson.ts` — per-module lesson generation (standard + flow).
-- `scripts/bench/` — model shootout + cost / variance instrumentation.
-- `scripts/eval-all.ts` — full quality eval with `--judge=claude` for `claude -p` subscription auth.
-
-## Notes
-
-- PDF extraction uses MuPDF OCR.
-- Course generation uses Together-hosted models.
-- Benchmark scripts live in `scripts/bench/`.
+This demo is intended to be MIT licensed. Add a `LICENSE` file before publishing the repo externally.

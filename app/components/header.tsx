@@ -26,17 +26,24 @@ function Header({ showProgressBar, moduleProgress, showCoursesLink, courseTitle,
     <div className="sticky top-0 z-50 bg-white border-b border-neutral-200">
       <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between gap-2 min-w-0">
         <div className="flex items-center gap-2 flex-shrink-0">
-          <Link href="/">
+          <Link
+            href="/"
+            aria-label="Go to PDF to Lesson home page"
+            className="flex items-center gap-2.5 text-neutral-950"
+          >
             {/* eslint-disable react-hooks/refs */}
             <img
               ref={logoFadeIn.imgRef}
               src="/logo.svg"
-              alt="Logo"
+              alt=""
               onLoad={logoFadeIn.handleLoad}
               onError={logoFadeIn.handleError}
               className={`h-6 w-auto transition-opacity duration-700 ease-out ${logoFadeIn.isLoaded ? 'opacity-100' : 'opacity-0'}`}
             />
             {/* eslint-enable react-hooks/refs */}
+            <span className="font-sans text-lg font-bold leading-none tracking-normal whitespace-nowrap">
+              PDF to Lesson
+            </span>
           </Link>
         </div>
         {courseTitle ? (

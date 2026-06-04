@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { getApiKey } from "@/lib/api-key-storage";
 import { storePendingFile } from "@/lib/utils/indexed-db-storage";
 import { getOrCreateUserId } from "@/lib/utils/session";
@@ -187,7 +188,16 @@ function LandingScreen() {
       {/* Header */}
       <header className="sticky top-0 z-50 h-16 border-b-[0.5px] border-border bg-white/80 backdrop-blur-sm">
         <div className="h-full max-w-7xl mx-auto px-6 flex items-center justify-between">
-          <LogoSvg className="h-6 w-auto" aria-label="Logo" />
+          <Link
+            href="/"
+            aria-label="Go to PDF to Lesson home page"
+            className="flex items-center gap-2.5 text-neutral-950"
+          >
+            <LogoSvg className="h-6 w-auto" aria-hidden="true" />
+            <span className="font-sans text-lg font-bold leading-none tracking-normal whitespace-nowrap">
+              PDF to Lesson
+            </span>
+          </Link>
           <HeaderActions showCoursesLink={hasCourses} />
         </div>
       </header>

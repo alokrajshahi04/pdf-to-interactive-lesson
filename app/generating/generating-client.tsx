@@ -253,15 +253,22 @@ export function GeneratingPageContent() {
       {/* Header */}
       <header className="sticky top-0 z-50 h-16 border-b-[0.5px] border-border bg-white w-full">
         <div className="h-full px-6 md:px-8 flex items-center justify-between">
-          <Link href="/">
+          <Link
+            href="/"
+            aria-label="Go to PDF to Lesson home page"
+            className="flex items-center gap-2.5 text-neutral-950"
+          >
             <img
               ref={logoFadeIn.imgRef}
               src="/logo.svg"
-              alt="Logo"
+              alt=""
               onLoad={logoFadeIn.handleLoad}
               onError={logoFadeIn.handleError}
               className={`h-6 w-auto transition-opacity duration-500 ease-out ${logoFadeIn.isLoaded ? "opacity-100" : "opacity-0"}`}
             />
+            <span className="font-sans text-lg font-bold leading-none tracking-normal whitespace-nowrap">
+              PDF to Lesson
+            </span>
           </Link>
           <HeaderActions showCoursesLink />
         </div>
