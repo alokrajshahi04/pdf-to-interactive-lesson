@@ -2,7 +2,7 @@
 
 Upload a PDF and instantly generate a small interactive course with modules, lessons, quizzes, and flow-ordering questions. Powered by [Together AI](https://together.ai).
 
-[![PDF to Interactive Lesson Generator](./app/opengraph-image.png)](https://pdf-to-interactive-lesson.vercel.app)
+[![PDF to Interactive Lesson Generator](./public/og-image.png)](https://pdf-to-interactive-lesson.vercel.app)
 
 ## How it works
 

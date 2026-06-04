@@ -29,6 +29,13 @@ export const viewport: Viewport = {
   maximumScale: 5,
 };
 
+const ogImage = {
+  url: "/og-image.png",
+  width: 1200,
+  height: 630,
+  alt: "Turn any PDF into a Lesson — AI slices your document into 5-minute lessons with hands-on questions.",
+};
+
 export const metadata: Metadata = {
   metadataBase: new URL(
     process.env.NEXT_PUBLIC_APP_URL || "https://pdf-to-interactive-lesson.vercel.app"
@@ -45,11 +52,13 @@ export const metadata: Metadata = {
     description: "Convert PDFs into interactive course lessons with AI-powered content generation",
     type: "website",
     siteName: "PDF to Interactive Lesson Generator",
+    images: [ogImage],
   },
   twitter: {
     card: "summary_large_image",
     title: "PDF to Interactive Lesson Generator",
     description: "Convert PDFs into interactive course lessons with AI-powered content generation",
+    images: [ogImage.url],
   },
   robots: {
     index: true,
