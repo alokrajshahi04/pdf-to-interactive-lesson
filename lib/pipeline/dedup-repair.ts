@@ -127,7 +127,7 @@ async function regenerateStandard(
     targetType === "short-answer"
       ? '{"title":"...","content":"...","info":"...","question":"...","questionType":"short-answer","answer":"..."}'
       : targetType === "true-false"
-      ? '{"title":"...","content":"...","info":"...","question":"...","questionType":"true-false","answer":true}'
+      ? '{"title":"...","content":"...","info":"...","question":"...","questionType":"true-false","answer":true,"explanation":"..."}'
       : '{"title":"...","content":"...","info":"...","question":"...","questionType":"multiple-choice","answer":0,"choices":["Correct","B","C","D"],"explanation":"..."}';
 
   const prompt = `Generate ONE replacement lesson for module "${moduleTitle}".

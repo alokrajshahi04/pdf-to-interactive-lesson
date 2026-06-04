@@ -23,7 +23,8 @@
             "info": "Composer 2 training involves continued pretraining followed by reinforcement learning.",
             "question": "The continued pretraining phase of Composer 2 includes a bulk compute phase at 32k tokens, a long-context extension to 256k tokens, and a short SFT phase.",
             "questionType": "true-false",
-            "answer": true
+            "answer": true,
+            "explanation": "The lesson describes continued pretraining as three stages: bulk compute at 32k tokens, a long-context extension to 256k tokens, and a short SFT phase."
           }
         },
         {
@@ -149,7 +150,8 @@
             "info": "Composer 2 does not mask rollouts that exceed the maximum sequence length.",
             "question": "Composer 2 uses overlong masking for rollouts that exceed the maximum sequence length.",
             "questionType": "true-false",
-            "answer": false
+            "answer": false,
+            "explanation": "The lesson states that Composer 2 did not see benefits from overlong masking at small scale and chose not to mask rollouts that exceed the maximum sequence length."
           }
         },
         {
@@ -194,7 +196,8 @@
             "info": "CursorBench tasks require a median of 181 lines of code changes.",
             "question": "The median CursorBench task requires substantially more lines of code changes compared to SWE-bench, with a median of 181 lines changed versus 7-10 lines.",
             "questionType": "true-false",
-            "answer": true
+            "answer": true,
+            "explanation": "The lesson states that CursorBench tasks have a median of 181 lines changed, compared with 7-10 lines for SWE-bench Verified and Multilingual."
           }
         },
         {

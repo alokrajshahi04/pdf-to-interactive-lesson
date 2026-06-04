@@ -42,6 +42,9 @@ const trueFalseLessonSchema = z.object({
   question: z.string().describe("A statement that is either true or false"),
   questionType: z.literal("true-false"),
   answer: z.boolean().describe("true or false"),
+  explanation: z
+    .string()
+    .describe("Brief explanation of why the statement is true or false"),
 });
 
 const multipleChoiceLessonSchema = z.object({

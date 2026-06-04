@@ -60,6 +60,11 @@ function LessonScreen({
   const showHint = hintState.key === questionKey && hintState.visible;
   const showAnswer = answerState.key === questionKey && answerState.visible;
   const isInvalidApiKeyError = gradingErrorCode === "invalid_api_key";
+  const isTrueFalseQuestion = lessonData.questionType === "true-false";
+  const trueFalseExplanation = isTrueFalseQuestion
+    ? lessonData.explanation?.trim()
+    : "";
+  const hasTrueFalseExplanation = !!trueFalseExplanation;
   const isDragDropQuestion =
     lessonData.questionType === "drag-drop" || lessonData.questionType === "flow-diagram";
   const isWrongMultipleChoiceAnswer =
@@ -88,6 +93,7 @@ function LessonScreen({
     effectiveShowAnswer &&
     lessonData.questionType !== "short-answer" &&
     lessonData.questionType !== "multiple-choice" &&
+    (!isTrueFalseQuestion || !hasTrueFalseExplanation) &&
     !isDragDropQuestion;
   const visibleAnswerToast =
     step === "answer" &&
@@ -119,7 +125,13 @@ function LessonScreen({
   const canShowInfoHint = lessonData.info.trim().length > 0 && !hintLeak.leaksAnswer;
   const canShowFlowHint = lessonData.questionType === "flow-diagram" && !!lessonData.flowConfig;
   const canShowHint = canShowInfoHint || canShowFlowHint;
-  const safeShowHint = showHint && canShowHint;
+  const showInfoHint = showHint && canShowInfoHint;
+  const showFlowHint = showHint && canShowFlowHint;
+  const showHintButtonText =
+    canShowFlowHint && !canShowInfoHint ? "Show process flow" : "Show hint";
+  const hideHintButtonText =
+    canShowFlowHint && !canShowInfoHint ? "Hide process flow" : "Hide hint";
+  const revealButtonLabel = hasTrueFalseExplanation ? "Show explanation" : "Show answer";
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
@@ -249,15 +261,6 @@ function LessonScreen({
           >
             {lessonData.content}
           </p>
-          {canShowInfoHint && (
-            <Callout
-              variant="hint"
-              className={animateClass()}
-              style={{ animationDelay: "0.2s" }}
-            >
-              {lessonData.info}
-            </Callout>
-          )}
 
           {lessonData.questionType === "flow-diagram" && lessonData.flowConfig && (
             <Callout
@@ -281,18 +284,19 @@ function LessonScreen({
             {lessonData.title}
           </h1>
 
-          {/* Hint toggle — the button stays put and flips to "Hide hint";
-              the hint appears directly beneath it. */}
           {!showResult && canShowHint && (
-            <div className={animateClass(!showResult)} style={!showResult ? { animationDelay: "0.1s" } : {}}>
+            <div
+              className={animateClass(!showResult)}
+              style={!showResult ? { animationDelay: "0.1s" } : {}}
+            >
               <button
                 onClick={toggleHint}
                 className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-hint-bg text-hint-fg border border-hint-border hover:brightness-95 text-sm font-medium ${OPTION_TRANSITION}`}
               >
-                {safeShowHint ? <X className="w-4 h-4" /> : <Lightbulb className="w-4 h-4" />}
-                {safeShowHint ? "Hide hint" : "Show hint"}
+                {showHint ? <X className="w-4 h-4" /> : <Lightbulb className="w-4 h-4" />}
+                {showHint ? hideHintButtonText : showHintButtonText}
               </button>
-              {safeShowHint && canShowInfoHint && (
+              {showInfoHint && (
                 <Callout variant="hint" className="mt-3">
                   {lessonData.info}
                 </Callout>
@@ -308,7 +312,7 @@ function LessonScreen({
                 className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-info-bg text-info-fg border border-info-border hover:brightness-95 text-sm font-medium ${OPTION_TRANSITION}`}
               >
                 <Eye className="w-4 h-4" />
-                Show answer
+                {revealButtonLabel}
               </button>
             </div>
           )}
@@ -414,6 +418,15 @@ function LessonScreen({
               </div>
             )}
 
+            {isTrueFalseQuestion &&
+              showResult &&
+              showAnswer &&
+              hasTrueFalseExplanation && (
+                <Callout variant="info" title="Explanation" className="mt-4">
+                  <p className="text-neutral-800 leading-relaxed">{trueFalseExplanation}</p>
+                </Callout>
+              )}
+
             {/* Short Answer */}
             {lessonData.questionType === "short-answer" && (
               <div
@@ -492,11 +505,11 @@ function LessonScreen({
                   className={animateClass(!showResult)}
                   style={!showResult ? { animationDelay: "0.3s" } : {}}
                 >
-                  {(safeShowHint || (showResult && showAnswer)) && (
+                  {(showFlowHint || (showResult && showAnswer)) && (
                     <div className="mb-8 bg-surface-muted border-2 border-border rounded-xl p-6">
                       <div className="flex items-center justify-between mb-4">
                         <h3 className="text-sm font-semibold text-neutral-700">Process flow</h3>
-                        {!showResult && safeShowHint && (
+                        {!showResult && showFlowHint && (
                           <button
                             onClick={hideHint}
                             className="text-xs text-neutral-500 hover:text-neutral-700 flex items-center gap-1"

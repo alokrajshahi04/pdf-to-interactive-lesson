@@ -53,6 +53,7 @@ export interface ShortAnswerLesson extends LessonBase {
 export interface TrueFalseLesson extends LessonBase {
   questionType: QuestionType.TrueFalse;
   answer: boolean;
+  explanation?: string; // Optional explanation of why the statement is true or false
 }
 
 export interface MultipleChoiceLesson extends LessonBase {

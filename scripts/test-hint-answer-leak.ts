@@ -243,6 +243,8 @@ assert.equal(
         question: "Composer 2 used reinforcement learning after continued pretraining.",
         questionType: "true-false",
         answer: true,
+        explanation:
+          "The lesson states that continued pretraining was followed by reinforcement learning.",
       },
       {
         title: "CursorBench changes",

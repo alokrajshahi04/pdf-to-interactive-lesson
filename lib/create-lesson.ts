@@ -4,6 +4,7 @@ import {
   type Module,
   type Lesson,
   type MultipleChoiceLesson,
+  type TrueFalseLesson,
   type ModuleWithLessons,
   type LessonResult,
   type FailedLesson,
@@ -178,7 +179,7 @@ The "info" field is shown to the student as an optional hint. If you include it,
 
 You must create exactly ONE lesson for EACH question type:
 1. "short-answer" - answer is a text string. The answer must be a fact EXPLICITLY stated in the source content. Do NOT ask about exact URLs, code snippets, or strings that may have formatting issues. Do NOT embed unverified claims or translations in the question itself — only state facts from the source. The lesson content must explicitly include the answer-bearing fact, not just surrounding context.
-2. "true-false" - answer is true or false (boolean). The statement MUST be clearly and unambiguously true or false based solely on the source content. Avoid nuanced, debatable, or misleading phrasing. Do NOT use double negatives. Do NOT paraphrase the source in a way that subtly changes meaning.
+2. "true-false" - answer is true or false (boolean). The statement MUST be clearly and unambiguously true or false based solely on the source content. Avoid nuanced, debatable, or misleading phrasing. Do NOT use double negatives. Do NOT paraphrase the source in a way that subtly changes meaning. Include an explanation grounded in the lesson content that says why the statement is true or false.
 3. "multiple-choice" - answer is ALWAYS 0. Put the CORRECT answer as the FIRST choice (index 0), then 3 wrong choices. The correct answer AND all distractor choices must be grounded in or directly related to the source content. Do NOT invent plausible-sounding facts for distractors. The lesson content must include enough specific detail to distinguish the correct choice from the distractors. Do NOT write negation-based questions such as "Which is NOT...", "Which is NOT mentioned...", "All of the following EXCEPT...", or any question where the student must pick the absent option.
 
 Content-writing rules:
@@ -206,7 +207,8 @@ Return this exact JSON structure:
       "info": "A one sentence strategy hint that does not reveal the answer",
       "question": "A true or false statement",
       "questionType": "true-false",
-      "answer": true
+      "answer": true,
+      "explanation": "Why the statement is true or false"
     },
     {
       "title": "Lesson Title",
@@ -316,7 +318,7 @@ MANDATORY RULES — do not violate any of these:
 1. Respond with ONLY a JSON object. No prose, no markdown fences, no trailing text.
 2. The root object has ONE key: "lessons" — an array of EXACTLY 3 objects, in this EXACT order:
      [0] { "title", "content", "question", "questionType": "short-answer",   "answer": <string>, optional "info" }
-     [1] { "title", "content", "question", "questionType": "true-false",     "answer": <boolean true or false — NOT a string, NOT a number>, optional "info" }
+     [1] { "title", "content", "question", "questionType": "true-false",     "answer": <boolean true or false — NOT a string, NOT a number>, "explanation": <string>, optional "info" }
      [2] { "title", "content", "question", "questionType": "multiple-choice", "answer": 0, "choices": [<4 strings or numbers>], "explanation": <string>, optional "info" }
 3. If you include the "info" field, make it a one-sentence strategy hint that does NOT reveal the answer.
 4. Do NOT include more than 3 lessons. Do NOT include fewer than 3 lessons.
@@ -497,7 +499,7 @@ ${content}
 
 Generate a corrected version. Respond ONLY with JSON matching this structure:
 ${failed.data.questionType === "short-answer" ? '{"title":"...","content":"...","info":"...","question":"...","questionType":"short-answer","answer":"..."}' : ""}
-${failed.data.questionType === "true-false" ? '{"title":"...","content":"...","info":"...","question":"...","questionType":"true-false","answer":true}' : ""}
+${failed.data.questionType === "true-false" ? '{"title":"...","content":"...","info":"...","question":"...","questionType":"true-false","answer":true,"explanation":"..."}' : ""}
 ${failed.data.questionType === "multiple-choice" ? '{"title":"...","content":"...","info":"...","question":"...","questionType":"multiple-choice","answer":0,"choices":["Correct answer","Wrong B","Wrong C","Wrong D"],"explanation":"..."}' : ""}`,
           });
           const parsed = parseJSON(fixResult.text);
@@ -825,6 +827,9 @@ export async function validateLesson({
     ...(lesson.questionType === QuestionType.MultipleChoice && {
       choices: (lesson as MultipleChoiceLesson).choices,
       explanation: (lesson as MultipleChoiceLesson).explanation,
+    }),
+    ...(lesson.questionType === QuestionType.TrueFalse && {
+      explanation: (lesson as TrueFalseLesson).explanation,
     }),
     ...(lesson.questionType === QuestionType.FlowDiagram && {
       choices: (lesson as FlowDiagramLesson).choices,
