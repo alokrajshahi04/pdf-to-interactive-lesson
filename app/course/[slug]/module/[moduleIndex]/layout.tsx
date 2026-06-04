@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
+import { ogImage, twitterImage } from "../../../../seo";
 
 type Props = {
   params: Promise<{ slug: string; moduleIndex: string }>;
 };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const { slug, moduleIndex } = await params;
+  const { moduleIndex } = await params;
   
   // Note: Course and module data is stored in localStorage (client-side only),
   // so we can't access the actual course/module titles server-side.
@@ -18,10 +19,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     openGraph: {
       title: `Module ${parseInt(moduleIndex) + 1} | PDF to Interactive Lesson Generator`,
       description: "Interactive course lesson",
+      images: [ogImage],
     },
     twitter: {
       title: `Module ${parseInt(moduleIndex) + 1} | PDF to Interactive Lesson Generator`,
       description: "Interactive course lesson",
+      images: [twitterImage],
     },
   };
 }
@@ -33,4 +36,3 @@ export default function ModuleLayout({
 }) {
   return <>{children}</>;
 }
-

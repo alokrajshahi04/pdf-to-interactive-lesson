@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Fustat } from "next/font/google";
+import { metadataBase, ogImage, twitterImage } from "./seo";
 import "./globals.css";
 
 
@@ -29,17 +30,8 @@ export const viewport: Viewport = {
   maximumScale: 5,
 };
 
-const ogImage = {
-  url: "/og-image.png",
-  width: 1200,
-  height: 630,
-  alt: "Turn any PDF into a Lesson — AI slices your document into 5-minute lessons with hands-on questions.",
-};
-
 export const metadata: Metadata = {
-  metadataBase: new URL(
-    process.env.NEXT_PUBLIC_APP_URL || "https://pdf-to-interactive-lesson.vercel.app"
-  ),
+  metadataBase,
   title: {
     default: "PDF to Interactive Lesson Generator",
     template: "%s | PDF to Interactive Lesson Generator",
@@ -58,7 +50,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "PDF to Interactive Lesson Generator",
     description: "Convert PDFs into interactive course lessons with AI-powered content generation",
-    images: [ogImage.url],
+    images: [twitterImage],
   },
   robots: {
     index: true,

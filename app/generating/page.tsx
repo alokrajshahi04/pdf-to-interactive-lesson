@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { Loader } from "@/components/ai-elements/loader";
+import { ogImage, twitterImage } from "../seo";
 import { GeneratingPageContent } from "./generating-client";
 
 export const metadata: Metadata = {
@@ -9,10 +10,12 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Generating Course | PDF to Interactive Lesson Generator",
     description: "Your interactive course is being generated...",
+    images: [ogImage],
   },
   twitter: {
     title: "Generating Course | PDF to Interactive Lesson Generator",
     description: "Your interactive course is being generated...",
+    images: [twitterImage],
   },
 };
 
@@ -28,4 +31,3 @@ export default function GeneratingPage() {
     </Suspense>
   );
 }
-
