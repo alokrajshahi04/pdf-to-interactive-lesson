@@ -35,6 +35,10 @@ function ModulesScreen({
 }: ModulesScreenProps) {
   const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
   const totalModules = course.modules.length;
+  const courseTitle = course.title.trim();
+  const courseHeadline = courseTitle
+    ? `We built your course on ${courseTitle}`
+    : "We built your course!";
 
   // Calculate module progress for header
   const moduleProgressData = course.modules.map((_, idx) => ({
@@ -69,8 +73,8 @@ function ModulesScreen({
         <div className="grid grid-cols-1 lg:grid-cols-2 lg:gap-16">
           {/* Left Column - Course Overview */}
           <div className="flex flex-col justify-center lg:pr-16">
-            <h2 className="text-5xl font-bold text-neutral-900 mb-6 leading-tight">
-              {allComplete ? "Course complete!" : "We built your course!"}
+            <h2 className="text-4xl sm:text-5xl font-bold text-neutral-900 mb-6 leading-tight break-words">
+              {allComplete ? "Course complete!" : courseHeadline}
             </h2>
             <p className="text-lg text-neutral-600 mb-12 leading-relaxed">
               {allComplete
