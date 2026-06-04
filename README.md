@@ -1,4 +1,4 @@
-# [PDF to Lesson](https://pdf-to-interactive-lesson.vercel.app)
+# [PDF to Lesson](https://pdf-to-interactive-lesson.vercel.app).
 
 Upload a PDF and instantly generate a small interactive course with modules, lessons, quizzes, and flow-ordering questions. Powered by [Together AI](https://together.ai).
 
