@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { Fustat } from "next/font/google";
 import { metadataBase, ogImage, twitterImage } from "./seo";
 import "./globals.css";
+import PlausibleProvider from "next-plausible";
 
 
 const geistSans = Geist({
@@ -65,6 +66,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="light">
+      <head>
+        <PlausibleProvider domain="pdftolesson.com" />
+      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${fustat.variable} antialiased bg-white`}
       >

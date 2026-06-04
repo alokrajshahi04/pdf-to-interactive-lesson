@@ -2,7 +2,7 @@
 
 import { useState, useSyncExternalStore } from "react";
 import Link from "next/link";
-import { BookOpen, KeyRound } from "lucide-react";
+import { BookOpen, KeyRound, Star } from "lucide-react";
 import { useCredits } from "../hooks/use-credits";
 import { ApiKeyDialog } from "./api-key-dialog";
 import { Button, buttonVariants } from "./ui/button";
@@ -58,6 +58,15 @@ function HeaderActions({ showCoursesLink }: HeaderActionsProps) {
     <>
       <ApiKeyDialog open={showApiKeyDialog} onOpenChange={handleApiKeyDialogChange} />
       <div className="flex items-center gap-2 flex-shrink-0">
+        <a
+          href="https://github.com/Nutlope/pdf-to-interactive-lesson"
+          target="_blank"
+          rel="noopener noreferrer"
+          className={buttonVariants({ variant: "secondary", size: "sm" })}
+        >
+          <Star className="w-3.5 h-3.5 fill-brand-2 text-brand-2" />
+          <span className="hidden sm:inline">Star on GitHub</span>
+        </a>
         {showCreditsChip && (!loaded ? (
           // Reserve the chip immediately so it appears with the rest of the
           // header; the number fills in once the credit check resolves.
