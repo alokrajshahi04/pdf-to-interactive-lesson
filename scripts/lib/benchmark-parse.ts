@@ -29,6 +29,7 @@ export interface BenchmarkSummary {
   sufficientPct: number | null;
   semanticDupRate: number | null;
   giveawayRate: number | null;
+  hintLeakRate: number | null;
   recallRatio: number | null;
   dimensions: string[] | null;
   byTypeSummary: Record<string, unknown> | null;
@@ -133,6 +134,7 @@ export function parseBenchmark(path: string, sourceFile: string): BenchmarkSumma
     sufficientPct: real ? pctNum(d.aggregate?.sufficiency?.rate) : null,
     semanticDupRate: null, // not present in saved benchmarks; computed separately
     giveawayRate: null,
+    hintLeakRate: dimsHas(d, "hint-leak") ? pctNum(d.aggregate?.hintLeak?.leakRate) : null,
     recallRatio: null,
     dimensions: Array.isArray(d.dimensions) ? d.dimensions : null,
     byTypeSummary: d.aggregate?.byQuestionType ?? null,

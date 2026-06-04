@@ -29,7 +29,7 @@ export type CourseStructureOutput = z.infer<typeof courseStructureSchema>;
 const shortAnswerLessonSchema = z.object({
   title: z.string().describe("Lesson title"),
   content: z.string().describe("Lesson content, about 3 sentences long"),
-  info: z.string().optional().describe("A quick one sentence fact to highlight a key point"),
+  info: z.string().optional().describe("A one sentence strategy hint that does not reveal the answer"),
   question: z.string().describe("A question to test understanding"),
   questionType: z.literal("short-answer"),
   answer: z.string().describe("The answer to the question"),
@@ -38,7 +38,7 @@ const shortAnswerLessonSchema = z.object({
 const trueFalseLessonSchema = z.object({
   title: z.string().describe("Lesson title"),
   content: z.string().describe("Lesson content, about 3 sentences long"),
-  info: z.string().optional().describe("A quick one sentence fact to highlight a key point"),
+  info: z.string().optional().describe("A one sentence strategy hint that does not reveal the answer"),
   question: z.string().describe("A statement that is either true or false"),
   questionType: z.literal("true-false"),
   answer: z.boolean().describe("true or false"),
@@ -47,7 +47,7 @@ const trueFalseLessonSchema = z.object({
 const multipleChoiceLessonSchema = z.object({
   title: z.string().describe("Lesson title"),
   content: z.string().describe("Lesson content, about 3 sentences long"),
-  info: z.string().optional().describe("A quick one sentence fact to highlight a key point"),
+  info: z.string().optional().describe("A one sentence strategy hint that does not reveal the answer"),
   question: z.string().describe("A multiple choice question"),
   questionType: z.literal("multiple-choice"),
   answer: z
@@ -122,7 +122,7 @@ export type FlowAnalysisOutput = z.infer<typeof flowAnalysisSchema>;
 export const flowQuestionSchema = z.object({
   title: z.string().describe("Lesson title"),
   content: z.string().describe("Brief 2-3 sentence explanation of the flow process"),
-  info: z.string().describe("One key fact about this process"),
+  info: z.string().optional().describe("A one sentence strategy hint that does not reveal the ordered answer"),
   question: z
     .string()
     .describe("The ordering question, e.g. 'Put the following steps in the correct order'"),
@@ -148,7 +148,7 @@ export const combinedFlowSchema = z.discriminatedUnion("hasFlow", [
     }),
     title: z.string(),
     content: z.string(),
-    info: z.string(),
+    info: z.string().optional(),
     question: z.string(),
     stepsInOrder: z.array(z.string()).length(3),
   }),
@@ -185,7 +185,7 @@ export const fixMultipleChoiceSchema = multipleChoiceLessonSchema;
 export const fixFlowDiagramSchema = z.object({
   title: z.string(),
   content: z.string(),
-  info: z.string(),
+  info: z.string().optional(),
   question: z.string(),
   choices: z.array(z.string()).length(3),
   slots: z.array(z.string()).length(3),

@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Lightbulb, Eye, X, Info, KeyRound, CheckCircle2, XCircle } from "lucide-react";
 import { DragDropQuestion } from "./drag-drop-question";
 import { FlowDiagram } from "./flow-diagram";
 import { Button } from "./ui/button";
 import { Callout } from "./ui/callout";
 import { Loader } from "@/components/ai-elements/loader";
+import { detectHintAnswerLeak } from "@/lib/hint-answer-leak";
 import type { LessonData, Step } from "@/lib/types";
 
 interface LessonScreenProps {
@@ -96,6 +97,29 @@ function LessonScreen({
       ? answerResult
       : null;
   const visibleAnswerToastId = visibleAnswerToast?.id ?? null;
+  const hintLeak = useMemo(
+    () =>
+      detectHintAnswerLeak({
+        questionType: lessonData.questionType,
+        question: lessonData.question,
+        hint: lessonData.info,
+        answer: lessonData.answer,
+        choices: lessonData.choices,
+        slots: lessonData.slots,
+      }),
+    [
+      lessonData.answer,
+      lessonData.choices,
+      lessonData.info,
+      lessonData.question,
+      lessonData.questionType,
+      lessonData.slots,
+    ]
+  );
+  const canShowInfoHint = lessonData.info.trim().length > 0 && !hintLeak.leaksAnswer;
+  const canShowFlowHint = lessonData.questionType === "flow-diagram" && !!lessonData.flowConfig;
+  const canShowHint = canShowInfoHint || canShowFlowHint;
+  const safeShowHint = showHint && canShowHint;
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
@@ -225,13 +249,15 @@ function LessonScreen({
           >
             {lessonData.content}
           </p>
-          <Callout
-            variant="hint"
-            className={animateClass()}
-            style={{ animationDelay: "0.2s" }}
-          >
-            {lessonData.info}
-          </Callout>
+          {canShowInfoHint && (
+            <Callout
+              variant="hint"
+              className={animateClass()}
+              style={{ animationDelay: "0.2s" }}
+            >
+              {lessonData.info}
+            </Callout>
+          )}
 
           {lessonData.questionType === "flow-diagram" && lessonData.flowConfig && (
             <Callout
@@ -257,16 +283,16 @@ function LessonScreen({
 
           {/* Hint toggle — the button stays put and flips to "Hide hint";
               the hint appears directly beneath it. */}
-          {!showResult && (
+          {!showResult && canShowHint && (
             <div className={animateClass(!showResult)} style={!showResult ? { animationDelay: "0.1s" } : {}}>
               <button
                 onClick={toggleHint}
                 className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-hint-bg text-hint-fg border border-hint-border hover:brightness-95 text-sm font-medium ${OPTION_TRANSITION}`}
               >
-                {showHint ? <X className="w-4 h-4" /> : <Lightbulb className="w-4 h-4" />}
-                {showHint ? "Hide hint" : "Show hint"}
+                {safeShowHint ? <X className="w-4 h-4" /> : <Lightbulb className="w-4 h-4" />}
+                {safeShowHint ? "Hide hint" : "Show hint"}
               </button>
-              {showHint && (
+              {safeShowHint && canShowInfoHint && (
                 <Callout variant="hint" className="mt-3">
                   {lessonData.info}
                 </Callout>
@@ -290,7 +316,7 @@ function LessonScreen({
           {showResult && showSupplementalAnswerContext && (
             <>
               <p className="text-lg text-neutral-800 leading-relaxed">{lessonData.content}</p>
-              <Callout variant="hint">{lessonData.info}</Callout>
+              {canShowInfoHint && <Callout variant="hint">{lessonData.info}</Callout>}
             </>
           )}
 
@@ -466,11 +492,11 @@ function LessonScreen({
                   className={animateClass(!showResult)}
                   style={!showResult ? { animationDelay: "0.3s" } : {}}
                 >
-                  {(showHint || (showResult && showAnswer)) && (
+                  {(safeShowHint || (showResult && showAnswer)) && (
                     <div className="mb-8 bg-surface-muted border-2 border-border rounded-xl p-6">
                       <div className="flex items-center justify-between mb-4">
                         <h3 className="text-sm font-semibold text-neutral-700">Process flow</h3>
-                        {!showResult && showHint && (
+                        {!showResult && safeShowHint && (
                           <button
                             onClick={hideHint}
                             className="text-xs text-neutral-500 hover:text-neutral-700 flex items-center gap-1"

@@ -9,7 +9,7 @@
           "data": {
             "title": "Composer 2 Base Model",
             "content": "Composer 2 is a specialized model designed for agentic software engineering. The model demonstrates strong long-term planning and coding intelligence while maintaining the ability to efficiently solve problems for interactive use. Before training, the team evaluated several potential base models including GLM-5, Kimi K2.5, and DeepSeek V3.2. The evaluations measured coding knowledge using FreshBench, state tracking using internal benchmarks, and codebase perplexity using their private monorepo. Kimi K2.5 was selected as the base model for Composer 2 due to its general strong performance and efficiency considerations.",
-            "info": "Composer 2 uses Kimi K2.5 as its base model.",
+            "info": "Look at the candidate base models and the one selected for performance and efficiency.",
             "question": "What is the name of the base model used for Composer 2?",
             "questionType": "short-answer",
             "answer": "Kimi K2.5"
@@ -31,7 +31,7 @@
           "data": {
             "title": "Code Modification Requirements in Benchmarks",
             "content": "CursorBench is an internal evaluation suite comprising tasks drawn from actual coding sessions. Compared to public benchmarks, CursorBench tasks have less-specified task prompts and require substantially more extensive code modifications. CursorBench tasks necessitate a median of 181 lines changed compared to just 7–10 lines for SWE-bench Verified and SWE-bench Multilingual. This combination of broad execution scope and high intent ambiguity accurately reflects the intrinsic difficulty of real-world software engineering, where developers must frequently synthesize context from production logs, sparse user bug reports, and large existing codebases to derive a solution.",
-            "info": "CursorBench tasks require a median of 181 lines changed.",
+            "info": "Compare CursorBench's median code-change size with the much smaller SWE-bench figures.",
             "question": "According to the comparison in the technical report, how many lines of code does the median CursorBench task require to change?",
             "questionType": "multiple-choice",
             "answer": 3,
@@ -135,7 +135,7 @@
           "data": {
             "title": "Optimizer Used During Continued Pretraining",
             "content": "Composer 2 extends Kimi K2.5 with a continued pretraining stage on a large code-dominated data mix. The purpose of this stage is to provide a base model for the subsequent agentic RL training by specializing the model on coding knowledge and capabilities. We divide this stage into three phases: we spend the bulk of compute at 32k token sequence length, followed by a shorter long-context extension phase to 256k sequence length, and finally a short SFT phase on targeted coding tasks. Training was performed in MXFP8 on NVIDIA B300s using the AdamW optimizer. During training, we measure the evaluation loss on our internal codebase and see that the loss decreases log-linearly over the course of the training run.",
-            "info": "AdamW is the optimizer used during continued pretraining of Composer 2.",
+            "info": "The optimizer is named in the same sentence as MXFP8 training on NVIDIA B300s.",
             "question": "What optimizer is used during the continued pretraining phase of Composer 2?",
             "questionType": "short-answer",
             "answer": "AdamW"
@@ -157,7 +157,7 @@
           "data": {
             "title": "MoE Backward Pass Precision Format",
             "content": "Composer 2 training uses both MXFP8 and NVFP4 precision formats targeting NVIDIA Blackwell GPUs for block-scaled tensor-core matrix multiplications. For the MoE forward pass, a variant of NVFP4 is used where values are quantized from BF16 into FP4E2M1 using FP8E4M3 per-block scales with FP32 per-token scales. This per-token scaling approach proved more effective than the original NVFP4 format which uses FP32 per-tensor scales. For the MoE backward pass, the standard MXFP8 format is used with FP8E4M3 values and FP8E8M0 scales per 32-element block. This asymmetry between forward and backward pass is intentional because on the forward pass, it is necessary that the trainer match the inference for numerical stability using trainer NVFP4 to support fast inference, while the backward pass runs only on the training cluster where higher precision improves training stability.",
-            "info": "The MoE backward pass uses MXFP8 with FP8E4M3 values and FP8E8M0 scales per 32-element block.",
+            "info": "Focus on the precision format used for the backward pass, not the forward-pass NVFP4 variant.",
             "question": "Which precision format is used for the MoE backward pass in Composer 2 training?",
             "questionType": "multiple-choice",
             "answer": 2,
@@ -180,7 +180,7 @@
           "data": {
             "title": "CursorBench Performance Metrics",
             "content": "Composer 2 achieves strong performance across multiple evaluation suites. On CursorBench, the internal evaluation suite, Composer 2 scores 61.3%. On public benchmarks, Composer 2 scores 73.7% on SWE-bench Multilingual and 61.7% on Terminal-Bench in the Cursor harness. These scores are competitive with frontier models despite being more cost-effective to serve. The results demonstrate consistent gains across both internal and external evaluation methods.",
-            "info": "Composer 2 achieves 61.3% on CursorBench, competitive with frontier models.",
+            "info": "Use the internal CursorBench result, not the public SWE-bench or Terminal-Bench scores.",
             "question": "What is Composer 2's score on CursorBench?",
             "questionType": "short-answer",
             "answer": "61.3%"

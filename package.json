@@ -13,6 +13,8 @@
     "start": "next start",
     "lint": "eslint",
     "course": "tsx bin/course.ts",
+    "test:hint-leak": "tsx scripts/test-hint-answer-leak.ts",
+    "audit:hint-leaks": "tsx scripts/audit-hint-answer-leaks.ts",
     "test:grade": "tsx scripts/test-grade-short-answer.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",

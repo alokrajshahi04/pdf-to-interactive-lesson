@@ -16,9 +16,10 @@ import { generateText } from "ai";
 import type { CourseOutput } from "../create-course";
 import type { LessonResult } from "../types";
 import { createTogetherClient, DEFAULT_MODEL, getTogetherProviderOptions } from "../utils/together";
-import { singleLessonSchema, flowQuestionSchema } from "../schemas";
+import { singleLessonSchema } from "../schemas";
 import { parseJSON } from "../utils/json";
 import { generateFlowLessonCombined } from "./combined-flow";
+import { sanitizeGeneratedHint } from "../hint-answer-leak";
 
 // 0.5 catches semantic dupes the 0.7 threshold misses, e.g.
 // "How many parallel attention heads (h) are employed in the Transformer architecture?" vs
@@ -36,6 +37,29 @@ function similarity(a: string, b: string): number {
   const inter = new Set([...wa].filter((w) => wb.has(w)));
   const uni = new Set([...wa, ...wb]);
   return inter.size / uni.size;
+}
+
+interface HintSanitizableLesson {
+  questionType?: string;
+  question?: unknown;
+  info?: unknown;
+  answer?: unknown;
+  choices?: unknown[];
+  slots?: string[];
+  content?: unknown;
+}
+
+function sanitizeInfo<T extends HintSanitizableLesson>(lesson: T): T {
+  lesson.info = sanitizeGeneratedHint({
+    questionType: lesson.questionType ?? "",
+    question: lesson.question,
+    hint: lesson.info,
+    answer: lesson.answer,
+    choices: lesson.choices,
+    slots: lesson.slots,
+    content: lesson.content,
+  });
+  return lesson;
 }
 
 interface LessonRef {
@@ -113,6 +137,7 @@ ${existingQuestions.map((q, i) => `${i + 1}. "${q}"`).join("\n")}
 Pick a DIFFERENT fact or concept from the source — not just different wording for the same topic.
 Question type: ${targetType}
 All facts must come from the source content.
+The "info" field is shown as a strategy hint. It must not reveal the answer, name the correct choice, give the true/false verdict, or add another answer-bearing fact.
 
 Respond ONLY with JSON matching:
 ${skeleton}
@@ -125,7 +150,7 @@ ${content}`;
     const parsed = parseJSON(r.text);
     const validated = singleLessonSchema.safeParse(parsed);
     if (!validated.success) return null;
-    return validated.data;
+    return sanitizeInfo({ ...validated.data });
   } catch {
     return null;
   }
@@ -139,13 +164,14 @@ async function regenerateFlow(
   model: string
 ): Promise<any | null> {
   // Combined-flow generator already accepts previousQuestions for dedup.
-  return generateFlowLessonCombined({
+  const lesson = await generateFlowLessonCombined({
     moduleTitle,
     content,
     apiKey,
     model,
     previousQuestions: existingQuestions,
   });
+  return lesson ? sanitizeInfo(lesson) : null;
 }
 
 /**

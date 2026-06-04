@@ -10,6 +10,7 @@ import { QuestionType, type FlowDiagramLesson, type SimpleEdge } from "../types"
 import { combinedFlowSchema } from "../schemas";
 import { createTogetherClient, DEFAULT_MODEL, getTogetherProviderOptions } from "../utils/together";
 import { parseJSON } from "../utils/json";
+import { sanitizeGeneratedHint } from "../hint-answer-leak";
 
 export interface CombinedFlowInput {
   moduleTitle: string;
@@ -46,6 +47,29 @@ function topologicalSort(nodes: { id: string }[], edges: [string, string][]): st
   return order;
 }
 
+function safeFlowInfo({
+  info,
+  question,
+  answer,
+  choices,
+  slots,
+}: {
+  info: unknown;
+  question: unknown;
+  answer: number[];
+  choices: string[];
+  slots: string[];
+}): string {
+  return sanitizeGeneratedHint({
+    questionType: QuestionType.FlowDiagram,
+    question,
+    hint: info,
+    answer,
+    choices,
+    slots,
+  });
+}
+
 export async function generateFlowLessonCombined({
   moduleTitle,
   content,
@@ -77,6 +101,7 @@ GROUNDING REQUIREMENTS — these prevent the lesson from failing quality checks:
 - The "content" field MUST teach each of the 3 stepsInOrder with at least one full sentence per step explaining WHAT happens at that step. Don't just name-drop the step.
 - The 3 stepsInOrder MUST be a clear sequential progression with causal or temporal ordering — not bullet points of unrelated facts.
 - The "question" MUST mention the process by its full name (e.g., "the JPEG compression pipeline", not "the pipeline").
+- Do not create a task-specific hint for this ordering question. Set "info" exactly to: "Trace the sequence described in the lesson content before placing the steps."
 - If you cannot find a clear sequential process with explicit ordering in the source, return {"hasFlow": false}. It is BETTER to skip the flow lesson than to fabricate one.
 
 Respond ONLY with JSON. No other text. No markdown fences.
@@ -97,7 +122,7 @@ If suitable:
   },
   "title": "Lesson title",
   "content": "A 4-6 sentence explanation that explicitly names the steps used in the ordering question.",
-  "info": "One key fact",
+  "info": "Trace the sequence described in the lesson content before placing the steps.",
   "question": "What is the correct order of steps in [specific process name]?",
   "stepsInOrder": ["First step label", "Second step label", "Third step label"]
 }
@@ -146,11 +171,12 @@ ${content}`;
     }
     const slots = ["First", "Second", "Third"];
     const answer = correctOrder.map((step) => choices.indexOf(step));
+    const info = safeFlowInfo({ info: data.info, question: data.question, answer, choices, slots });
 
     return {
       title: data.title,
       content: data.content,
-      info: data.info,
+      info,
       question: data.question,
       questionType: QuestionType.FlowDiagram,
       flowConfig: {

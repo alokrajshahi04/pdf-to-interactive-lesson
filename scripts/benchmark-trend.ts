@@ -57,7 +57,7 @@ for (const [m, rs] of [...byModel.entries()].sort((a, b) => b[1].length - a[1].l
 // ── Run table ──
 const title = onlyComparable ? "COMPARABLE RUNS (≥5 iters, ≥200 Q)" : modelFilter ? `RUNS for ${modelFilter}` : "ALL RUNS (chronological)";
 console.log(`\n${title}  — ${view.length} runs`);
-console.log("date".padEnd(17) + "tag".padEnd(26) + "genModel".padEnd(20) + "it".padEnd(4) + "Q".padEnd(5) + "struct".padEnd(8) + "ms/les".padEnd(8) + "judge".padEnd(11) + "corr".padEnd(6) + "grnd".padEnd(6) + "suff".padEnd(6) + "dup".padEnd(6) + "score");
+console.log("date".padEnd(17) + "tag".padEnd(26) + "genModel".padEnd(20) + "it".padEnd(4) + "Q".padEnd(5) + "struct".padEnd(8) + "ms/les".padEnd(8) + "judge".padEnd(11) + "corr".padEnd(6) + "grnd".padEnd(6) + "suff".padEnd(6) + "dup".padEnd(6) + "hint".padEnd(6) + "score");
 console.log("-".repeat(140));
 const j = (n: number | null) => (n == null ? "—" : n + "%");
 for (const r of view) {
@@ -67,7 +67,7 @@ for (const r of view) {
     r.ranAt.slice(0, 16).replace("T", " ").padEnd(17) + r.tag.slice(0, 24).padEnd(26) + short(r.generationModel).slice(0, 18).padEnd(20) +
     String(r.iterations).padEnd(4) + String(r.totalQuestions).padEnd(5) +
     j(r.structuralPct).padEnd(8) + String(r.genMsPerLesson ?? "—").padEnd(8) +
-    r.judgeStatus.padEnd(11) + j(r.correctnessPct).padEnd(6) + j(r.groundedPct).padEnd(6) + j(r.sufficientPct).padEnd(6) + j(r.lexicalDupRate).padEnd(6) + scoreCol
+    r.judgeStatus.padEnd(11) + j(r.correctnessPct).padEnd(6) + j(r.groundedPct).padEnd(6) + j(r.sufficientPct).padEnd(6) + j(r.lexicalDupRate).padEnd(6) + j(r.hintLeakRate).padEnd(6) + scoreCol
   );
 }
 console.log(`\n(ms/lesson = avg generation time per lesson — speed metric stable across iter/batch counts)`);

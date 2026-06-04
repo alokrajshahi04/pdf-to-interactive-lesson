@@ -8,6 +8,7 @@
  *   3. Answer Grounding — self-contained, concrete, grounded
  *   4. Duplicates — within-course question deduplication
  *   5. Content Sufficiency — does lesson content teach enough to answer the question
+ *   6. Hint Answer Leak — does the hint reveal the answer directly
  *
  * Usage:
  *   TOGETHER_API_KEY=... ANTHROPIC_API_KEY=... bun scripts/eval-all.ts [file1.pdf ...]
@@ -20,7 +21,7 @@
  *   --tag=<name>          Label for the output file (default: eval-all)
  *   --iterations=<n>      Number of iterations (default: 1)
  *   --batch=<n>           Run n iterations in parallel (default: 1 = sequential)
- *   --dimensions=<d,...>   Comma-separated: structural,correctness,grounding,duplicates,sufficiency (default: all)
+ *   --dimensions=<d,...>   Comma-separated: structural,correctness,grounding,duplicates,sufficiency,hint-leak (default: all)
  *   --no-judge            Skip all LLM judging (saves results for manual review later)
  */
 
@@ -30,6 +31,7 @@ import { ocr } from "../lib/ocr";
 import { DEFAULT_MODEL, __usageTracker, getModelPricing } from "../lib/utils/together";
 import { parseJSON } from "../lib/utils/json";
 import { getJudgeModel } from "../lib/utils/judge-model";
+import { detectHintAnswerLeak, type HintAnswerLeakResult } from "../lib/hint-answer-leak";
 import { readdirSync, writeFileSync, mkdirSync, existsSync } from "fs";
 import { resolve, basename, extname, dirname } from "path";
 import { fileURLToPath } from "url";
@@ -56,7 +58,7 @@ const dimensionsArg =
 const enabledDimensions = new Set(
   dimensionsArg
     ? dimensionsArg.split(",").map((d) => d.trim().toLowerCase())
-    : ["structural", "correctness", "grounding", "duplicates", "sufficiency"]
+    : ["structural", "correctness", "grounding", "duplicates", "sufficiency", "hint-leak"]
 );
 const batch = parseInt(
   args.find((a) => a.startsWith("--batch="))?.split("=")[1] ?? "1",
@@ -197,6 +199,7 @@ interface EvalQuestion {
   questionType: string;
   question: string;
   answer: any;
+  hint: string;
   choices?: any[];
   slots?: string[];
   lessonContent: string;
@@ -211,6 +214,8 @@ interface EvalQuestion {
   heuristicFlags: string[];
   // Sufficiency
   sufficiency: SufficiencyVerdict;
+  // Hint answer leak
+  hintLeak: HintAnswerLeakResult;
 }
 
 interface FileEvalResult {
@@ -751,6 +756,7 @@ async function processFile(filePath: string): Promise<FileEvalResult> {
     (enabledDimensions.has("correctness") ||
     enabledDimensions.has("grounding") ||
     enabledDimensions.has("sufficiency"));
+  const runHintLeak = enabledDimensions.has("hint-leak");
   let judgingTimeMs = 0;
 
   const defaultCorrectness: CorrectnessVerdict = {
@@ -768,6 +774,13 @@ async function processFile(filePath: string): Promise<FileEvalResult> {
     sufficient: true,
     explanation: "skipped",
   };
+  const defaultHintLeak: HintAnswerLeakResult = {
+    leaksAnswer: false,
+    severity: "none",
+    reasons: [],
+    matchedTerms: [],
+    checkedTerms: [],
+  };
 
   const evalPromises = lessons.map(async (lesson) => {
     const heuristicFlags = runHeuristics(
@@ -775,6 +788,16 @@ async function processFile(filePath: string): Promise<FileEvalResult> {
       lesson.data.questionType,
       lesson.data.choices
     );
+    const hintLeak = runHintLeak
+      ? detectHintAnswerLeak({
+          questionType: lesson.data.questionType,
+          question: lesson.data.question,
+          hint: lesson.data.info,
+          answer: lesson.data.answer,
+          choices: lesson.data.choices,
+          slots: lesson.data.slots,
+        })
+      : defaultHintLeak;
 
     let correctness = defaultCorrectness;
     let grounding = defaultGrounding;
@@ -856,6 +879,7 @@ async function processFile(filePath: string): Promise<FileEvalResult> {
       questionType: lesson.data.questionType,
       question: lesson.data.question,
       answer: lesson.data.answer,
+      hint: lesson.data.info ?? "",
       choices: lesson.data.choices,
       slots: lesson.data.slots,
       lessonContent: lesson.data.content,
@@ -866,6 +890,7 @@ async function processFile(filePath: string): Promise<FileEvalResult> {
       grounding,
       heuristicFlags,
       sufficiency,
+      hintLeak,
     } as EvalQuestion;
   });
 
@@ -901,11 +926,17 @@ async function processFile(filePath: string): Promise<FileEvalResult> {
     ].join("");
     const gIcon = gAll ? "✅" : "⚠️";
     const sIcon = q.sufficiency.sufficient ? "✅" : "📝";
+    const hIcon = !runHintLeak ? "" : q.hintLeak.leaksAnswer ? "🚨" : "✅";
+    const hDims = runHintLeak ? ` [H:${q.hintLeak.severity}]` : "";
     const fixTag = q.wasFixed ? " 🔧" : "";
 
     if (runJudge) {
       console.log(
-        `  ${cIcon}${gIcon}${sIcon} [${gDims}] [M${q.moduleIndex + 1}L${q.lessonIndex + 1}] (${q.questionType.padEnd(16)}) ${q.question.substring(0, 50)}${q.question.length > 50 ? "..." : ""}${fixTag}`
+        `  ${cIcon}${gIcon}${sIcon}${hIcon} [${gDims}]${hDims} [M${q.moduleIndex + 1}L${q.lessonIndex + 1}] (${q.questionType.padEnd(16)}) ${q.question.substring(0, 50)}${q.question.length > 50 ? "..." : ""}${fixTag}`
+      );
+    } else if (runHintLeak) {
+      console.log(
+        `  ${hIcon}${hDims} [M${q.moduleIndex + 1}L${q.lessonIndex + 1}] (${q.questionType.padEnd(16)}) ${q.question.substring(0, 70)}${q.question.length > 70 ? "..." : ""}${fixTag}`
       );
     } else {
       console.log(
@@ -928,6 +959,14 @@ async function processFile(filePath: string): Promise<FileEvalResult> {
     }
     if (runJudge && !q.sufficiency.sufficient) {
       console.log(`     Sufficiency: ${q.sufficiency.explanation}`);
+    }
+    if (runHintLeak && q.hintLeak.leaksAnswer) {
+      const hintPreview = q.hint.substring(0, 160);
+      console.log(`     Hint: ${hintPreview}${q.hint.length > 160 ? "..." : ""}`);
+      console.log(`     Hint leak: ${q.hintLeak.reasons.join("; ")}`);
+      if (q.hintLeak.matchedTerms.length > 0) {
+        console.log(`     Matched: ${q.hintLeak.matchedTerms.join(", ")}`);
+      }
     }
   }
 
@@ -1094,6 +1133,16 @@ async function main() {
       r.duplicateGroups.reduce((s2, g) => s2 + g.indices.length, 0),
     0
   );
+  const hintLeakEnabled = enabledDimensions.has("hint-leak");
+  const totalHintLeaks = hintLeakEnabled
+    ? allQuestions.filter((q) => q.hintLeak.leaksAnswer).length
+    : 0;
+  const totalDirectHintLeaks = hintLeakEnabled
+    ? allQuestions.filter((q) => q.hintLeak.severity === "direct").length
+    : 0;
+  const totalPartialHintLeaks = hintLeakEnabled
+    ? allQuestions.filter((q) => q.hintLeak.severity === "partial").length
+    : 0;
 
   const pct = (n: number, d: number = total) =>
     d > 0 ? `${Math.round((n / d) * 100)}%` : "N/A";
@@ -1144,6 +1193,19 @@ async function main() {
   console.log(
     `  Questions in dupes: ${questionsInDupes}/${total} (${pct(questionsInDupes)})`
   );
+  if (hintLeakEnabled) {
+    console.log();
+    console.log("  ── 6. Hint Answer Leak ──");
+    console.log(
+      `  Hint leaks:         ${totalHintLeaks}/${total} (${pct(totalHintLeaks)})`
+    );
+    console.log(
+      `    Direct leaks:     ${totalDirectHintLeaks}/${total} (${pct(totalDirectHintLeaks)})`
+    );
+    console.log(
+      `    Partial leaks:    ${totalPartialHintLeaks}/${total} (${pct(totalPartialHintLeaks)})`
+    );
+  }
 
   // Per question-type breakdown
   const byType = new Map<
@@ -1156,6 +1218,7 @@ async function main() {
       grounded: number;
       fullyGrounded: number;
       sufficient: number;
+      hintLeaks: number;
     }
   >();
   for (const q of allQuestions) {
@@ -1167,6 +1230,7 @@ async function main() {
       grounded: 0,
       fullyGrounded: 0,
       sufficient: 0,
+      hintLeaks: 0,
     };
     e.total++;
     if (q.correctness.correct) e.correct++;
@@ -1180,6 +1244,7 @@ async function main() {
     )
       e.fullyGrounded++;
     if (q.sufficiency.sufficient) e.sufficient++;
+    if (q.hintLeak.leaksAnswer) e.hintLeaks++;
     byType.set(q.questionType, e);
   }
 
@@ -1288,6 +1353,14 @@ async function main() {
         questionsInDupes,
         duplicationRate: pct(questionsInDupes),
       },
+      hintLeak: {
+        totalChecked: hintLeakEnabled ? total : 0,
+        leaks: totalHintLeaks,
+        directLeaks: totalDirectHintLeaks,
+        partialLeaks: totalPartialHintLeaks,
+        leakRate: hintLeakEnabled ? pct(totalHintLeaks) : "N/A",
+        directLeakRate: hintLeakEnabled ? pct(totalDirectHintLeaks) : "N/A",
+      },
       byQuestionType: Object.fromEntries(
         [...byType.entries()].map(([type, s]) => [
           type,
@@ -1296,6 +1369,7 @@ async function main() {
             correct: `${s.correct}/${s.total}`,
             fullyGrounded: `${s.fullyGrounded}/${s.total}`,
             sufficient: `${s.sufficient}/${s.total}`,
+            hintLeaks: `${s.hintLeaks}/${s.total}`,
           },
         ])
       ),
@@ -1318,6 +1392,7 @@ async function main() {
         lessonContent: q.lessonContent,
         question: q.question,
         answer: q.answer,
+        hint: q.hint,
         choices: q.choices,
         slots: q.slots,
         explanation: q.explanation,
@@ -1327,6 +1402,7 @@ async function main() {
         grounding: q.grounding,
         heuristicFlags: q.heuristicFlags,
         sufficiency: q.sufficiency,
+        hintLeak: q.hintLeak,
         rawSufficiencyResponse: q.sufficiency.rawResponse,
         sufficiencyParseStatus: q.sufficiency.parseStatus,
       })),
