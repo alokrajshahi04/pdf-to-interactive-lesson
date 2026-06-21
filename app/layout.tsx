@@ -95,7 +95,7 @@ export default function RootLayout({
             })();`,
           }}
         />
-        <PlausibleProvider domain="lesson.tolti.app" />
+        <PlausibleProvider domain="pdf.tolti.app" />
       </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${fustat.variable} antialiased bg-white dark:bg-neutral-950 transition-colors duration-300`}

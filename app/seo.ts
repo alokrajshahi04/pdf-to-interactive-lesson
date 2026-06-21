@@ -1,4 +1,4 @@
-const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://lesson.tolti.app";
+const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://pdf.tolti.app";
 
 export const metadataBase = new URL(appUrl);
 

@@ -19,7 +19,7 @@ export const metadata: Metadata = {
     images: [twitterImage],
   },
   alternates: {
-    canonical: "https://lesson.tolti.app",
+    canonical: "https://pdf.tolti.app",
   },
 };
 
