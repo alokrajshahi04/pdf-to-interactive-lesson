@@ -2,20 +2,18 @@ import { NextRequest, NextResponse } from "next/server";
 import demoCourse from "@/lib/demo/composer2-course.json";
 import { saveCourse } from "@/lib/save-course";
 import { handleApiError } from "@/lib/utils/api-errors";
+import { getAuthUserId } from "@/lib/utils/clerk-auth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function POST(request: NextRequest) {
   try {
-    const userId =
-      request.headers.get("X-User-ID") ||
-      request.headers.get("X-Session-ID") ||
-      undefined;
+    const userId = await getAuthUserId(request);
 
     if (!userId) {
       return NextResponse.json(
-        { error: "Session id is required" },
+        { error: "Authentication required" },
         { status: 401 }
       );
     }

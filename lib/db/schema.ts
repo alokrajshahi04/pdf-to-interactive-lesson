@@ -5,7 +5,7 @@ export const courses = pgTable("courses", {
   slug: text("slug").notNull().unique(),
   title: text("title").notNull(),
   courseData: jsonb("course_data").notNull(),
-  createdBy: text("created_by"), // userId (or sessionId for anonymous users)
+  createdBy: text("created_by"), // userId (Clerk) or sessionId for anonymous users
   isPublic: boolean("is_public").notNull().default(false),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
@@ -13,6 +13,46 @@ export const courses = pgTable("courses", {
 
 export type Course = typeof courses.$inferSelect;
 export type NewCourse = typeof courses.$inferInsert;
+
+export const users = pgTable("users", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  clerkId: text("clerk_id").notNull().unique(),
+  email: text("email"),
+  name: text("name"),
+  avatarUrl: text("avatar_url"),
+  plan: text("plan").notNull().default("free"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export type User = typeof users.$inferSelect;
+export type NewUser = typeof users.$inferInsert;
+
+export const credits = pgTable("credits", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: text("user_id").notNull(),
+  amount: integer("amount").notNull().default(0),
+  type: text("type").notNull(), // 'free' | 'purchased' | 'subscription'
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export type Credit = typeof credits.$inferSelect;
+export type NewCredit = typeof credits.$inferInsert;
+
+export const subscriptions = pgTable("subscriptions", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: text("user_id").notNull(),
+  stripeCustomerId: text("stripe_customer_id"),
+  stripeSubscriptionId: text("stripe_subscription_id"),
+  status: text("status"),
+  plan: text("plan"),
+  currentPeriodEnd: timestamp("current_period_end"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export type Subscription = typeof subscriptions.$inferSelect;
+export type NewSubscription = typeof subscriptions.$inferInsert;
 
 /**
  * One row per saved eval/benchmark run (data/benchmarks/*.json), for tracking

@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 /* ----------------------------------------------------------------------------
    Design tokens
    Everything in the app references these by name — no inline hex in components.
@@ -90,6 +92,9 @@
   --duration-base: 200ms;
   --duration-slow: 320ms;
 
+  --gradient-border-fill: #ffffff;
+  --gradient-button-fill: #171717;
+
   /* brand gradient ring (used by .gradient-border / .gradient-border-button) */
   --brand-ring: linear-gradient(
     to right,
@@ -101,9 +106,38 @@
   );
 }
 
-/* Force light mode - ignore system dark mode preference */
+.dark {
+  --background: #0a0a0a;
+  --foreground: #fafafa;
+  --gradient-border-fill: #0a0a0a;
+  --gradient-button-fill: #262626;
+
+  --color-background: #0a0a0a;
+  --color-foreground: #fafafa;
+  --color-surface: #0a0a0a;
+  --color-surface-muted: #262626;
+  --color-surface-subtle: #171717;
+  --color-border: #262626;
+  --color-border-strong: #404040;
+  --color-input: #262626;
+  --color-ring: #fafafa;
+  --color-accent: #262626;
+  --color-accent-foreground: #fafafa;
+  --color-muted: #262626;
+  --color-muted-foreground: #a3a3a3;
+
+  --brand-ring: linear-gradient(
+    to right,
+    var(--color-brand-1) 0%,
+    var(--color-brand-2) 30%,
+    rgba(255, 255, 255, 0.45) 49%,
+    var(--color-brand-3) 66%,
+    var(--color-brand-4) 100%
+  );
+}
+
 html {
-  color-scheme: light;
+  color-scheme: light dark;
 }
 
 body {
@@ -120,7 +154,7 @@ body {
   position: relative;
   border: 0.5px solid transparent;
   background:
-    linear-gradient(#fff, #fff) padding-box,
+    linear-gradient(var(--gradient-border-fill), var(--gradient-border-fill)) padding-box,
     var(--brand-ring) border-box;
   border-radius: 1rem;
 }
@@ -130,7 +164,7 @@ body {
 .gradient-border-button {
   border: 0.5px solid transparent;
   background:
-    linear-gradient(#171717, #171717) padding-box,
+    linear-gradient(var(--gradient-button-fill), var(--gradient-button-fill)) padding-box,
     var(--brand-ring) border-box;
   border-radius: 9999px;
 }
@@ -145,6 +179,10 @@ body {
 :where(a, button, [role="button"], input, textarea, select, [tabindex]):focus-visible {
   outline: 2px solid var(--color-ring);
   outline-offset: 2px;
+}
+
+.dark :where(a, button, [role="button"], input, textarea, select, [tabindex]):focus-visible {
+  outline-color: #fafafa;
 }
 
 /* ----------------------------------------------------------------------------
@@ -186,6 +224,11 @@ body {
   from { transform: translateY(8px) scale(0.98); }
   to { transform: translateY(0) scale(1); }
 }
+@keyframes gradientShift {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(30px, -30px) scale(1.1); }
+  66% { transform: translate(-20px, 20px) scale(0.95); }
+}
 
 .animate-fadeIn,
 .animate-fade-in { animation: fadeIn var(--duration-base) var(--ease-standard) both; }
@@ -221,6 +264,9 @@ body {
     transform: translateY(-2px);
     box-shadow: 0 8px 24px -8px rgb(0 0 0 / 0.12);
   }
+  .dark .card-hover:hover {
+    box-shadow: 0 8px 24px -8px rgb(0 0 0 / 0.35);
+  }
 
   .animate-toast {
     animation: toastIn var(--duration-base) var(--ease-out-soft) both;
@@ -249,6 +295,11 @@ body {
   .reveal.is-visible {
     opacity: 1;
     transform: none;
+  }
+
+  /* Hero background gradient animation */
+  .hero-gradient-blob {
+    animation: gradientShift 12s ease-in-out infinite;
   }
 }
 

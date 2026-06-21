@@ -7,13 +7,10 @@ import {
 } from "@/lib/course-visibility";
 import { and, eq } from "drizzle-orm";
 import { handleApiError } from "@/lib/utils/api-errors";
+import { getAuthUserId } from "@/lib/utils/clerk-auth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-function getRequestUserId(request: NextRequest): string | null {
-  return request.headers.get("X-User-ID") || request.headers.get("X-Session-ID");
-}
 
 // GET /api/courses/[slug] - Fetch a course by slug
 export async function GET(
@@ -22,7 +19,7 @@ export async function GET(
 ) {
   try {
     const { slug } = await params;
-    const userId = getRequestUserId(request);
+    const userId = await getAuthUserId(request);
 
     if (!slug) {
       return NextResponse.json(
@@ -81,7 +78,7 @@ export async function PATCH(
 ) {
   try {
     const { slug } = await params;
-    const userId = getRequestUserId(request);
+    const userId = await getAuthUserId(request);
 
     if (!slug) {
       return NextResponse.json(
@@ -92,7 +89,7 @@ export async function PATCH(
 
     if (!userId) {
       return NextResponse.json(
-        { error: "User session is required" },
+        { error: "Authentication required" },
         { status: 401 }
       );
     }
@@ -164,7 +161,7 @@ export async function DELETE(
 ) {
   try {
     const { slug } = await params;
-    const userId = getRequestUserId(request);
+    const userId = await getAuthUserId(request);
 
     if (!slug) {
       return NextResponse.json(
@@ -175,7 +172,7 @@ export async function DELETE(
 
     if (!userId) {
       return NextResponse.json(
-        { error: "User session is required" },
+        { error: "Authentication required" },
         { status: 401 }
       );
     }

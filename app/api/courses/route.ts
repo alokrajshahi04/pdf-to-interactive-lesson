@@ -8,18 +8,15 @@ import {
 import { generateSlug, ensureUniqueSlug } from "@/lib/utils/slug";
 import { eq, desc } from "drizzle-orm";
 import { handleApiError } from "@/lib/utils/api-errors";
+import { getAuthUserId } from "@/lib/utils/clerk-auth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-function getRequestUserId(request: NextRequest): string | null {
-  return request.headers.get("X-User-ID") || request.headers.get("X-Session-ID");
-}
-
-// GET /api/courses - List courses owned by this browser/session
+// GET /api/courses - List courses owned by this user/session
 export async function GET(request: NextRequest) {
   try {
-    const userId = getRequestUserId(request);
+    const userId = await getAuthUserId(request);
 
     if (!userId) {
       return NextResponse.json(
@@ -66,7 +63,7 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const { course, slug: providedSlug } = body;
-    const userId = getRequestUserId(request);
+    const userId = await getAuthUserId(request);
 
     if (!course || !course.title) {
       return NextResponse.json(

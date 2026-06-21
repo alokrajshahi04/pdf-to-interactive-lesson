@@ -3,10 +3,12 @@
 import { useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { BookOpen, KeyRound, Star } from "lucide-react";
+import { useUser } from "@clerk/nextjs";
 import { useCredits } from "../hooks/use-credits";
 import { ApiKeyDialog } from "./api-key-dialog";
 import { Button, buttonVariants } from "./ui/button";
 import { getApiKey } from "@/lib/api-key-storage";
+import { UserMenu } from "./user-menu";
 
 const API_KEY_CHANGE_EVENT = "api-key-storage-change";
 
@@ -67,6 +69,7 @@ function HeaderActions({ showCoursesLink }: HeaderActionsProps) {
           <Star className="w-3.5 h-3.5 fill-brand-2 text-brand-2" />
           <span className="hidden sm:inline">Star on GitHub</span>
         </a>
+
         {showCreditsChip && (!loaded ? (
           // Reserve the chip immediately so it appears with the rest of the
           // header; the number fills in once the credit check resolves.
@@ -87,6 +90,7 @@ function HeaderActions({ showCoursesLink }: HeaderActionsProps) {
             <span className="sm:hidden">left</span>
           </div>
         ) : null)}
+
         {showCoursesLink && (
           <Link
             href="/courses"
@@ -96,6 +100,7 @@ function HeaderActions({ showCoursesLink }: HeaderActionsProps) {
             Courses
           </Link>
         )}
+
         <Button
           variant="secondary"
           size="sm"
@@ -105,8 +110,36 @@ function HeaderActions({ showCoursesLink }: HeaderActionsProps) {
           <KeyRound className="w-3.5 h-3.5" />
           API Key
         </Button>
+
+        <AuthSection />
       </div>
     </>
+  );
+}
+
+function AuthSection() {
+  const { isSignedIn, user } = useUser();
+
+  if (isSignedIn && user) {
+    return (
+      <UserMenu
+        user={{
+          name: user.fullName || user.primaryEmailAddress?.emailAddress || "User",
+          email: user.primaryEmailAddress?.emailAddress,
+          avatarUrl: user.imageUrl,
+          plan: "Free",
+        }}
+        onSignOut={() => {
+          // Clerk sign out is handled by UserMenu via redirect or clerk.signOut()
+        }}
+      />
+    );
+  }
+
+  return (
+    <Link href="/sign-in" className={buttonVariants({ variant: "secondary", size: "sm" })}>
+      Sign in
+    </Link>
   );
 }
 

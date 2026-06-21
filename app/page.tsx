@@ -3,17 +3,23 @@ import { ogImage, twitterImage } from "./seo";
 import { HomeClient } from "./home-client";
 
 export const metadata: Metadata = {
-  title: "PDF to Interactive Lesson Generator",
-  description: "Upload a PDF and transform it into an interactive learning experience",
+  title: "PDF to Interactive Lesson | Turn PDFs into AI Courses",
+  description:
+    "Upload any PDF and transform it into a personalized, interactive AI course with quizzes, lessons, and progress tracking.",
   openGraph: {
-    title: "PDF to Interactive Lesson Generator",
-    description: "Upload a PDF and transform it into an interactive learning experience",
+    title: "PDF to Interactive Lesson | Turn PDFs into AI Courses",
+    description:
+      "Upload any PDF and transform it into a personalized, interactive AI course with quizzes, lessons, and progress tracking.",
     images: [ogImage],
   },
   twitter: {
-    title: "PDF to Interactive Lesson Generator",
-    description: "Upload a PDF and transform it into an interactive learning experience",
+    title: "PDF to Interactive Lesson | Turn PDFs into AI Courses",
+    description:
+      "Upload any PDF and transform it into a personalized, interactive AI course with quizzes, lessons, and progress tracking.",
     images: [twitterImage],
+  },
+  alternates: {
+    canonical: "https://lesson.tolti.app",
   },
 };
 
