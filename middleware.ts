@@ -11,11 +11,11 @@ const isPublicRoute = createRouteMatcher([
 ]);
 
 // Temporary: skip Clerk auth if keys are not configured (prevents 500s during setup)
+const pk = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
+const sk = process.env.CLERK_SECRET_KEY;
 const clerkConfigured =
-  process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY &&
-  process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY.startsWith("pk_") &&
-  process.env.CLERK_SECRET_KEY &&
-  process.env.CLERK_SECRET_KEY.startsWith("sk_");
+  pk && (pk.startsWith("pk_test_") || pk.startsWith("pk_live_")) &&
+  sk && (sk.startsWith("sk_test_") || sk.startsWith("sk_live_"));
 
 export default clerkConfigured
   ? clerkMiddleware(async (auth, req) => {
